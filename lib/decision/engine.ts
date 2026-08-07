@@ -14,8 +14,8 @@ function confidence(d:DestinationSeed,s:number):TripRecommendation["confidence"]
 function similarity(a:DestinationSeed,b:DestinationSeed){ let p=0; if(a.country===b.country)p+=34; if(a.region===b.region)p+=8; p+=a.tags.filter(t=>b.tags.includes(t)).length*8; return p; }
 function role(i:number,r:TripRequest,d:DestinationSeed,m:MonthKey){ if(i===0)return"BEST MATCH"; if(r.refinement==="warmer"||d.warmth[m]>86)return"WARMER OPTION"; if(d.budgetBand[0]<=r.budget*.75)return"SMART VALUE"; if(d.travelEffort>=86)return"LOWER EFFORT"; return i===1?"STRONG ALTERNATIVE":"WILDCARD"; }
 
-export function recommendTrips(request:TripRequest):TripRecommendation[]{
-  const scored=destinationSeeds.map(destination=>{
+export function recommendTrips(request:TripRequest,destinations:DestinationSeed[]=destinationSeeds):TripRecommendation[]{
+  const scored=destinations.map(destination=>{
     const month=monthFor(request,destination); const constraints=(durationScore(request,destination)+destination.travelerFit[request.travelerType])/2; const intent=intentScore(request,destination); const season=destination.season[month]; const transport=destination.travelEffort; const budget=budgetScore(request,destination); const evidence=evidenceScore(destination); const refinement=refinementBonus(request,destination,month);
     const eligible=!(request.budget<destination.budgetBand[0]*.62)&&season>=48&&!(destination.evidenceStatus==="stale"&&request.month!=="september");
     const base=constraints*.25+intent*.2+season*.2+transport*.15+budget*.12+evidence*.08; return {destination,month,constraints,intent,season,transport,budget,evidence,score:clamp(base+(request.refinement?refinement*.09:0)),eligible};
