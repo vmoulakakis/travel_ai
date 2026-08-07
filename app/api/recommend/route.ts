@@ -13,11 +13,11 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid trip request", details: parsed.errors }, { status: 400 });
 
   try {
-    const universe = await loadAffiliateUniverse(parsed.data, 100);
-    if (universe.length < 3) return NextResponse.json({ error: "Not enough active affiliate destinations for this period" }, { status: 422 });
-    const ranked = rankAffiliateCandidates(parsed.data, universe, 18);
+    const universe = await loadAffiliateUniverse(parsed.data, 140);
+    if (universe.length < 5) return NextResponse.json({ error: "Not enough active affiliate destinations for this period" }, { status: 422 });
+    const ranked = rankAffiliateCandidates(parsed.data, universe, 28);
     const guru = await runTravelGuru(parsed.data, ranked);
-    if (guru.recommendations.length !== 3) return NextResponse.json({ error: "Travel Guru could not produce three valid feed-backed choices" }, { status: 422 });
+    if (guru.recommendations.length !== 5) return NextResponse.json({ error: "Travel Guru could not produce five valid feed-backed choices" }, { status: 422 });
 
     return NextResponse.json({
       request: parsed.data,

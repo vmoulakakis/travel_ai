@@ -63,6 +63,7 @@ export interface AffiliateOffer {
   fullPrice?: number | null;
   discount?: number | null;
   demandSignal?: number | null;
+  starLevel?: number | null;
   modelName?: string | null;
   brandName?: string | null;
   custom?: unknown;
@@ -78,6 +79,8 @@ export interface AffiliateDestinationCandidate {
   longitude?: number | null;
   propertyCount: number;
   activeOfferCount: number;
+  fiveStarOfferCount: number;
+  alternativeOfferCount: number;
   minPrice?: number | null;
   medianPrice?: number | null;
   maxPrice?: number | null;
@@ -99,6 +102,7 @@ export interface GuruScoreBreakdown {
   deal: number;
   intent: number;
   effort: number;
+  luxury: number;
 }
 
 export interface GuruRecommendation {
@@ -115,8 +119,12 @@ export interface GuruRecommendation {
   feedPriceLabel: string;
   propertyCount: number;
   activeOfferCount: number;
+  fiveStarOfferCount: number;
+  alternativeOfferCount: number;
   demandScore: number;
   maxDiscount?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
   distanceKm?: number | null;
   breakdown: GuruScoreBreakdown;
   offers: AffiliateOffer[];
@@ -130,4 +138,59 @@ export interface GuruRecommendationResponse {
   candidateCount: number;
   affiliateOnly: true;
   recommendations: GuruRecommendation[];
+}
+
+export interface AffiliateDestinationDetailResponse {
+  version: number;
+  source: "linkwise-json-only";
+  range: string;
+  generatedAt: string;
+  destinationId: string;
+  offerCount: number;
+  fiveStarCount: number;
+  destination?: {
+    location_label?: string | null;
+    centroid_latitude?: number | null;
+    centroid_longitude?: number | null;
+    hero_image_url?: string | null;
+    property_count?: number | null;
+    offer_count?: number | null;
+    min_price?: number | null;
+    median_price?: number | null;
+    max_price?: number | null;
+    demand_score?: number | null;
+    valid_to_max?: string | null;
+  } | null;
+  premiumOffers: AffiliateOffer[];
+  premiumFill: AffiliateOffer[];
+  alternatives: AffiliateOffer[];
+}
+
+export interface TripadvisorPlace {
+  id: string;
+  name: string;
+  category: "RESTAURANT" | "ATTRACTION" | "HOTEL" | "OTHER";
+  rating?: number | null;
+  reviewCount?: number | null;
+  imageUrl?: string | null;
+  address?: string | null;
+  distanceKm?: number | null;
+  attribution?: string | null;
+}
+
+export interface TripadvisorReview {
+  id: string;
+  title?: string | null;
+  text?: string | null;
+  rating?: number | null;
+  publishedDate?: string | null;
+  author?: string | null;
+}
+
+export interface DestinationInsightsResponse {
+  source: "tripadvisor-terra" | "not-configured" | "unavailable";
+  restaurants: TripadvisorPlace[];
+  attractions: TripadvisorPlace[];
+  reviews: TripadvisorReview[];
+  attributionRequired: boolean;
 }

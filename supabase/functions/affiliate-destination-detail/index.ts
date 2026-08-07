@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json","cache-control":"public, max-age=45, s-maxage=180","access-control-allow-origin":"*"}});
+const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json","cache-control":"public, max-age=30, s-maxage=120","access-control-allow-origin":"*"}});
 
 function bounds(raw:string|null){
   const now=new Date();
@@ -21,14 +21,15 @@ Deno.serve(async(req:Request)=>{
   const key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!base||!key)return json({error:"Runtime credentials missing"},500);
   const url=new URL(req.url);
+  const destinationId=url.searchParams.get("destination_id");
   const range=bounds(url.searchParams.get("month"));
-  const limit=Math.max(15,Math.min(Number(url.searchParams.get("limit")||100),160));
-  const rpc=await fetch(`${base}/rest/v1/rpc/get_affiliate_travel_candidates_v2`,{
+  if(!destinationId)return json({error:"destination_id required"},400);
+  const rpc=await fetch(`${base}/rest/v1/rpc/get_affiliate_destination_detail`,{
     method:"POST",
     headers:{apikey:key,Authorization:`Bearer ${key}`,"content-type":"application/json"},
-    body:JSON.stringify({p_start:range.start,p_end:range.end,p_limit:limit})
+    body:JSON.stringify({p_destination_id:destinationId,p_start:range.start,p_end:range.end})
   });
-  if(!rpc.ok)return json({error:"Affiliate universe unavailable",detail:await rpc.text()},502);
-  const candidates=await rpc.json();
-  return json({version:3,source:"linkwise-json-only",range:range.value,generatedAt:new Date().toISOString(),candidateCount:Array.isArray(candidates)?candidates.length:0,candidates});
+  if(!rpc.ok)return json({error:"Destination detail unavailable",detail:await rpc.text()},502);
+  const payload=await rpc.json();
+  return json({version:1,source:"linkwise-json-only",range:range.value,generatedAt:new Date().toISOString(),...payload});
 });
