@@ -19,6 +19,7 @@ type DbDestination = {
   tags: string[];
   evidence_status: EvidenceStatus;
   evidence_note: string;
+  image_url?: string | null;
 };
 
 type DecisionDataResponse = { destinations?: DbDestination[] };
@@ -43,7 +44,8 @@ function mapDestination(row: DbDestination): DestinationSeed {
     warmth: Object.fromEntries(months.map((key) => [key, num(row.warmth?.[key])])) as DestinationSeed["warmth"],
     tags: Array.isArray(row.tags) ? row.tags : [],
     evidenceStatus: row.evidence_status ?? "seed-estimate",
-    evidenceNote: row.evidence_note ?? "Imported travel intelligence; verify before booking claims."
+    evidenceNote: row.evidence_note ?? "Imported travel intelligence; verify before booking claims.",
+    imageUrl: row.image_url ?? undefined
   };
 }
 
@@ -52,7 +54,7 @@ export async function loadDestinationSeeds(): Promise<{ destinations: Destinatio
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4500);
   try {
-    const response = await fetch(url, { signal: controller.signal, cache: "no-store", headers: { "user-agent": "travel-ai/2.0" } });
+    const response = await fetch(url, { signal: controller.signal, cache: "no-store", headers: { "user-agent": "travel-ai/3.0" } });
     if (!response.ok) throw new Error(`Decision data ${response.status}`);
     const payload = await response.json() as DecisionDataResponse;
     const mapped = (payload.destinations ?? []).map(mapDestination).filter((item) => item.id && item.name);
