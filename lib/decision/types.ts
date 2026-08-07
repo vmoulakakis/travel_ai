@@ -40,5 +40,6 @@ export interface RecommendationResponse {
   request: TripRequest;
   generatedAt: string;
   mode: "deepseek-assisted" | "deterministic-fallback";
+  dataSource: "supabase" | "seed-fallback";
   recommendations: TripRecommendation[];
 }
