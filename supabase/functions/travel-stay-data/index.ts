@@ -52,13 +52,29 @@ Deno.serve(async (req: Request) => {
     .limit(limit);
   if (placesError) return new Response(JSON.stringify({ error: "Stay lookup failed" }), { status: 500, headers: cors });
 
+  const safeSignals = (signals ?? []).map((signal) => ({
+    ...signal,
+    min_price: signal.currency ? signal.min_price : null,
+    median_price: signal.currency ? signal.median_price : null,
+    max_price: signal.currency ? signal.max_price : null,
+    priceObservedWithoutCurrency: !signal.currency && signal.min_price != null
+  }));
+
+  const safePlaces = (places ?? []).map((place) => ({
+    ...place,
+    min_price: place.currency ? place.min_price : null,
+    max_price: place.currency ? place.max_price : null,
+    priceObservedWithoutCurrency: !place.currency && place.min_price != null,
+    outboundEligible: false
+  }));
+
   return new Response(JSON.stringify({
     mapped: true,
     destination,
     terms,
-    signals: signals ?? [],
-    places: (places ?? []).map((place) => ({ ...place, outboundEligible: false })),
+    signals: safeSignals,
+    places: safePlaces,
     source: "linkwise-feed-89-99-109",
-    disclosure: "Stay supply and prices are feed observations. Affiliate outbound remains fail-closed until program/property/tracking eligibility is verified."
+    disclosure: "Stay supply and prices are feed observations. Prices without an explicit feed currency are not rendered as currency amounts. Affiliate outbound remains fail-closed until program/property/tracking eligibility is verified."
   }), { headers: { ...cors, "cache-control": "public, max-age=300, stale-while-revalidate=1800" } });
 });
