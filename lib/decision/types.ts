@@ -19,6 +19,7 @@ export interface DestinationSeed {
   tags: string[];
   evidenceStatus: EvidenceStatus;
   evidenceNote: string;
+  imageUrl?: string;
 }
 
 export interface TripRecommendation {
@@ -33,6 +34,7 @@ export interface TripRecommendation {
   estimatedBudget: string;
   freshness: EvidenceStatus;
   risk: string;
+  imageUrl?: string;
   breakdown: { constraints: number; intent: number; season: number; transport: number; budget: number; evidence: number };
 }
 
