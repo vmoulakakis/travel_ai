@@ -1,4 +1,5 @@
 import { AdminCsvImporter } from "@/components/admin-csv-importer";
+import "./admin.css";
 
 const checks=[
  ["DeepSeek V4 Pro",Boolean(process.env.DEEPSEEK_API_KEY),"AI explanation layer. Deterministic ranking still works without it."],
