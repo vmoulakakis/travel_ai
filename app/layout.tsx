@@ -9,18 +9,18 @@ const resolvedSiteUrl = process.env.NEXT_PUBLIC_SITE_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(resolvedSiteUrl),
-  title: { default: "Travel AI — 3 trips chosen for you", template: "%s · Travel AI" },
-  description: "Travel decision intelligence for short escapes: dates, budget, season and intent become exactly three realistic trip options.",
+  title: { default: "Travel Guru — 3 affiliate-backed escapes chosen for you", template: "%s · Travel Guru" },
+  description: "An AI travel decision agent that reads the live affiliate inventory, filters it to your dates, budget and intent, and returns exactly three feed-backed places with tracked stay offers.",
   alternates: { canonical: "/" },
   robots: { index: true, follow: true },
   openGraph: {
-    title: "Travel AI — 3 trips chosen for you",
-    description: "Decide where you can realistically go, then make the trip happen.",
+    title: "Travel Guru — Tell me the escape. I’ll find the three.",
+    description: "Exactly three travel recommendations, chosen from the current Linkwise feed only.",
     type: "website",
     locale: "en_GB",
-    siteName: "Travel AI"
+    siteName: "Travel Guru"
   },
-  twitter: { card: "summary_large_image", title: "Travel AI — 3 trips chosen for you", description: "Decision before booking." }
+  twitter: { card: "summary_large_image", title: "Travel Guru — 3 feed-backed picks", description: "JSON facts → deterministic shortlist → AI judgement → exact tracked links." }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
