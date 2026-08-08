@@ -66,8 +66,7 @@ async function runDeepSeekVoice(request: TripRequest, ranked: V8Ranked[], prefer
   const mission = preference === "creative"
     ? "Choose the finalist that best matches the human purpose and rhythm of the trip."
     : "Challenge timing, effort, budget, season and evidence, then choose the strongest survivor.";
-  const outputLanguage = request.language === "en" ? "English" : "Greek";
-  const instructions = `You are the ${role}. ${mission} You must inspect the supplied evidence before deciding. Never invent travel facts. The final verdict MUST be written entirely in ${outputLanguage}. Never mention technical systems, scores, models or providers. Your final response must be one JSON object like {"pickSlug":"nafplio","verdict":"...","confidence":"HIGH"}.`;
+  const instructions = `You are the ${role}. ${mission} You must inspect the supplied evidence before deciding. Never invent travel facts. Use natural Greek when the request language is Greek. Never mention technical systems, scores, models or providers. Your final response must be one JSON object like {"pickSlug":"nafplio","verdict":"...","confidence":"HIGH"}.`;
   const tools = [{ type: "function", function: { name: "inspectEvidence", description: "Read the verified traveler brief and finalist evidence.", parameters: { type: "object", properties: { focus: { type: "string", enum: ["desire", "risk", "tradeoffs"] } }, required: ["focus"], additionalProperties: false } } }];
   const requestBody = async (body: Record<string, unknown>) => {
     const response = await fetch(endpoint, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" }, body: JSON.stringify({ model, thinking: { type: "disabled" }, ...body }), signal: abortSignal, cache: "no-store" });
@@ -96,6 +95,13 @@ async function runDeepSeekVoice(request: TripRequest, ranked: V8Ranked[], prefer
   const match = ranked.find(x => [x.destination.slug, x.destination.nameEl, x.destination.nameEn].some(value => value.toLocaleLowerCase("el") === requestedPick));
   const parsed = outputSchema.safeParse({ ...raw, pickSlug: match?.destination.slug ?? requestedPick, confidence: String(raw.confidence ?? "MEDIUM").toUpperCase() });
   if (!parsed.success || !match || containsForbiddenTechnicalText(parsed.data.verdict)) return null;
+  if (request.language !== "en" && !/[Α-Ωα-ωΆ-ώ]/.test(parsed.data.verdict)) {
+    const name = match.destination.nameEl;
+    const verdict = preference === "creative"
+      ? `${name}: υπηρετεί καλύτερα τον σκοπό, τη διάθεση και τον ρυθμό που ζήτησες για αυτό το ταξίδι.`
+      : `${name}: παραμένει η πιο ισορροπημένη επιλογή μετά τον έλεγχο εποχής, μετακίνησης και κόστους.`;
+    return { ...parsed.data, verdict };
+  }
   return parsed.data;
 }
 
