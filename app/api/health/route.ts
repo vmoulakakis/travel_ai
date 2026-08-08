@@ -1,42 +1,12 @@
 import { NextResponse } from "next/server";
+import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const runtime="nodejs";
+export const dynamic="force-dynamic";
 
-export async function GET() {
-  const dataUrl = process.env.SUPABASE_DECISION_DATA_URL ?? "https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/travel-decision-data";
-  let supabaseDecisionData = false;
-  let destinationCount = 0;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 4500);
-  try {
-    const response = await fetch(dataUrl, { signal: controller.signal, cache: "no-store" });
-    if (response.ok) {
-      const payload = await response.json() as { destinations?: unknown[] };
-      destinationCount = Array.isArray(payload.destinations) ? payload.destinations.length : 0;
-      supabaseDecisionData = destinationCount >= 3;
-    }
-  } catch {
-    supabaseDecisionData = false;
-  } finally {
-    clearTimeout(timer);
-  }
-
-  const body = {
-    ok: supabaseDecisionData,
-    version: "2.0",
-    commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 8) ?? "local",
-    environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
-    checks: {
-      supabaseDecisionData,
-      destinationCount,
-      deepseekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
-      linkwiseIngestConfigured: Boolean(process.env.SUPABASE_INGEST_URL && process.env.SUPABASE_INGEST_SECRET),
-      cronConfigured: Boolean(process.env.CRON_SECRET),
-      csvImportConfigured: Boolean(process.env.SUPABASE_CSV_IMPORT_URL && process.env.SUPABASE_INGEST_SECRET)
-    },
-    at: new Date().toISOString()
-  };
-
-  return NextResponse.json(body, { status: body.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
+export async function GET(){
+ let destinationKnowledge=false,destinationCount=0,domestic=0,abroad=0;
+ try{const catalog=await loadV8DestinationCatalog();destinationCount=catalog.length;domestic=catalog.filter(x=>x.countryCode==="GR").length;abroad=destinationCount-domestic;destinationKnowledge=destinationCount>=20&&domestic>0&&abroad>0}catch{destinationKnowledge=false}
+ const body={ok:destinationKnowledge,version:"8.0",architecture:"destination-first",commit:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,8)??"local",environment:process.env.VERCEL_ENV??process.env.NODE_ENV??"unknown",checks:{destinationKnowledge,destinationCount,domestic,abroad,serverEdgeSecretConfigured:Boolean(process.env.SUPABASE_INGEST_SECRET),deepseekIntentOptional:Boolean(process.env.DEEPSEEK_API_KEY),openaiVerifierOptional:Boolean(process.env.OPENAI_API_KEY),weatherBaseline:"NASA POWER climatology",v8TrainerConfigured:Boolean(process.env.SUPABASE_MATCH_TRAIN_URL||process.env.SUPABASE_INGEST_SECRET),cronConfigured:Boolean(process.env.CRON_SECRET)},at:new Date().toISOString()};
+ return NextResponse.json(body,{status:body.ok?200:503,headers:{"cache-control":"no-store"}})
 }
