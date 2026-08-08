@@ -11,7 +11,11 @@ function deepSeekModel(): LanguageModel | null {
     name: "travel-reasoner",
     apiKey,
     baseURL: `${process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com"}`.replace(/\/$/, ""),
-    supportsStructuredOutputs: true,
+    // DeepSeek's Chat Completions endpoint supports json_object, not OpenAI's
+    // json_schema response format. Non-thinking mode also keeps tool-result
+    // turns OpenAI-compatible and avoids carrying private reasoning forward.
+    supportsStructuredOutputs: false,
+    transformRequestBody: body => ({ ...body, thinking: { type: "disabled" } }),
   });
   return provider(process.env.DEEPSEEK_COUNCIL_MODEL || "deepseek-v4-flash");
 }
@@ -31,7 +35,7 @@ function selfHostedModel(): LanguageModel | null {
     name: "travel-local",
     apiKey: process.env.SELF_HOSTED_AI_API_KEY || "local",
     baseURL: baseURL.replace(/\/$/, ""),
-    supportsStructuredOutputs: true,
+    supportsStructuredOutputs: false,
   });
   return provider(model);
 }

@@ -69,11 +69,11 @@ async function runVoice(request: TripRequest, ranked: V8Ranked[], preference: Co
       ? "You are the Traveler Advocate. Call inspectEvidence first. Find the one finalist that best matches the human purpose of the trip without inventing facts. Use natural Greek when the request language is Greek. Never mention models, providers, APIs, scores or internal systems."
       : "You are the Skeptical Travel Editor. Call inspectEvidence first. Try to reject weak choices on timing, effort, budget, season or evidence. Then select the safest strong finalist. Use natural Greek when the request language is Greek. Never invent facts or mention technical systems.";
     try {
-      const agent = new ToolLoopAgent({ model, instructions, tools: { inspectEvidence }, output: Output.object({ schema: outputSchema }), stopWhen: isStepCount(3) });
+      const agent = new ToolLoopAgent({ model, instructions, tools: { inspectEvidence }, output: Output.object({ schema: outputSchema, name: "travel_verdict", description: "The independent travel verdict as a JSON object." }), stopWhen: isStepCount(3) });
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), remainingMs);
       try {
-        const result = await agent.generate({ prompt: "Review the evidence, call the tool, and return your independent verdict.", abortSignal: controller.signal });
+        const result = await agent.generate({ prompt: "Review the evidence, call the tool, then return only one JSON object with pickSlug, verdict, and confidence.", abortSignal: controller.signal });
         if (result.output && ranked.some(x => x.destination.slug === result.output.pickSlug)) return result.output;
       } finally {
         clearTimeout(timer);
