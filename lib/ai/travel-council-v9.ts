@@ -1,6 +1,7 @@
 import { Output, ToolLoopAgent, isStepCount, tool } from "ai";
 import { z } from "zod";
 import { councilModels, type CouncilModelPreference } from "@/lib/ai/model-router-v9";
+import { containsForbiddenTechnicalText } from "@/lib/continuity";
 import type { V8Ranked } from "@/lib/decision/v8-matcher";
 import type { TripRequest } from "@/lib/validation/trip";
 
@@ -53,11 +54,61 @@ function evidence(request: TripRequest, ranked: V8Ranked[]) {
   };
 }
 
+type DeepSeekMessage = { role: "system" | "user" | "assistant" | "tool"; content: string | null; tool_call_id?: string; tool_calls?: Array<{ id: string; type: "function"; function: { name: string; arguments: string } }> };
+
+async function runDeepSeekVoice(request: TripRequest, ranked: V8Ranked[], preference: CouncilModelPreference, abortSignal: AbortSignal) {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) return null;
+  const endpoint = `${process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com"}`.replace(/\/$/, "") + "/chat/completions";
+  const model = process.env.DEEPSEEK_COUNCIL_MODEL || "deepseek-v4-flash";
+  const packet = evidence(request, ranked);
+  const role = preference === "creative" ? "Traveler Advocate" : "Skeptical Travel Editor";
+  const mission = preference === "creative"
+    ? "Choose the finalist that best matches the human purpose and rhythm of the trip."
+    : "Challenge timing, effort, budget, season and evidence, then choose the strongest survivor.";
+  const instructions = `You are the ${role}. ${mission} You must inspect the supplied evidence before deciding. Never invent travel facts. Use natural Greek when request language is Greek. Never mention technical systems, scores, models or providers. Your final response must be one JSON object like {"pickSlug":"nafplio","verdict":"...","confidence":"HIGH"}.`;
+  const tools = [{ type: "function", function: { name: "inspectEvidence", description: "Read the verified traveler brief and finalist evidence.", parameters: { type: "object", properties: { focus: { type: "string", enum: ["desire", "risk", "tradeoffs"] } }, required: ["focus"], additionalProperties: false } } }];
+  const requestBody = async (body: Record<string, unknown>) => {
+    const response = await fetch(endpoint, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" }, body: JSON.stringify({ model, thinking: { type: "disabled" }, ...body }), signal: abortSignal, cache: "no-store" });
+    if (!response.ok) throw new Error("council unavailable");
+    return await response.json() as { choices?: Array<{ message?: DeepSeekMessage }> };
+  };
+  const first = await requestBody({ messages: [{ role: "system", content: instructions }, { role: "user", content: "Call inspectEvidence before making any decision." }], tools, tool_choice: { type: "function", function: { name: "inspectEvidence" } }, max_tokens: 160 });
+  const assistant = first.choices?.[0]?.message;
+  const call = assistant?.tool_calls?.find(item => item.function.name === "inspectEvidence");
+  if (!assistant || !call) throw new Error("evidence tool not called");
+  const messages: DeepSeekMessage[] = [
+    { role: "system", content: instructions },
+    { role: "user", content: "Call inspectEvidence before making any decision." },
+    { role: "assistant", content: assistant.content, tool_calls: assistant.tool_calls },
+    { role: "tool", tool_call_id: call.id, content: JSON.stringify(packet) },
+    { role: "user", content: "Return only the final JSON object now." },
+  ];
+  const second = await requestBody({ messages, response_format: { type: "json_object" }, max_tokens: 260 });
+  const content = second.choices?.[0]?.message?.content;
+  if (!content) throw new Error("empty verdict");
+  const parsed = outputSchema.safeParse(JSON.parse(content));
+  if (!parsed.success || !ranked.some(x => x.destination.slug === parsed.data.pickSlug) || containsForbiddenTechnicalText(parsed.data.verdict)) return null;
+  return parsed.data;
+}
+
 async function runVoice(request: TripRequest, ranked: V8Ranked[], preference: CouncilModelPreference) {
   const packet = evidence(request, ranked);
   const startedAt = Date.now();
-  const totalBudgetMs = 6_000;
-  for (const model of councilModels(preference)) {
+  const totalBudgetMs = 9_000;
+  if (process.env.DEEPSEEK_API_KEY) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), totalBudgetMs);
+    try {
+      const verdict = await runDeepSeekVoice(request, ranked, preference, controller.signal);
+      if (verdict) return verdict;
+    } catch {
+      // Continue to another configured council only when the private agent could not finish.
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  for (const model of councilModels(preference, false)) {
     const remainingMs = totalBudgetMs - (Date.now() - startedAt);
     if (remainingMs < 900) break;
     const inspectEvidence = tool({
