@@ -107,10 +107,14 @@ async function runVoice(request: TripRequest, ranked: V8Ranked[], preference: Co
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), totalBudgetMs);
     try {
-      const verdict = await runDeepSeekVoice(request, ranked, preference, controller.signal);
-      if (verdict) return verdict;
-    } catch {
-      // Continue to another configured council only when the private agent could not finish.
+      for (let attempt = 0; attempt < 2 && !controller.signal.aborted; attempt += 1) {
+        try {
+          const verdict = await runDeepSeekVoice(request, ranked, preference, controller.signal);
+          if (verdict) return verdict;
+        } catch {
+          // One bounded retry absorbs transient or harmless formatting failures.
+        }
+      }
     } finally {
       clearTimeout(timer);
     }
