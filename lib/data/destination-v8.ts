@@ -7,7 +7,7 @@ const text=(v:unknown)=>typeof v==="string"&&v.trim()?v.trim():null;
 const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
 function vector(v:unknown){if(Array.isArray(v))return v.map(Number).filter(Number.isFinite).slice(0,16);if(typeof v!=="string")return[];return v.replace(/^\[/,"").replace(/\]$/,"").split(",").map(Number).filter(Number.isFinite).slice(0,16)}
 function cleanHtml(v:string|null){return v?v.replace(/<[^>]*>/g," ").replace(/&nbsp;/gi," ").replace(/\s+/g," ").trim():null}
-function appHeaders(){const secret=process.env.SUPABASE_INGEST_SECRET;if(!secret)throw new Error("Server matching secret not configured");return{"x-app-secret":secret,"user-agent":"travel-ai-v8/1.0"}}
+function readHeaders():Record<string,string>{const headers:Record<string,string>={"user-agent":"travel-guru/1.0"},secret=process.env.SUPABASE_INGEST_SECRET;if(secret)headers["x-app-secret"]=secret;return headers}
 
 function mapDestination(row:Record<string,unknown>):V8Destination|null{
  const slug=text(row.slug),nameEl=text(row.name_el),nameEn=text(row.name_en),countryCode=text(row.country_code),countryEl=text(row.country_el),countryEn=text(row.country_en),lat=num(row.latitude),lon=num(row.longitude),vec=vector(row.semantic_vector);
@@ -21,7 +21,7 @@ function mapDestination(row:Record<string,unknown>):V8Destination|null{
 }
 
 export async function loadV8DestinationCatalog():Promise<V8Destination[]>{
- const response=await fetch(CATALOG_URL,{cache:"no-store",headers:appHeaders(),signal:AbortSignal.timeout(4500)});
+ const response=await fetch(CATALOG_URL,{cache:"no-store",headers:readHeaders(),signal:AbortSignal.timeout(4500)});
  if(!response.ok)throw new Error(`Destination catalog ${response.status}`);
  const payload=await response.json() as {destinations?:Array<Record<string,unknown>>};
  const rows=(payload.destinations??[]).map(mapDestination).filter((x):x is V8Destination=>Boolean(x));
@@ -39,6 +39,6 @@ function mapOffer(row:Record<string,unknown>):V8StayOffer|null{
 
 export async function loadV8StayOffers(slug:string,startDate:string,endDate:string,limit=18):Promise<V8StayOffer[]>{
  const url=new URL(STAYS_URL);url.searchParams.set("slug",slug);url.searchParams.set("start_date",startDate);url.searchParams.set("end_date",endDate);url.searchParams.set("limit",String(Math.max(1,Math.min(30,limit))));
- const response=await fetch(url,{cache:"no-store",headers:appHeaders(),signal:AbortSignal.timeout(4500)});if(!response.ok)throw new Error(`Destination stays ${response.status}`);
+ const response=await fetch(url,{cache:"no-store",headers:readHeaders(),signal:AbortSignal.timeout(4500)});if(!response.ok)throw new Error(`Destination stays ${response.status}`);
  const payload=await response.json() as {offers?:Array<Record<string,unknown>>};return(payload.offers??[]).map(mapOffer).filter((x):x is V8StayOffer=>Boolean(x));
 }

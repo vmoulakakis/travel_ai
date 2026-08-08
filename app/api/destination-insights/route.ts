@@ -17,11 +17,12 @@ export async function GET(request: Request) {
   const nightsRaw = Number(url.searchParams.get("nights"));
   const nights = Number.isFinite(nightsRaw) ? Math.max(1, Math.min(21, Math.round(nightsRaw))) : null;
 
-  if (destination.length < 2 || destination.length > 140) return NextResponse.json({ error: "destination required" }, { status: 400 });
-  if (latitude != null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) return NextResponse.json({ error: "invalid latitude" }, { status: 400 });
-  if (longitude != null && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) return NextResponse.json({ error: "invalid longitude" }, { status: 400 });
+  const invalidMessage = lang === "en" ? "I need a valid destination to continue." : "Χρειάζομαι έναν έγκυρο προορισμό για να συνεχίσω.";
+  if (destination.length < 2 || destination.length > 140) return NextResponse.json({ message: invalidMessage }, { status: 400 });
+  if (latitude != null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) return NextResponse.json({ message: invalidMessage }, { status: 400 });
+  if (longitude != null && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) return NextResponse.json({ message: invalidMessage }, { status: 400 });
 
   const insights = await researchDestination({ destination, latitude, longitude, language: lang, travelerType, moods, nights });
-  const cache = insights.source === "deepseek-source-synthesis" ? "public, s-maxage=1800, stale-while-revalidate=21600" : "private, max-age=0";
+  const cache = insights.source === "verified-synthesis" ? "public, s-maxage=1800, stale-while-revalidate=21600" : "private, max-age=0";
   return NextResponse.json(insights, { headers: { "cache-control": cache } });
 }
