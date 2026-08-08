@@ -22,6 +22,6 @@ export async function GET(request: Request) {
   if (longitude != null && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) return NextResponse.json({ error: "invalid longitude" }, { status: 400 });
 
   const insights = await researchDestination({ destination, latitude, longitude, language: lang, travelerType, moods, nights });
-  const cache = insights.source === "openai-web-research" ? "public, s-maxage=1800, stale-while-revalidate=21600" : "private, max-age=0";
+  const cache = insights.source === "deepseek-source-synthesis" ? "public, s-maxage=1800, stale-while-revalidate=21600" : "private, max-age=0";
   return NextResponse.json(insights, { headers: { "cache-control": cache } });
 }
