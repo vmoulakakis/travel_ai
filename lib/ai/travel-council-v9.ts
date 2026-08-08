@@ -55,7 +55,11 @@ function evidence(request: TripRequest, ranked: V8Ranked[]) {
 
 async function runVoice(request: TripRequest, ranked: V8Ranked[], preference: CouncilModelPreference) {
   const packet = evidence(request, ranked);
+  const startedAt = Date.now();
+  const totalBudgetMs = 6_000;
   for (const model of councilModels(preference)) {
+    const remainingMs = totalBudgetMs - (Date.now() - startedAt);
+    if (remainingMs < 900) break;
     const inspectEvidence = tool({
       description: "Read the verified traveler brief and finalist evidence before giving a verdict.",
       inputSchema: z.object({ focus: z.enum(["desire", "risk", "tradeoffs"]) }),
@@ -67,7 +71,7 @@ async function runVoice(request: TripRequest, ranked: V8Ranked[], preference: Co
     try {
       const agent = new ToolLoopAgent({ model, instructions, tools: { inspectEvidence }, output: Output.object({ schema: outputSchema }), stopWhen: isStepCount(3) });
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 6_500);
+      const timer = setTimeout(() => controller.abort(), remainingMs);
       try {
         const result = await agent.generate({ prompt: "Review the evidence, call the tool, and return your independent verdict.", abortSignal: controller.signal });
         if (result.output && ranked.some(x => x.destination.slug === result.output.pickSlug)) return result.output;

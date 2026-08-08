@@ -13,7 +13,7 @@ function deepSeekModel(): LanguageModel | null {
     baseURL: `${process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com"}`.replace(/\/$/, ""),
     supportsStructuredOutputs: true,
   });
-  return provider(process.env.DEEPSEEK_MODEL || "deepseek-v4-pro");
+  return provider(process.env.DEEPSEEK_COUNCIL_MODEL || "deepseek-v4-flash");
 }
 
 function openAIModel(): LanguageModel | null {
