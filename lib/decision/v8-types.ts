@@ -1,5 +1,8 @@
 import type { WeatherEvidence, AffiliateOffer, Confidence } from "@/lib/decision/types";
 import type { TripRequest } from "@/lib/validation/trip";
+import type { SmartDateWindow } from "@/lib/decision/date-windows-v9";
+import type { TravelCouncilDecision } from "@/lib/ai/travel-council-v9";
+import type { ContinuityEnvelope } from "@/lib/continuity";
 
 export const V8_DIMENSIONS=["romantic","relax","food","culture","city","nature","beach","adventure","nightlife","family","luxury","value","warmth","wellness","short_break","shoulder_season"] as const;
 export type V8Dimension=typeof V8_DIMENSIONS[number];
@@ -72,18 +75,20 @@ export interface V8Recommendation {
   routeConfidence:number;
   breakdown:V8ScoreBreakdown;
   weather?:WeatherEvidence|null;
-  verifier?:{checked:boolean;passed:boolean;reason?:string|null;model?:string|null};
+  dateWindows?:SmartDateWindow[];
 }
 
 export interface V8RecommendationResponse {
-  version:8;
+  version:8|9;
+  experienceVersion?:9;
   request:TripRequest;
   generatedAt:string;
-  source:"destination-knowledge-v8";
+  source:"verified-travel-knowledge";
   intent:V8IntentProfile;
   catalogSize:number;
-  mode:"deterministic"|"deepseek-intent";
-  verifierUsed:boolean;
+  mode:"guided";
+  council?:TravelCouncilDecision;
+  continuity?:ContinuityEnvelope;
   recommendations:V8Recommendation[];
 }
 
@@ -94,10 +99,10 @@ export interface V8StayOffer extends AffiliateOffer {
 }
 
 export interface V8StayResponse {
-  version:8;
+  version:8|9;
   slug:string;
   startDate:string;
   endDate:string;
   offers:V8StayOffer[];
-  availabilityMeaning:"feed-validity-overlap-not-live-room-inventory";
+  availabilityMeaning:"confirm-before-booking";
 }

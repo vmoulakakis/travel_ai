@@ -2,18 +2,25 @@
   "name": "travel-ai-decision-engine",
   "version": "0.3.0",
   "private": true,
-  "engines": { "node": ">=20.9.0" },
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:v8": "tsx scripts/v8-matcher-smoke.ts"
+    "test:v8": "node --import tsx scripts/v8-matcher-smoke.ts",
+    "test:v9": "node --import tsx scripts/v9-continuity-smoke.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "4.0.36",
+    "@ai-sdk/openai-compatible": "3.0.27",
+    "ai": "7.0.58",
     "next": "16.2.11",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22",
