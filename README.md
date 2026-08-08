@@ -1,111 +1,154 @@
-# Travel AI — Travel Decision OS
+# Travel Guru V8 — Destination-First Travel AI
 
-Travel decision intelligence for short escapes, optimized first for travelers originating in Greece.
+Travel decision intelligence for travelers starting primarily from Greece.
 
-**Promise:** give the system your time, budget and travel intent; receive exactly three realistic trips, understand why they fit, refine the decision, then build a contextual Trip Basket.
+**Promise:** answer a few questions and get five genuinely different destination matches based on intent, dates, season, effort, duration, budget band and weather — **before hotel inventory enters the decision**.
 
-This is intentionally **not** a booking clone, chatbot wrapper, merchant directory or affiliate product grid.
-
-## V2 architecture
+## Core rule
 
 ```text
-React / Next.js UI
-      ↓
-/api/recommend
-      ↓
-Supabase Travel Intelligence → deterministic feasibility/ranking/diversity
-      ↓                                  ↓
-seed fallback                         exactly Top 3
-                                         ↓
-                                DeepSeek explanation
-                                         ↓
-                                    Trip Basket
+USER ANSWERS
+    ↓
+STRUCTURED SEMANTIC INTENT
+    ↓ optional free text only
+DEEPSEEK INTENT PARSER
+    ↓
+DESTINATION KNOWLEDGE V8
+    ↓
+SEASON + EFFORT + DURATION + BUDGET BAND
+    ↓
+WEATHER ON FINALISTS
+    ↓
+DIVERSITY + CONDITIONAL OPENAI VERIFIER
+    ↓
+EXACTLY 5 DESTINATIONS
+    ↓ user selects one
+GEOLOCATED LINKWISE STAYS
 ```
 
-### Facts → Engine → AI
+### What V8 deliberately does not do
 
-- **Supabase Travel Intelligence** stores destinations, evidence, route evidence and import audit data.
-- **Deterministic engine** owns constraint fit, seasonality, travel effort, budget fit, evidence score and diversity.
-- **DeepSeek V4 Pro** is an explanation/reasoning layer, never the source of truth for fares, schedules, stock or affiliate permissions.
-- **Commerce** happens only after destination selection and remains fail-closed until affiliate eligibility is verified.
+- Hotel count does **not** rank destinations.
+- Affiliate EPC, discount and merchant economics have **0%** destination weight.
+- Hotel descriptions do **not** define what a destination is.
+- Feed `location_label` is not trusted as destination identity.
+- Missing affiliate inventory does **not** invalidate a good destination match.
+- Feed validity overlap is not presented as live room availability.
+- OpenAI is not a travel planner or source of facts.
+
+## Destination Knowledge
+
+`destination_knowledge_v8` is the independent destination graph. The initial catalog contains 42 canonical places: 21 in Greece and 21 abroad. Every destination stores:
+
+- canonical names and aliases
+- latitude / longitude
+- semantic travel traits
+- 12-month suitability profile
+- ideal trip duration
+- qualitative cost tier
+- effort class from Athens and Thessaloniki
+- route confidence
+- crowd level
+- hotel matching radius
+
+The catalog is seeded by `0014_seed_destination_knowledge_v8.sql` and can be expanded without touching the matching engine.
+
+## Matching
+
+The production V8 score is explainable. Depending on intent, the normalized blend uses approximately:
+
+- Intent: 31–34%
+- Season: 16–18%
+- Effort: 12%
+- Duration: 9%
+- Budget band: 8–9%
+- Weather: 6–14%
+- Traveler fit: 7–8%
+- Crowd fit: 2–4%
+
+Explicit requirements can become feasibility guards. For example, a user explicitly asking for warmth cannot receive an off-season/cold beach destination merely because diversity would otherwise promote it.
+
+`npm run test:v8` contains mandatory regression scenarios for romantic/food, November warmth, low-budget city/culture and winter nature/relax matching. CI fails if these invariants regress.
+
+## AI roles
+
+### DeepSeek V4 Pro
+
+Optional. Structured answers require no LLM. DeepSeek is used only when the traveler adds natural-language intent such as “quiet, great food, not too touristy, easy to reach.” It converts that text to semantic preference weights. It does not name destinations or invent facts.
+
+### OpenAI
+
+Optional low-cost final consistency verifier. Default model: `gpt-5.4-nano`. It runs only when the numeric ranking is genuinely ambiguous or contains a risk signal. Clear ranking sets skip the call entirely.
+
+### Neural learning
+
+V8 learning is isolated under model version `v8-destination-ranker`.
+
+The trainer is a small 12→8→1 network and stays inactive until all of these are true:
+
+- at least 500 labeled candidate examples
+- at least 60 positive outcomes
+- at least 200 negative examples
+- balanced validation accuracy >= 0.75
+
+Until that gate passes, learned influence is zero. Training runs in Supabase and consumes no LLM tokens.
+
+## Stay matching
+
+Stays are fetched **only after destination selection**. `get_destination_stays_v8` links feed products to the selected destination using raw latitude/longitude plus canonical city aliases. Polluted values such as `city=all` are discarded.
+
+Only tracked Linkwise URLs are surfaced. If the feed omits currency, V8 does not display a monetary price. The UI explicitly tells users to confirm actual room availability with the merchant.
 
 ## Supabase
 
-Migrations live under `supabase/migrations`.
+V8 database assets:
 
-Edge Functions live under `supabase/functions`:
+- `destination_knowledge_v8`
+- `get_destination_catalog_v8()`
+- `get_destination_stays_v8()`
+- `v8_match_training_examples`
+- `matching_model_versions` → `v8-destination-ranker`
 
-- `travel-decision-data` — public, read-only curated travel decision data.
-- `ingest-linkwise-travel` — protected Linkwise ingestion.
-- `import-travel-csv` — protected CSV ingestion for product feeds, destinations, evidence or raw staging.
+V8 Edge Functions:
 
-Protected ingestion checks a SHA-256 hash stored in the private `app_secrets` table. The raw ingest secret is never committed to GitHub and no Supabase service-role key is required in Vercel.
+- `destination-catalog-v8`
+- `destination-stays-v8`
+- `match-learning`
+- `train-v8-ranker`
+- `ingest-linkwise-travel`
 
-## CSV import
+Server-to-edge reads use the existing hashed application secret. No Supabase service-role key is exposed to Vercel or the browser.
 
-Open `/admin`, choose a CSV dataset and upload the file. The Vercel route validates the admin secret, then forwards the CSV to Supabase using the server-only ingest secret.
+## Environment
 
-Auto-detection recognizes Linkwise-style product feeds containing `product_id`. Explicit modes also support:
-
-- `destinations`
-- `evidence`
-- `raw`
-
-Every import creates `import_jobs` and `import_rows` audit records.
-
-## Environment variables
-
-Copy `.env.example` and configure server secrets outside git.
-
-Required for the full production flow:
+Copy `.env.example`. Required for the destination catalog and stay lookup:
 
 ```text
-DEEPSEEK_API_KEY=
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-v4-pro
-DEEPSEEK_REASONING_EFFORT=high
-
-NEXT_PUBLIC_SUPABASE_URL=https://bgvgstpoypqbjnemqcqp.supabase.co
-SUPABASE_DECISION_DATA_URL=https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/travel-decision-data
-SUPABASE_INGEST_URL=https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/ingest-linkwise-travel
-SUPABASE_CSV_IMPORT_URL=https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/import-travel-csv
 SUPABASE_INGEST_SECRET=
 CRON_SECRET=
-ADMIN_SECRET=
 ```
 
-`ADMIN_SECRET` is optional; if omitted, the CSV admin route falls back to `CRON_SECRET`.
+DeepSeek and OpenAI keys are optional enhancements. See `.env.example` for the full contract.
 
-## Health and operations
+## Operations
 
-- `/api/health` — machine-readable runtime readiness.
-- `/admin` — environment readiness and CSV import control room.
-- `/api/jobs/linkwise` — Vercel Cron endpoint protected by `CRON_SECRET`.
+- `/api/health` — V8 destination-brain readiness
+- `/admin` — V8 architecture and import readiness
+- `/api/recommend` — V8 JSON recommendation endpoint
+- `/api/recommend/stream` — V8 progressive recommendation endpoint
+- `/api/destination-detail` — downstream geolocated stay lookup
+- `/api/jobs/linkwise` — protected feed ingestion
+- `/api/jobs/train-matcher` — protected V8 neural training gate
 
-Vercel sends `Authorization: Bearer $CRON_SECRET` to production cron invocations when the project variable is configured.
+## CI / deployment
 
-## Local development
+Every pull request runs:
 
 ```bash
 npm install
-cp .env.example .env.local
-npm run dev
+npm run typecheck
+npm run test:v8
+npm run build
 ```
 
-Without `DEEPSEEK_API_KEY`, recommendations still work in deterministic fallback mode. Without reachable Supabase decision data, the engine falls back to the local destination seed.
-
-## Deployment
-
-1. GitHub PR triggers CI and a Vercel Preview deployment.
-2. Verify `/`, `/api/health`, `/api/recommend` and `/admin` in Preview.
-3. Merge to `main` only after checks pass.
-4. Production cron runs only from the Production deployment.
-
-## Security
-
-- No raw API keys or ingest secrets in git.
-- No Supabase service-role key in Vercel.
-- Private database tables have RLS enabled and no browser policies.
-- Public destination data is exposed only through a constrained read-only Edge Function.
-- CSV import and Linkwise ingestion authenticate server-to-server.
-- Affiliate CTA remains fail-closed until approval, property, traffic-source, tracking and activity checks pass.
+Merge to `main` only after all four pass. Production should then be validated with `/api/health`, one deterministic matching request, one free-text request and a downstream stay lookup.

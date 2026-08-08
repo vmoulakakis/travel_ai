@@ -1,47 +1,24 @@
 import { NextResponse } from "next/server";
-import { runTravelGuru } from "@/lib/ai/travel-guru";
-import { verifyRecommendations } from "@/lib/ai/openai-verifier";
-import { loadAffiliateUniverse } from "@/lib/data/affiliate-universe";
-import { loadSemanticMatchData } from "@/lib/data/semantic-match";
-import { enrichCandidatesWithWeather, weatherGate } from "@/lib/data/weather";
-import { deterministicGuruFallback, rankAffiliateCandidates, seasonGate } from "@/lib/decision/affiliate-engine";
-import { attachSemanticProfiles } from "@/lib/decision/semantic-matcher";
+import { interpretIntentV8 } from "@/lib/ai/intent-v8";
+import { verifyV8 } from "@/lib/ai/openai-verifier-v8";
+import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
+import { recordV8RecommendationSession } from "@/lib/data/match-learning-v8";
+import { enrichV8Weather } from "@/lib/data/weather-v8";
+import { diversifyV8,finalRankV8,preRankV8,toRecommendationsV8,type V8Ranked } from "@/lib/decision/v8-matcher";
+import type { V8RecommendationResponse } from "@/lib/decision/v8-types";
 import { parseTripRequest } from "@/lib/validation/trip";
 
-export const runtime="nodejs";
-export const dynamic="force-dynamic";
+export const runtime="nodejs";export const dynamic="force-dynamic";
+function repair(selected:V8Ranked[],pool:V8Ranked[],reject:string[]){const bad=new Set(reject),kept=selected.filter(x=>!bad.has(x.destination.slug)),used=new Set(kept.map(x=>x.destination.slug));for(const x of pool){if(kept.length>=5)break;if(bad.has(x.destination.slug)||used.has(x.destination.slug))continue;kept.push(x);used.add(x.destination.slug)}return kept.slice(0,5)}
 
 export async function POST(request:Request){
-  const body=await request.json().catch(()=>null),parsed=parseTripRequest(body);
-  if(!parsed.success)return NextResponse.json({error:"Invalid trip request",details:parsed.errors},{status:400});
-  try{
-    const trip=parsed.data,travelMonth=Number(trip.startDate.slice(5,7));
-    const universe=await loadAffiliateUniverse(trip,150);
-    if(universe.length<5)return NextResponse.json({error:"Not enough tracked destinations overlap these exact dates"},{status:422});
-
-    const semanticBase=await loadSemanticMatchData(universe.map(c=>c.destinationId),travelMonth);
-    const semanticUniverse=attachSemanticProfiles(trip,universe,semanticBase);
-    const preRanked=rankAffiliateCandidates(trip,semanticUniverse,36,semanticBase.model);
-
-    const first=await enrichCandidatesWithWeather(trip,preRanked.slice(0,24).map(x=>x.candidate),24);
-    let gated=weatherGate(trip,first);
-    if(gated.length<8&&preRanked.length>24){const extra=await enrichCandidatesWithWeather(trip,preRanked.slice(24,36).map(x=>x.candidate),12);gated=weatherGate(trip,[...first,...extra]);}
-    if(gated.length<5)return NextResponse.json({error:"Not enough destinations passed weather screening"},{status:422});
-
-    const stayIds=gated.slice(0,18).flatMap(c=>c.topOffers.slice(0,5).map(o=>o.sourceProductId));
-    const semanticStays=await loadSemanticMatchData(gated.slice(0,18).map(c=>c.destinationId),travelMonth,stayIds);
-    const withStaySemantics=attachSemanticProfiles(trip,gated,semanticStays);
-    const ranked=rankAffiliateCandidates(trip,withStaySemantics,18,semanticStays.model),seasonReady=seasonGate(ranked);
-    if(seasonReady.length<5)return NextResponse.json({error:"Not enough destinations passed seasonality screening"},{status:422});
-
-    const guru=await runTravelGuru(trip,seasonReady);
-    let recommendations=guru.recommendations;
-    if(recommendations.length!==5)return NextResponse.json({error:"Matcher could not produce five valid choices"},{status:422});
-    const verification=await verifyRecommendations(trip,recommendations,seasonReady);
-    let corrected=false;
-    if(verification.checked&&!verification.passed){recommendations=deterministicGuruFallback(trip,seasonReady);corrected=true;}
-    recommendations=recommendations.map(x=>({...x,verifier:{checked:verification.checked,passed:true,reason:corrected?`Corrected after verifier: ${verification.reason??"ranking inconsistency"}`:verification.reason,model:verification.model}}));
-
-    return NextResponse.json({request:trip,generatedAt:new Date().toISOString(),mode:guru.mode,source:"linkwise+semantic-db",candidateCount:universe.length,weatherScreenedCount:seasonReady.length,affiliateOnly:true,recommendations,modelVersion:semanticStays.model.version,modelSampleCount:semanticStays.model.sample_count,verifierUsed:verification.checked},{headers:{"cache-control":"no-store"}});
-  }catch(error){return NextResponse.json({error:"Travel matching pipeline unavailable",detail:error instanceof Error?error.message:"unknown error"},{status:503})}
+ const body=await request.json().catch(()=>null),parsed=parseTripRequest(body);if(!parsed.success)return NextResponse.json({error:"Invalid trip request",details:parsed.errors},{status:400});
+ const trip=parsed.data,sessionId=crypto.randomUUID();
+ try{
+  const[intent,catalog]=await Promise.all([interpretIntentV8(trip),loadV8DestinationCatalog()]);const pre=preRankV8(trip,intent,catalog,14);if(pre.length<5)return NextResponse.json({error:"Not enough destination candidates"},{status:422});
+  const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),12),ranked=finalRankV8(trip,intent,pre,weather),selected=diversifyV8(ranked,5),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,8),verification=await verifyV8(trip,verifyPool),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected;
+  const recommendations=toRecommendationsV8(trip,fixed).map(x=>({...x,verifier:{checked:verification.checked,passed:true,reason:verification.reason,model:verification.model}}));
+  const result:V8RecommendationResponse={version:8,request:trip,generatedAt:new Date().toISOString(),source:"destination-knowledge-v8",intent,catalogSize:catalog.length,mode:intent.source==="structured+deepseek"?"deepseek-intent":"deterministic",verifierUsed:verification.checked,recommendations};
+  const response=NextResponse.json(result,{headers:{"cache-control":"no-store"}});response.cookies.set("travel_match_session",sessionId,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:7776000});void recordV8RecommendationSession(sessionId,trip,intent,recommendations);return response;
+ }catch(error){return NextResponse.json({error:"V8 matching unavailable",detail:error instanceof Error?error.message:"unknown"},{status:503})}
 }
