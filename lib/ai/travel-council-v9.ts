@@ -95,7 +95,7 @@ async function runDeepSeekVoice(request: TripRequest, ranked: V8Ranked[], prefer
 async function runVoice(request: TripRequest, ranked: V8Ranked[], preference: CouncilModelPreference) {
   const packet = evidence(request, ranked);
   const startedAt = Date.now();
-  const totalBudgetMs = 9_000;
+  const totalBudgetMs = 18_000;
   if (process.env.DEEPSEEK_API_KEY) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), totalBudgetMs);
