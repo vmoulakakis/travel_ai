@@ -40,7 +40,8 @@ function selfHostedModel(): LanguageModel | null {
   return provider(model);
 }
 
-export function councilModels(preference: CouncilModelPreference): LanguageModel[] {
-  const cloud = preference === "creative" ? [deepSeekModel(), openAIModel()] : [openAIModel(), deepSeekModel()];
+export function councilModels(preference: CouncilModelPreference, includeDeepSeek = true): LanguageModel[] {
+  const deepSeek = includeDeepSeek ? deepSeekModel() : null;
+  const cloud = preference === "creative" ? [deepSeek, openAIModel()] : [openAIModel(), deepSeek];
   return [...cloud, selfHostedModel()].filter((model): model is LanguageModel => Boolean(model));
 }
