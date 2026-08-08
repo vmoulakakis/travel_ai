@@ -10,6 +10,9 @@ export type Avoidance = "long-travel" | "high-cost" | "crowds" | "none";
 
 export interface TripRequest {
   origin: string;
+  startDate: string;
+  endDate: string;
+  /** Legacy derived field retained while feed APIs migrate from month to exact range. */
   month: Month;
   nights: number;
   budget: number;
@@ -32,14 +35,41 @@ const distances = new Set<DistancePreference>(["nearby", "easy-hop", "island", "
 const paces = new Set<PacePreference>(["slow", "balanced", "full"]);
 const hotelStyles = new Set<HotelStyle>(["luxury", "boutique", "resort", "value", "any"]);
 const avoidances = new Set<Avoidance>(["long-travel", "high-cost", "crowds", "none"]);
+const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+
+function validDate(value: unknown): value is string {
+  if (typeof value !== "string" || !isoDate.test(value)) return false;
+  const time = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(time);
+}
+function derivedMonth(startDate: string): Month {
+  const month = Number(startDate.slice(5, 7));
+  return month === 9 ? "september" : month === 10 ? "october" : month === 11 ? "november" : "flexible";
+}
+function legacyDateRange(month: Month, nights: number): { startDate: string; endDate: string } {
+  const year = 2026;
+  const m = month === "september" ? 9 : month === "november" ? 11 : 10;
+  const start = new Date(Date.UTC(year, m - 1, 16));
+  const end = new Date(start.getTime() + Math.max(2, nights) * 86400000);
+  const asIso = (d: Date) => d.toISOString().slice(0, 10);
+  return { startDate: asIso(start), endDate: asIso(end) };
+}
 
 export function parseTripRequest(input: unknown): { success: true; data: TripRequest } | { success: false; errors: string[] } {
   if (!input || typeof input !== "object" || Array.isArray(input)) return { success: false, errors: ["Request must be an object"] };
   const value = input as Record<string, unknown>;
   const errors: string[] = [];
   const origin = typeof value.origin === "string" ? value.origin.trim() : "";
-  const month = value.month as Month;
-  const nights = Number(value.nights);
+  const rawMonth = value.month as Month;
+  const legacyMonth = months.has(rawMonth) ? rawMonth : "october";
+  const requestedNights = Number(value.nights);
+  const legacy = legacyDateRange(legacyMonth, Number.isFinite(requestedNights) ? requestedNights : 3);
+  const startDate = validDate(value.startDate) ? value.startDate : legacy.startDate;
+  const endDate = validDate(value.endDate) ? value.endDate : legacy.endDate;
+  const startMs = Date.parse(`${startDate}T00:00:00Z`);
+  const endMs = Date.parse(`${endDate}T00:00:00Z`);
+  const nights = Math.round((endMs - startMs) / 86400000);
+  const month = derivedMonth(startDate);
   const budget = Number(value.budget);
   const rawMoods = Array.isArray(value.moods) ? value.moods : [];
   const travelerType = value.travelerType as TravelerType;
@@ -51,8 +81,9 @@ export function parseTripRequest(input: unknown): { success: true; data: TripReq
   const refinement = value.refinement as Refinement | undefined;
 
   if (origin.length < 2 || origin.length > 80) errors.push("origin must be 2-80 characters");
-  if (!months.has(month)) errors.push("invalid month");
-  if (!Number.isInteger(nights) || nights < 2 || nights > 14) errors.push("nights must be an integer between 2 and 14");
+  if (!validDate(startDate) || !validDate(endDate)) errors.push("startDate and endDate must be ISO dates");
+  if (!(endMs > startMs)) errors.push("endDate must be after startDate");
+  if (!Number.isInteger(nights) || nights < 2 || nights > 14) errors.push("date range must be between 2 and 14 nights");
   if (!Number.isFinite(budget) || budget < 150 || budget > 5000) errors.push("budget must be between 150 and 5000");
   const parsedMoods = rawMoods.filter((m): m is Mood => typeof m === "string" && moods.has(m as Mood));
   if (parsedMoods.length < 1 || parsedMoods.length > 3 || parsedMoods.length !== rawMoods.length) errors.push("moods must contain 1-3 valid values");
@@ -65,12 +96,5 @@ export function parseTripRequest(input: unknown): { success: true; data: TripReq
   if (refinement !== undefined && !refinements.has(refinement)) errors.push("invalid refinement");
 
   if (errors.length) return { success: false, errors };
-  return {
-    success: true,
-    data: {
-      origin, month, nights, budget, moods: parsedMoods, travelerType,
-      language, distancePreference, pace, hotelStyle, avoid,
-      ...(refinement ? { refinement } : {})
-    }
-  };
+  return { success: true, data: { origin, startDate, endDate, month, nights, budget, moods: parsedMoods, travelerType, language, distancePreference, pace, hotelStyle, avoid, ...(refinement ? { refinement } : {}) } };
 }

@@ -1,123 +1,37 @@
 import type { DestinationInsightsResponse, DestinationResearchPlace, DestinationResearchSource, DestinationResearchReview } from "@/lib/decision/types";
 
-const OPENAI_URL = "https://api.openai.com/v1/responses";
-
-type UnknownRecord = Record<string, unknown>;
-type ResearchJson = {
-  overview?: string;
-  things_to_do?: Array<{ name?: string; summary?: string; why_it_fits?: string; evidence_strength?: "HIGH" | "MEDIUM" | "LOW" }>;
-  food_local_life?: Array<{ name?: string; summary?: string; why_it_fits?: string; evidence_strength?: "HIGH" | "MEDIUM" | "LOW"; kind?: "food" | "local_life" }>;
-  review_pulse?: Array<{ title?: string; summary?: string; evidence_strength?: "HIGH" | "MEDIUM" | "LOW" }>;
-  practical_notes?: string[];
-};
-
-const text = (value: unknown, max = 420) => typeof value === "string" ? value.trim().slice(0, max) : "";
-const asRecord = (value: unknown): UnknownRecord | null => value && typeof value === "object" && !Array.isArray(value) ? value as UnknownRecord : null;
-
-function outputText(payload: UnknownRecord): string {
-  if (typeof payload.output_text === "string") return payload.output_text;
-  const chunks: string[] = [];
-  const output = Array.isArray(payload.output) ? payload.output : [];
-  for (const item of output) {
-    const row = asRecord(item); if (!row || !Array.isArray(row.content)) continue;
-    for (const part of row.content) {
-      const content = asRecord(part); if (!content) continue;
-      if (typeof content.text === "string") chunks.push(content.text);
-    }
-  }
-  return chunks.join("\n").trim();
+type ResearchJson={overview?:string;things_to_do?:Array<{name?:string;summary?:string;why_it_fits?:string;evidence_strength?:"HIGH"|"MEDIUM"|"LOW"}>;food_local_life?:Array<{name?:string;summary?:string;why_it_fits?:string;evidence_strength?:"HIGH"|"MEDIUM"|"LOW";kind?:"food"|"local_life"}>;review_pulse?:Array<{title?:string;summary?:string;evidence_strength?:"HIGH"|"MEDIUM"|"LOW"}>;practical_notes?:string[]};
+type DeepSeekResponse={choices?:Array<{message?:{content?:string|null}}>};
+type WikiSearch={query?:{search?:Array<{title?:string}>}}; type WikiExtract={query?:{pages?:Array<{title?:string;extract?:string}>}};
+const clean=(v:unknown,max=420)=>typeof v==="string"?v.trim().slice(0,max):"";
+const slug=(v:string)=>v.replace(/ /g,"_");
+async function wikiSource(host:string,query:string,maxChars:number):Promise<{title:string;text:string;url:string}|null>{
+  try{
+    const search=new URL(`https://${host}/w/api.php`);search.search=new URLSearchParams({action:"query",list:"search",srsearch:query,srlimit:"1",format:"json",formatversion:"2",origin:"*"}).toString();
+    const s=await fetch(search,{next:{revalidate:86400},signal:AbortSignal.timeout(4500)});if(!s.ok)return null;const sj=await s.json() as WikiSearch,title=sj.query?.search?.[0]?.title;if(!title)return null;
+    const extract=new URL(`https://${host}/w/api.php`);extract.search=new URLSearchParams({action:"query",prop:"extracts",explaintext:"1",redirects:"1",titles:title,format:"json",formatversion:"2",origin:"*"}).toString();
+    const e=await fetch(extract,{next:{revalidate:86400},signal:AbortSignal.timeout(5000)});if(!e.ok)return null;const ej=await e.json() as WikiExtract,row=ej.query?.pages?.[0];const text=clean(row?.extract,maxChars);if(!text)return null;
+    return{title:row?.title??title,text,url:`https://${host}/wiki/${encodeURIComponent(slug(row?.title??title))}`};
+  }catch{return null}
 }
+function parseJson(raw:string):ResearchJson{const cleaned=raw.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/i,"").trim(),a=cleaned.indexOf("{"),b=cleaned.lastIndexOf("}");if(a<0||b<=a)throw new Error("Invalid research JSON");return JSON.parse(cleaned.slice(a,b+1)) as ResearchJson}
+function place(item:NonNullable<ResearchJson["things_to_do"]>[number],i:number,category:"ATTRACTION"|"RESTAURANT"|"OTHER"):DestinationResearchPlace|null{const name=clean(item.name,140),summary=clean(item.summary,320);if(!name||!summary)return null;return{id:`research-${i}-${name.toLowerCase().replace(/[^a-z0-9α-ωάέήίόύώϊϋ]+/gi,"-").slice(0,36)}`,name,category,summary,whyItFits:clean(item.why_it_fits,220)||null,evidenceStrength:item.evidence_strength??"MEDIUM",rating:null,reviewCount:null,imageUrl:null,address:null,distanceKm:null,attribution:"Wikivoyage/Wikipedia synthesis"}}
+function pulse(item:NonNullable<ResearchJson["review_pulse"]>[number],i:number):DestinationResearchReview|null{const t=clean(item.summary,420);if(!t)return null;return{id:`pulse-${i}`,title:clean(item.title,120)||"Travel guide pulse",text:t,rating:null,publishedDate:null,author:"DeepSeek source synthesis",evidenceStrength:item.evidence_strength??"MEDIUM"}}
 
-function sourcesFromResponse(payload: UnknownRecord): DestinationResearchSource[] {
-  const seen = new Set<string>();
-  const sources: DestinationResearchSource[] = [];
-  const output = Array.isArray(payload.output) ? payload.output : [];
-  for (const item of output) {
-    const row = asRecord(item); if (!row || !Array.isArray(row.content)) continue;
-    for (const part of row.content) {
-      const content = asRecord(part); if (!content || !Array.isArray(content.annotations)) continue;
-      for (const annotation of content.annotations) {
-        const a = asRecord(annotation); if (!a) continue;
-        const url = text(a.url, 1000); if (!url || seen.has(url) || !/^https?:\/\//i.test(url)) continue;
-        seen.add(url);
-        let domain = "web";
-        try { domain = new URL(url).hostname.replace(/^www\./, ""); } catch { /* keep web */ }
-        sources.push({ title: text(a.title, 180) || domain, url, domain, sourceType: domain.includes("tripadvisor.") ? "tripadvisor-reference" : "web" });
-      }
-    }
-  }
-  return sources.slice(0, 14);
-}
-
-function parseJson(raw: string): ResearchJson {
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-  const first = cleaned.indexOf("{"); const last = cleaned.lastIndexOf("}");
-  if (first < 0 || last <= first) throw new Error("Research agent did not return JSON");
-  return JSON.parse(cleaned.slice(first, last + 1)) as ResearchJson;
-}
-
-function placeFrom(item: NonNullable<ResearchJson["things_to_do"]>[number], index: number): DestinationResearchPlace | null {
-  const name = text(item.name, 140); const summary = text(item.summary, 320); if (!name || !summary) return null;
-  return { id: `attraction-${index}-${name.toLowerCase().replace(/[^a-z0-9α-ωάέήίόύώϊϋ]+/gi, "-").slice(0, 40)}`, name, category: "ATTRACTION", summary, whyItFits: text(item.why_it_fits, 220) || null, evidenceStrength: item.evidence_strength ?? "MEDIUM", rating: null, reviewCount: null, imageUrl: null, address: null, distanceKm: null, attribution: "AI web research" };
-}
-
-function foodFrom(item: NonNullable<ResearchJson["food_local_life"]>[number], index: number): DestinationResearchPlace | null {
-  const name = text(item.name, 140); const summary = text(item.summary, 320); if (!name || !summary) return null;
-  return { id: `local-${index}-${name.toLowerCase().replace(/[^a-z0-9α-ωάέήίόύώϊϋ]+/gi, "-").slice(0, 40)}`, name, category: item.kind === "food" ? "RESTAURANT" : "OTHER", summary, whyItFits: text(item.why_it_fits, 220) || null, evidenceStrength: item.evidence_strength ?? "MEDIUM", rating: null, reviewCount: null, imageUrl: null, address: null, distanceKm: null, attribution: "AI web research" };
-}
-
-function reviewFrom(item: NonNullable<ResearchJson["review_pulse"]>[number], index: number): DestinationResearchReview | null {
-  const summary = text(item.summary, 440); if (!summary) return null;
-  return { id: `pulse-${index}`, title: text(item.title, 120) || "Research pulse", text: summary, rating: null, publishedDate: null, author: "AI research synthesis", evidenceStrength: item.evidence_strength ?? "MEDIUM" };
-}
-
-export async function researchDestination(input: {
-  destination: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  language?: "el" | "en";
-  travelerType?: string | null;
-  moods?: string[];
-  nights?: number | null;
-}): Promise<DestinationInsightsResponse> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return { source: "not-configured", destination: input.destination, researchedAt: new Date().toISOString(), overview: null, restaurants: [], attractions: [], reviews: [], practicalNotes: [], sources: [], attributionRequired: false };
-
-  const language = input.language === "en" ? "English" : "Greek";
-  const model = process.env.OPENAI_RESEARCH_MODEL || "gpt-5.6-terra";
-  const locationHint = input.latitude != null && input.longitude != null ? `Approximate coordinates: ${input.latitude}, ${input.longitude}.` : "";
-  const userContext = `Traveler type: ${input.travelerType || "unknown"}. Intent: ${(input.moods || []).join(", ") || "general"}. Nights: ${input.nights ?? "unknown"}.`;
-
-  const instructions = `You are the Destination Research Agent for a travel decision product. Research the chosen place live on the public web and return concise, useful travel intelligence in ${language}.\n\nSOURCE RULES:\n- Prefer primary and authoritative sources: official tourism boards, municipalities, museums, attractions, official restaurant sites, established local guides and reputable editorial travel publications.\n- You may discover Tripadvisor pages through web search and keep them as reference/source metadata, but DO NOT quote, copy, reproduce or summarize Tripadvisor review text, Tripadvisor ratings, review counts or proprietary ranking claims. Do not scrape or reconstruct protected Tripadvisor content.\n- Do not invent ratings, popularity, opening hours, prices, rankings or facts. If evidence is weak, say so through evidence_strength.\n- "Top" means your evidence-based recommendation for this specific traveler, not an official platform ranking unless a primary source explicitly says so.\n- No booking URLs, affiliate URLs or calls to purchase. The consumer's only outbound booking URL is handled elsewhere by the Linkwise layer.\n- Synthesize; do not copy sentences from sources. Keep every summary original and short.\n\nReturn JSON only with this shape: {"overview":"2-3 sentence orientation","things_to_do":[{"name":"...","summary":"...","why_it_fits":"...","evidence_strength":"HIGH|MEDIUM|LOW"}],"food_local_life":[{"name":"...","kind":"food|local_life","summary":"...","why_it_fits":"...","evidence_strength":"HIGH|MEDIUM|LOW"}],"review_pulse":[{"title":"...","summary":"cross-source synthesis, never copied review text","evidence_strength":"HIGH|MEDIUM|LOW"}],"practical_notes":["..."]}. Return up to 6 things_to_do, up to 6 food/local-life items, and up to 4 review_pulse themes.`;
-
-  const prompt = `Research ${input.destination} as the traveler's already-selected destination. ${locationHint} ${userContext} Focus on what is genuinely worth doing, where/what to eat, how local life feels, and the practical trade-offs that help the traveler decide what to do there.`;
-
-  try {
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, instructions, input: prompt, tools: [{ type: "web_search" }], reasoning: { effort: "medium" }, text: { verbosity: "medium" }, max_output_tokens: 3200, store: false }),
-      signal: AbortSignal.timeout(26000)
-    });
-    if (!response.ok) throw new Error(`OpenAI research ${response.status}`);
-    const payload = await response.json() as UnknownRecord;
-    const data = parseJson(outputText(payload));
-    const attractions = (data.things_to_do ?? []).map(placeFrom).filter((x): x is DestinationResearchPlace => Boolean(x)).slice(0, 6);
-    const restaurants = (data.food_local_life ?? []).map(foodFrom).filter((x): x is DestinationResearchPlace => Boolean(x)).slice(0, 6);
-    const reviews = (data.review_pulse ?? []).map(reviewFrom).filter((x): x is DestinationResearchReview => Boolean(x)).slice(0, 4);
-    return {
-      source: "openai-web-research",
-      destination: input.destination,
-      researchedAt: new Date().toISOString(),
-      overview: text(data.overview, 720) || null,
-      restaurants,
-      attractions,
-      reviews,
-      practicalNotes: Array.isArray(data.practical_notes) ? data.practical_notes.map(x => text(x, 220)).filter(Boolean).slice(0, 6) : [],
-      sources: sourcesFromResponse(payload),
-      attributionRequired: false
-    };
-  } catch {
-    return { source: "unavailable", destination: input.destination, researchedAt: new Date().toISOString(), overview: null, restaurants: [], attractions: [], reviews: [], practicalNotes: [], sources: [], attributionRequired: false };
-  }
+export async function researchDestination(input:{destination:string;latitude?:number|null;longitude?:number|null;language?:"el"|"en";travelerType?:string|null;moods?:string[];nights?:number|null}):Promise<DestinationInsightsResponse>{
+  const key=process.env.DEEPSEEK_API_KEY;if(!key)return{source:"not-configured",destination:input.destination,researchedAt:new Date().toISOString(),overview:null,restaurants:[],attractions:[],reviews:[],practicalNotes:[],sources:[],attributionRequired:false};
+  const [elVoy,enVoy,elWiki]=await Promise.all([wikiSource("el.wikivoyage.org",input.destination,5000),wikiSource("en.wikivoyage.org",input.destination,6500),wikiSource("el.wikipedia.org",input.destination,3500)]);
+  const raw=[elVoy,enVoy,elWiki].filter((x):x is NonNullable<typeof x>=>Boolean(x));if(!raw.length)return{source:"unavailable",destination:input.destination,researchedAt:new Date().toISOString(),overview:null,restaurants:[],attractions:[],reviews:[],practicalNotes:[],sources:[],attributionRequired:false};
+  const sources:DestinationResearchSource[]=raw.map(x=>({title:x.title,url:x.url,domain:new URL(x.url).hostname,sourceType:"web"}));
+  const sourceText=raw.map((x,i)=>`SOURCE ${i+1} ${x.title}:\n${x.text}`).join("\n\n").slice(0,14000);
+  const language=input.language==="en"?"English":"Greek",model=process.env.DEEPSEEK_MODEL||"deepseek-v4-pro",base=process.env.DEEPSEEK_BASE_URL||"https://api.deepseek.com";
+  const system="You are a travel research editor. Use only supplied source text. Synthesize; do not copy long phrases. Never invent rankings, reviews, ratings, opening hours, prices or businesses absent from sources. If food sources are generic, recommend food/local-life themes rather than invented restaurants. Return strict JSON only; never expose chain-of-thought.";
+  const prompt=`Destination=${input.destination}; language=${language}; traveler=${input.travelerType??"unknown"}; moods=${(input.moods??[]).join(",")}; nights=${input.nights??"unknown"}. From SOURCES create up to 6 things to do, 6 food/local-life items, 4 evidence themes and practical notes. Output {"overview":"...","things_to_do":[{"name":"...","summary":"...","why_it_fits":"...","evidence_strength":"HIGH|MEDIUM|LOW"}],"food_local_life":[{"name":"...","kind":"food|local_life","summary":"...","why_it_fits":"...","evidence_strength":"HIGH|MEDIUM|LOW"}],"review_pulse":[{"title":"...","summary":"source synthesis, not user reviews","evidence_strength":"HIGH|MEDIUM|LOW"}],"practical_notes":["..."]}.\n${sourceText}`;
+  try{
+    const response=await fetch(`${base}/chat/completions`,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model,messages:[{role:"system",content:system},{role:"user",content:prompt}],thinking:{type:"enabled"},reasoning_effort:"high",response_format:{type:"json_object"},max_tokens:1100}),signal:AbortSignal.timeout(16000)});if(!response.ok)throw new Error("research failed");const payload=await response.json() as DeepSeekResponse,content=payload.choices?.[0]?.message?.content;if(!content)throw new Error("empty research");const data=parseJson(content);
+    const attractions=(data.things_to_do??[]).map((x,i)=>place(x,i,"ATTRACTION")).filter((x):x is DestinationResearchPlace=>Boolean(x)).slice(0,6);
+    const restaurants=(data.food_local_life??[]).map((x,i)=>place(x as NonNullable<ResearchJson["things_to_do"]>[number],i,x.kind==="food"?"RESTAURANT":"OTHER")).filter((x):x is DestinationResearchPlace=>Boolean(x)).slice(0,6);
+    const reviews=(data.review_pulse??[]).map(pulse).filter((x):x is DestinationResearchReview=>Boolean(x)).slice(0,4);
+    return{source:"openai-web-research",destination:input.destination,researchedAt:new Date().toISOString(),overview:clean(data.overview,720)||null,restaurants,attractions,reviews,practicalNotes:Array.isArray(data.practical_notes)?data.practical_notes.map(x=>clean(x,220)).filter(Boolean).slice(0,6):[],sources,attributionRequired:false};
+  }catch{return{source:"unavailable",destination:input.destination,researchedAt:new Date().toISOString(),overview:null,restaurants:[],attractions:[],reviews:[],practicalNotes:[],sources,attributionRequired:false}}
 }
