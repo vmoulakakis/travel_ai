@@ -66,7 +66,8 @@ async function runDeepSeekVoice(request: TripRequest, ranked: V8Ranked[], prefer
   const mission = preference === "creative"
     ? "Choose the finalist that best matches the human purpose and rhythm of the trip."
     : "Challenge timing, effort, budget, season and evidence, then choose the strongest survivor.";
-  const instructions = `You are the ${role}. ${mission} You must inspect the supplied evidence before deciding. Never invent travel facts. Use natural Greek when request language is Greek. Never mention technical systems, scores, models or providers. Your final response must be one JSON object like {"pickSlug":"nafplio","verdict":"...","confidence":"HIGH"}.`;
+  const outputLanguage = request.language === "en" ? "English" : "Greek";
+  const instructions = `You are the ${role}. ${mission} You must inspect the supplied evidence before deciding. Never invent travel facts. The final verdict MUST be written entirely in ${outputLanguage}. Never mention technical systems, scores, models or providers. Your final response must be one JSON object like {"pickSlug":"nafplio","verdict":"...","confidence":"HIGH"}.`;
   const tools = [{ type: "function", function: { name: "inspectEvidence", description: "Read the verified traveler brief and finalist evidence.", parameters: { type: "object", properties: { focus: { type: "string", enum: ["desire", "risk", "tradeoffs"] } }, required: ["focus"], additionalProperties: false } } }];
   const requestBody = async (body: Record<string, unknown>) => {
     const response = await fetch(endpoint, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" }, body: JSON.stringify({ model, thinking: { type: "disabled" }, ...body }), signal: abortSignal, cache: "no-store" });
