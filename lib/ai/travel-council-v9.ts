@@ -23,7 +23,7 @@ export interface TravelCouncilDecision {
 
 const outputSchema = z.object({
   pickSlug: z.string().min(1).max(80),
-  verdict: z.string().min(12).max(240),
+  verdict: z.string().min(12).max(500),
   confidence: z.enum(["HIGH", "MEDIUM"]),
 });
 
@@ -87,8 +87,14 @@ async function runDeepSeekVoice(request: TripRequest, ranked: V8Ranked[], prefer
   const second = await requestBody({ messages, response_format: { type: "json_object" }, max_tokens: 260 });
   const content = second.choices?.[0]?.message?.content;
   if (!content) throw new Error("empty verdict");
-  const parsed = outputSchema.safeParse(JSON.parse(content));
-  if (!parsed.success || !ranked.some(x => x.destination.slug === parsed.data.pickSlug) || containsForbiddenTechnicalText(parsed.data.verdict)) return null;
+  const start = content.indexOf("{");
+  const end = content.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  const raw = JSON.parse(content.slice(start, end + 1)) as Record<string, unknown>;
+  const requestedPick = String(raw.pickSlug ?? "").trim().toLocaleLowerCase("el");
+  const match = ranked.find(x => [x.destination.slug, x.destination.nameEl, x.destination.nameEn].some(value => value.toLocaleLowerCase("el") === requestedPick));
+  const parsed = outputSchema.safeParse({ ...raw, pickSlug: match?.destination.slug ?? requestedPick, confidence: String(raw.confidence ?? "MEDIUM").toUpperCase() });
+  if (!parsed.success || !match || containsForbiddenTechnicalText(parsed.data.verdict)) return null;
   return parsed.data;
 }
 
