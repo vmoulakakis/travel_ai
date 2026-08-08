@@ -1,6 +1,7 @@
 import { deepSeekNeeded, runTravelGuru } from "@/lib/ai/travel-guru";
 import { verifyRecommendations } from "@/lib/ai/openai-verifier";
 import { loadAffiliateUniverse } from "@/lib/data/affiliate-universe";
+import { recordRecommendationSession } from "@/lib/data/match-learning";
 import { loadSemanticMatchData } from "@/lib/data/semantic-match";
 import { enrichCandidatesWithWeather, weatherGate } from "@/lib/data/weather";
 import { deterministicGuruFallback, rankAffiliateCandidates, seasonGate } from "@/lib/decision/affiliate-engine";
@@ -14,7 +15,7 @@ type EventPayload=Record<string,unknown>;
 export async function POST(request:Request){
   const body=await request.json().catch(()=>null),parsed=parseTripRequest(body);
   if(!parsed.success)return Response.json({error:"Invalid trip request",details:parsed.errors},{status:400});
-  const encoder=new TextEncoder();
+  const sessionId=crypto.randomUUID(),encoder=new TextEncoder();
   const stream=new ReadableStream<Uint8Array>({
     async start(controller){
       let closed=false;
@@ -63,10 +64,12 @@ export async function POST(request:Request){
         recommendations=recommendations.map(x=>({...x,verifier:{checked:verification.checked,passed:true,reason:corrected?`Corrected after verifier: ${verification.reason??"ranking inconsistency"}`:verification.reason,model:verification.model}}));
         emit("verify:ready",98,{checked:verification.checked,passed:true,corrected,model:verification.model});
 
-        emit("final",100,{result:{request:trip,generatedAt:new Date().toISOString(),mode:guru.mode,source:"linkwise+semantic-db",candidateCount:universe.length,weatherScreenedCount:seasonReady.length,affiliateOnly:true,recommendations,modelVersion:semanticStays.model.version,modelSampleCount:semanticStays.model.sample_count,verifierUsed:verification.checked}});
+        const learningRecorded=await recordRecommendationSession(sessionId,trip,recommendations,semanticStays.model.version);
+        emit("final",100,{result:{request:trip,generatedAt:new Date().toISOString(),mode:guru.mode,source:"linkwise+semantic-db",candidateCount:universe.length,weatherScreenedCount:seasonReady.length,affiliateOnly:true,recommendations,modelVersion:semanticStays.model.version,modelSampleCount:semanticStays.model.sample_count,verifierUsed:verification.checked},learningRecorded});
       }catch(error){emit("error",100,{message:error instanceof Error?error.message:"Travel matching pipeline unavailable"});}
       finally{if(!closed){closed=true;controller.close();}}
     }
   });
-  return new Response(stream,{headers:{"content-type":"application/x-ndjson; charset=utf-8","cache-control":"no-store, no-transform","x-content-type-options":"nosniff"}});
+  const secure=process.env.NODE_ENV==="production"?"; Secure":"";
+  return new Response(stream,{headers:{"content-type":"application/x-ndjson; charset=utf-8","cache-control":"no-store, no-transform","x-content-type-options":"nosniff","set-cookie":`travel_match_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7776000${secure}`}});
 }
