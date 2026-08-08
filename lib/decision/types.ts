@@ -166,10 +166,13 @@ export interface AffiliateDestinationDetailResponse {
   alternatives: AffiliateOffer[];
 }
 
-export interface TripadvisorPlace {
+export interface DestinationResearchPlace {
   id: string;
   name: string;
   category: "RESTAURANT" | "ATTRACTION" | "HOTEL" | "OTHER";
+  summary?: string | null;
+  whyItFits?: string | null;
+  evidenceStrength?: "HIGH" | "MEDIUM" | "LOW";
   rating?: number | null;
   reviewCount?: number | null;
   imageUrl?: string | null;
@@ -178,19 +181,32 @@ export interface TripadvisorPlace {
   attribution?: string | null;
 }
 
-export interface TripadvisorReview {
+export interface DestinationResearchReview {
   id: string;
   title?: string | null;
   text?: string | null;
   rating?: number | null;
   publishedDate?: string | null;
   author?: string | null;
+  evidenceStrength?: "HIGH" | "MEDIUM" | "LOW";
+}
+
+export interface DestinationResearchSource {
+  title: string;
+  url: string;
+  domain: string;
+  sourceType: "web" | "tripadvisor-reference";
 }
 
 export interface DestinationInsightsResponse {
-  source: "tripadvisor-terra" | "not-configured" | "unavailable";
-  restaurants: TripadvisorPlace[];
-  attractions: TripadvisorPlace[];
-  reviews: TripadvisorReview[];
+  source: "openai-web-research" | "not-configured" | "unavailable";
+  destination: string;
+  researchedAt: string;
+  overview?: string | null;
+  restaurants: DestinationResearchPlace[];
+  attractions: DestinationResearchPlace[];
+  reviews: DestinationResearchReview[];
+  practicalNotes: string[];
+  sources: DestinationResearchSource[];
   attributionRequired: boolean;
 }
