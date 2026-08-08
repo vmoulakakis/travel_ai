@@ -1,0 +1,10 @@
+import type { TripRequest } from "@/lib/validation/trip";
+import type { V8IntentProfile,V8Recommendation } from "@/lib/decision/v8-types";
+import { V8_DIMENSIONS } from "@/lib/decision/v8-types";
+
+const endpoint=()=>process.env.SUPABASE_MATCH_LEARNING_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/match-learning";
+async function send(body:Record<string,unknown>){const secret=process.env.SUPABASE_INGEST_SECRET;if(!secret)return false;try{const r=await fetch(endpoint(),{method:"POST",headers:{"content-type":"application/json","x-match-secret":secret},body:JSON.stringify(body),signal:AbortSignal.timeout(700),cache:"no-store"});return r.ok}catch{return false}}
+function userVector(intent:V8IntentProfile){const v=V8_DIMENSIONS.map(d=>Number((intent.weights[d]??0).toFixed(5)));while(v.length<24)v.push(0);return v}
+function pair(r:V8Recommendation,index:number){const b=r.breakdown,u=(n:number)=>Math.max(0,Math.min(1,n/100));return[u(b.intent),u(b.season),u(b.effort),u(b.duration),u(b.budget),u(b.weather),u(b.traveler),u(b.crowdFit),u(b.routeConfidence),r.directFromAthens?1:0,u(r.score),Math.max(0,1-index*.2)]}
+export async function recordV8RecommendationSession(sessionId:string,request:TripRequest,intent:V8IntentProfile,recommendations:V8Recommendation[]){return send({sessionId,eventName:"recommendation_impression",travelMonth:Number(request.startDate.slice(5,7)),featureVector:userVector(intent),constraints:{origin:request.origin,startDate:request.startDate,endDate:request.endDate,nights:request.nights,budget:request.budget,moods:request.moods,travelerType:request.travelerType,distancePreference:request.distancePreference,pace:request.pace,hotelStyle:request.hotelStyle,avoid:request.avoid},modelVersion:"v8-destination-ranker",recommendations:recommendations.slice(0,5).map((r,i)=>({destinationId:r.slug,rank:i+1,pairFeatures:pair(r,i),sourceProductId:null}))})}
+export async function recordV8DestinationSelection(sessionId:string,slug:string){return send({sessionId,eventName:"destination_selected",destinationId:slug})}
