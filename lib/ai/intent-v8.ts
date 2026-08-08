@@ -24,7 +24,7 @@ export function structuredIntent(request:TripRequest):V8IntentProfile{
 export async function interpretIntentV8(request:TripRequest):Promise<V8IntentProfile>{
  const base=structuredIntent(request),text=request.tripText?.trim();if(!text||text.length<8)return base;
  const key=process.env.DEEPSEEK_API_KEY;if(!key)return base;
- const model=process.env.DEEPSEEK_MODEL||"deepseek-v4-pro",url=`${process.env.DEEPSEEK_BASE_URL||"https://api.deepseek.com"}/chat/completions`;
+ const model=process.env.DEEPSEEK_INTENT_MODEL||"deepseek-v4-flash",url=`${process.env.DEEPSEEK_BASE_URL||"https://api.deepseek.com"}/chat/completions`;
  const system=`You are a semantic travel-intent parser, not a destination recommender. Convert the user's free text into preference weights only. Never name destinations, hotels, flights, prices, routes or weather. Dimensions: ${V8_DIMENSIONS.join(", ")}. Return JSON only: {"weights":{"dimension":0..1},"summary":"max 90 chars"}. Use only dimensions clearly supported by the text.`;
  try{
   const response=await fetch(url,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model,messages:[{role:"system",content:system},{role:"user",content:text}],thinking:{type:"enabled"},reasoning_effort:"high",response_format:{type:"json_object"},max_tokens:260}),signal:AbortSignal.timeout(5000)});
