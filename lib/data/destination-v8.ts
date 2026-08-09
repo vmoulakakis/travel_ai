@@ -21,7 +21,7 @@ function mapDestination(row:Record<string,unknown>):V8Destination|null{
 }
 
 export async function loadV8DestinationCatalog():Promise<V8Destination[]>{
- const response=await fetch(CATALOG_URL,{cache:"no-store",headers:readHeaders(),signal:AbortSignal.timeout(4500)});
+ const response=await fetch(CATALOG_URL,{cache:"no-store",headers:readHeaders(),signal:AbortSignal.timeout(8000)});
  if(!response.ok)throw new Error(`Destination catalog ${response.status}`);
  const payload=await response.json() as {destinations?:Array<Record<string,unknown>>};
  const rows=(payload.destinations??[]).map(mapDestination).filter((x):x is V8Destination=>Boolean(x));
@@ -39,6 +39,6 @@ function mapOffer(row:Record<string,unknown>):V8StayOffer|null{
 
 export async function loadV8StayOffers(slug:string,startDate:string,endDate:string,limit=18):Promise<V8StayOffer[]>{
  const url=new URL(STAYS_URL);url.searchParams.set("slug",slug);url.searchParams.set("start_date",startDate);url.searchParams.set("end_date",endDate);url.searchParams.set("limit",String(Math.max(1,Math.min(30,limit))));
- const response=await fetch(url,{cache:"no-store",headers:readHeaders(),signal:AbortSignal.timeout(4500)});if(!response.ok)throw new Error(`Destination stays ${response.status}`);
+ const response=await fetch(url,{cache:"no-store",headers:readHeaders(),signal:AbortSignal.timeout(7000)});if(!response.ok)throw new Error(`Destination stays ${response.status}`);
  const payload=await response.json() as {offers?:Array<Record<string,unknown>>};return(payload.offers??[]).map(mapOffer).filter((x):x is V8StayOffer=>Boolean(x));
 }

@@ -6,15 +6,16 @@ import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
 import { recordV8RecommendationSession } from "@/lib/data/match-learning-v8";
 import { enrichV8Weather } from "@/lib/data/weather-v8";
 import { buildSmartDateWindows } from "@/lib/decision/date-windows-v9";
-import { diversifyV8,finalRankV8,preRankV8,toRecommendationsV8,type V8Ranked } from "@/lib/decision/v8-matcher";
+import { diversifyV8,finalRankV8,preRankV8,responseFeasibility,toRecommendationsV8,type V8Ranked } from "@/lib/decision/v8-matcher";
 import type { V8RecommendationResponse } from "@/lib/decision/v8-types";
-import { parseTripRequest } from "@/lib/validation/trip";
+import { parseTripRequest, type TripRequest } from "@/lib/validation/trip";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 type Payload=Record<string,unknown>;
 
-function repair(selected:V8Ranked[],pool:V8Ranked[],reject:string[]){if(!reject.length)return selected;const bad=new Set(reject),kept=selected.filter(x=>!bad.has(x.destination.slug)),used=new Set(kept.map(x=>x.destination.slug));for(const x of pool){if(kept.length>=3)break;if(bad.has(x.destination.slug)||used.has(x.destination.slug))continue;kept.push(x);used.add(x.destination.slug)}return kept.slice(0,3)}
+function repair(selected:V8Ranked[],pool:V8Ranked[],reject:string[]){if(!reject.length)return selected;const bad=new Set(reject),kept=selected.filter(x=>!bad.has(x.destination.slug)),used=new Set(kept.map(x=>x.destination.slug));for(const x of pool){if(kept.length>=6)break;if(bad.has(x.destination.slug)||used.has(x.destination.slug))continue;kept.push(x);used.add(x.destination.slug)}return kept.slice(0,6)}
+function profileSummary(trip:TripRequest){if(trip.language==="en"){const energy=trip.desiredEnergy==="restore"?"restoration":trip.desiredEnergy==="stimulating"?"energy and discovery":"balance";const social=trip.socialPreference==="quiet"?"a quiet rhythm":trip.socialPreference==="lively"?"lively energy":"a flexible social rhythm";return `${energy}, ${social}, ${trip.nights} nights, ${trip.groupSize} travellers`;}const energy=trip.desiredEnergy==="restore"?"αποφόρτιση":trip.desiredEnergy==="stimulating"?"ένταση και ανακάλυψη":"ισορροπία";const social=trip.socialPreference==="quiet"?"ήσυχο ρυθμό":trip.socialPreference==="lively"?"ζωντανή ενέργεια":"ευέλικτο κοινωνικό ρυθμό";return `${energy}, ${social}, ${trip.nights} νύχτες, ${trip.groupSize} ταξιδιώτες`;}
 
 export async function POST(request:Request){
  const body=await request.json().catch(()=>null),parsed=parseTripRequest(body);if(!parsed.success)return Response.json({message:"Χρειάζομαι έγκυρες ημερομηνίες και βασικές προτιμήσεις για να συνεχίσω.",continuity:pendingContinuity()},{status:400});
@@ -24,10 +25,10 @@ export async function POST(request:Request){
    emit("understand:start",8,{hasFreeText:Boolean(trip.tripText)});emit("catalog:start",12);
    const[intent,allDestinations]=await Promise.all([interpretIntentV8(trip),loadV8DestinationCatalog()]),catalog=allDestinations.filter(destination=>destination.countryCode==="GR");
    emit("understand:ready",24,{summary:intent.summary});emit("catalog:ready",36,{catalogSize:catalog.length});
-   const pre=preRankV8(trip,intent,catalog,14);if(pre.length<5){emit("continuity",100,{message:safePublicMessage(null,trip.language==="en"?"en":"el"),continuity:pendingContinuity()});return;}
+   const pre=preRankV8(trip,intent,catalog,18);if(pre.length<3){emit("continuity",100,{message:safePublicMessage(null,trip.language==="en"?"en":"el"),continuity:pendingContinuity()});return;}
    emit("shortlist:ready",52,{preview:pre.slice(0,7).map(x=>({destination:trip.language==="en"?x.destination.nameEn:x.destination.nameEl}))});
    emit("weather:start",60,{candidates:Math.min(12,pre.length)});
-   const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),12),ranked=finalRankV8(trip,intent,pre,weather),selected=diversifyV8(ranked,3);
+   const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),14),ranked=finalRankV8(trip,intent,pre,weather),selected=diversifyV8(ranked,6);
    emit("weather:ready",80,{checked:weather.size,preview:selected.map(x=>({destination:trip.language==="en"?x.destination.nameEn:x.destination.nameEl}))});
    const selectedSlugs=new Set(selected.map(x=>x.destination.slug)),verificationPool=[...selected,...ranked.filter(x=>!selectedSlugs.has(x.destination.slug))].slice(0,8);
    emit("verify:start",86,{conditional:true});const verification=await verifyV8(trip,verificationPool),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected;
@@ -37,7 +38,7 @@ export async function POST(request:Request){
    const recommendations=toRecommendationsV8(trip,ordered).map(x=>({...x,dateWindows:buildSmartDateWindows(trip,x)}));
    emit("council:ready",97,{agreement:council.agreement});
    const publicIntent={...intent,source:"structured" as const,interpretedText:undefined};
-   const result:V8RecommendationResponse={version:9,experienceVersion:9,request:trip,generatedAt:new Date().toISOString(),source:"verified-travel-knowledge",intent:publicIntent,catalogSize:catalog.length,mode:"guided",council,continuity:fullContinuity(),recommendations};
+   const result:V8RecommendationResponse={version:9,experienceVersion:9,request:trip,generatedAt:new Date().toISOString(),source:"verified-travel-knowledge",intent:publicIntent,catalogSize:catalog.length,mode:"guided",resultCount:recommendations.length,profileSummary:profileSummary(trip),feasibility:responseFeasibility(ordered),council,continuity:fullContinuity(),recommendations};
    await recordV8RecommendationSession(sessionId,trip,intent,recommendations);emit("final",100,{result});
   }catch{emit("continuity",100,{message:safePublicMessage(null,trip.language==="en"?"en":"el"),continuity:pendingContinuity()})}finally{if(!closed){closed=true;controller.close()}}
  }});

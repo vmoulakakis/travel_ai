@@ -19,8 +19,8 @@ Reference URLs:
 - https://conference.awwwards.com/valencia-developers/speakers/cyd-stumpel
 
 ## Non-negotiable UX rules
-1. **One primary decision surface.** Do not begin with a multi-step wizard when the same constraints can be expressed in one sentence/canvas.
-2. **Exactly one clear outcome objective.** For Travel AI that is: produce exactly three realistic trips.
+1. **One coherent decision journey.** Use five short steps when psychology and hard constraints cannot be collected honestly in one canvas; keep progress visible and each step focused.
+2. **Exactly one clear outcome objective.** For Travel AI that is: rank six distinct realistic paths, help the traveler compare, then guide one choice to an eligible stay.
 3. **Progressive disclosure.** Let the user touch a criterion to edit it. Reveal detail only when it is needed.
 4. **Predictable recommendation zone.** Dynamic AI output belongs in a stable visual region; navigation and controls should not move unpredictably.
 5. **Photography leads emotion; structured graphics explain confidence.** Use large authentic travel imagery with small, soft data graphics for fit, effort, season, budget and evidence.
@@ -44,7 +44,7 @@ Express the trip as a readable sentence with editable tokens, for example:
 
 Each token opens a local edit tray. Do not navigate to another screen. Keep the decision CTA visible after edits.
 
-Under the sentence, show a soft Trip DNA visualization with four signals:
+Under the answers, show a concise profile summary with four signals:
 - Time shape
 - Budget posture
 - Intent / feel
@@ -54,10 +54,11 @@ These are explanatory signals, not destination scores.
 
 ## Results pattern
 - Result 1: full editorial feature card.
-- Results 2–3: visually equal alternatives below it.
+- Results 2–3: visually equal finalists below it.
+- Results 4–6: progressively disclosed alternatives, never an endless list.
 - Always show: role, destination, Fit, Confidence, planning budget label, evidence state, concise why, and soft factor breakdown.
 - Refinement actions should move the decision: cheaper, warmer, closer, shorter, more romantic, more adventurous.
-- Do not show endless alternatives. Re-run the Top 3 instead.
+- Let the traveler compare up to three destinations on season, travel effort and trade-off before choosing.
 
 ## Supply / affiliate pattern
 After destination selection, open a contextual Trip Basket:
@@ -86,7 +87,7 @@ For feed-derived stay data:
 Before shipping, answer yes to all:
 - Can a first-time user understand the promise in five seconds?
 - Can they change any trip constraint without feeling they are in a form?
-- Are only three trips visible as the decision set?
+- Are three finalists immediately visible, with three more clearly optional?
 - Can they understand why #1 beat #2 without opening a modal?
 - Is uncertainty explicit?
 - Is stay/merchant supply separated from destination ranking?

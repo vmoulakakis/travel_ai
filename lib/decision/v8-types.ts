@@ -63,6 +63,7 @@ export interface V8Recommendation {
   regionGroup:string;
   role:string;
   score:number;
+  fitStatus:"strong"|"good"|"compromise";
   confidence:Confidence;
   why:string;
   seasonNote:string;
@@ -87,6 +88,9 @@ export interface V8RecommendationResponse {
   intent:V8IntentProfile;
   catalogSize:number;
   mode:"guided";
+  resultCount:number;
+  profileSummary:string;
+  feasibility:"STRONG"|"MIXED"|"COMPROMISE";
   council?:TravelCouncilDecision;
   continuity?:ContinuityEnvelope;
   recommendations:V8Recommendation[];

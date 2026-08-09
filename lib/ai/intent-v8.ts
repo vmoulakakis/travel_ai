@@ -15,6 +15,15 @@ export function structuredIntent(request:TripRequest):V8IntentProfile{
  if(request.distancePreference==="island")w.beach=Math.max(w.beach,.5);
  if(request.pace==="slow"){w.relax=Math.max(w.relax,.35);w.wellness=Math.max(w.wellness,.2);}
  if(request.pace==="full"){w.city=Math.max(w.city,.25);w.culture=Math.max(w.culture,.25);w.adventure=Math.max(w.adventure,.2);}
+ if(request.desiredEnergy==="restore"){w.relax=Math.max(w.relax,.8);w.wellness=Math.max(w.wellness,.55);w.nature=Math.max(w.nature,.35);}
+ if(request.desiredEnergy==="stimulating"){w.adventure=Math.max(w.adventure,.55);w.city=Math.max(w.city,.4);w.culture=Math.max(w.culture,.35);}
+ if(request.socialPreference==="quiet"){w.relax=Math.max(w.relax,.55);w.nature=Math.max(w.nature,.35);}
+ if(request.socialPreference==="lively"){w.city=Math.max(w.city,.55);w.nightlife=Math.max(w.nightlife,.65);}
+ if(request.noveltyPreference==="surprise")w.adventure=Math.max(w.adventure,.45);
+ if(request.mustHave==="sea")w.beach=Math.max(w.beach,.95);
+ if(request.mustHave==="nature")w.nature=Math.max(w.nature,.95);
+ if(request.mustHave==="culture")w.culture=Math.max(w.culture,.95);
+ if(request.mustHave==="nightlife")w.nightlife=Math.max(w.nightlife,.95);
  if(request.nights<=4)w.short_break=Math.max(w.short_break,.55);
  const month=Number(request.startDate.slice(5,7));if(month===4||month===5||month===9||month===10||month===11)w.shoulder_season=Math.max(w.shoulder_season,.25);
  if(request.moods.includes("warmth"))w.beach=Math.max(w.beach,.45);

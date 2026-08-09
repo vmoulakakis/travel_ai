@@ -1,10 +1,10 @@
-# Ελληνικός AI Travel Guru V9 — Greece-First Travel Decision AI
+# Ελληνικός AI Travel Guru V10 — Greece-First Travel Decision AI
 
 Travel decision intelligence for travelers starting primarily from Greece.
 
-**Promise:** answer a few human questions and get three genuinely different Greek destination matches based on emotional need, dates, season, effort, duration, budget and weather — **before hotel inventory enters the decision**.
+**Promise:** answer five short human question sets and get six genuinely different Greek destination matches based on emotional need, dates, season, effort, group budget and non-negotiables — **before hotel inventory enters the decision**.
 
-The current product and recovery blueprint is in [`docs/BLUEPRINT_V9.md`](docs/BLUEPRINT_V9.md).
+The current product and recovery blueprint is in [`docs/BLUEPRINT_V10.md`](docs/BLUEPRINT_V10.md). The 100-scenario acceptance record is in [`docs/EVALUATION_V10.md`](docs/EVALUATION_V10.md).
 
 ## Core rule
 
@@ -23,7 +23,7 @@ WEATHER ON FINALISTS
     ↓
 DIVERSITY + CONDITIONAL OPENAI VERIFIER
     ↓
-EXACTLY 5 DESTINATIONS
+EXACTLY 6 DIVERSE DESTINATIONS
     ↓ user selects one
 GEOLOCATED LINKWISE STAYS
 ```

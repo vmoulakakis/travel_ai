@@ -12,7 +12,7 @@ const request: TripRequest = {
 
 const recommendation = {
   slug: "nafplio", destination: "Ναύπλιο", destinationEn: "Nafplio", country: "Ελλάδα", countryCode: "GR",
-  regionGroup: "peloponnese", role: "BEST FIT", score: 88, confidence: "HIGH", why: "Ταιριάζει στον ρυθμό σου.",
+  regionGroup: "peloponnese", role: "BEST FIT", score: 88, fitStatus: "strong", confidence: "HIGH", why: "Ταιριάζει στον ρυθμό σου.",
   seasonNote: "Κατάλληλη περίοδος.", effortLabel: "κοντινή οδική απόδραση", budgetLabel: "καλή αξία",
   tags: ["romantic", "food"], latitude: 37.57, longitude: 22.8, directFromAthens: true, routeConfidence: 0.92,
   breakdown: { intent: 90, season: 88, effort: 95, duration: 100, budget: 91, weather: 80, traveler: 98, crowdFit: 80, routeConfidence: 92 },

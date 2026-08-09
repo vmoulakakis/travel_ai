@@ -29,8 +29,8 @@ const catalog:V8Destination[]=[
 ];
 function trip(overrides:Partial<TripRequest>):TripRequest{return{origin:"Athens",startDate:"2026-10-16",endDate:"2026-10-19",month:"october",nights:3,budget:500,moods:["romantic","food"],travelerType:"couple",language:"en",distancePreference:"easy-hop",pace:"balanced",hotelStyle:"boutique",avoid:"long-travel",...overrides}}
 function weather(score:number,mean:number):WeatherEvidence{return{source:"climatology",sourceLabel:"test",score,confidence:"MEDIUM",typical:true,temperatureMeanC:mean,summary:`test ${score}`,researchedAt:new Date(0).toISOString()}}
-function rank(r:TripRequest,w:Record<string,[number,number]>={}){const intent=structuredIntent(r),pre=preRankV8(r,intent,catalog,14),wm=new Map<string,WeatherEvidence>(pre.map(x=>[x.destination.slug,weather(w[x.destination.slug]?.[0]??70,w[x.destination.slug]?.[1]??20)]));return finalRankV8(r,intent,pre,wm)}
-function rankGreece(r:TripRequest,w:Record<string,[number,number]>={}){const intent=structuredIntent(r),greek=catalog.filter(x=>x.countryCode==="GR"),pre=preRankV8(r,intent,greek,14),wm=new Map<string,WeatherEvidence>(pre.map(x=>[x.destination.slug,weather(w[x.destination.slug]?.[0]??70,w[x.destination.slug]?.[1]??20)]));return finalRankV8(r,intent,pre,wm)}
+function rank(r:TripRequest,w:Record<string,[number,number]>={}){const intent=structuredIntent(r),pre=preRankV8(r,intent,catalog,catalog.length),wm=new Map<string,WeatherEvidence>(pre.map(x=>[x.destination.slug,weather(w[x.destination.slug]?.[0]??70,w[x.destination.slug]?.[1]??20)]));return finalRankV8(r,intent,pre,wm)}
+function rankGreece(r:TripRequest,w:Record<string,[number,number]>={}){const intent=structuredIntent(r),greek=catalog.filter(x=>x.countryCode==="GR"),pre=preRankV8(r,intent,greek,greek.length),wm=new Map<string,WeatherEvidence>(pre.map(x=>[x.destination.slug,weather(w[x.destination.slug]?.[0]??70,w[x.destination.slug]?.[1]??20)]));return finalRankV8(r,intent,pre,wm)}
 
 const romantic=rank(trip({moods:["romantic","food"]}));const romanticTop=diversifyV8(romantic,5).map(x=>x.destination.slug);
 assert(romanticTop.includes("nafplio"),`October romantic/food should include Nafplio; got ${romanticTop}`);
@@ -52,8 +52,8 @@ assert(!winterTop.slice(0,3).includes("paris"),`Winter nature/relax should not p
 
 console.log("V8_MATCHER_SMOKE_OK",JSON.stringify({romanticTop,warmTop,winterTop}));
 
-const greekRomantic=diversifyV8(rankGreece(trip({moods:["romantic","food"]})),3);
-assert(greekRomantic.length===3,"Greek Travel Guru must return exactly three choices");
+const greekRomantic=diversifyV8(rankGreece(trip({moods:["romantic","food"]})),6);
+assert(greekRomantic.length===6,"Greek Travel Guru must return six choices when six are viable");
 assert(greekRomantic.every(x=>x.destination.countryCode==="GR"),`Greek Travel Guru leaked a foreign destination: ${greekRomantic.map(x=>x.destination.slug)}`);
 assert(greekRomantic.some(x=>x.destination.slug==="nafplio"),`Greek romantic/food shortlist should include Nafplio; got ${greekRomantic.map(x=>x.destination.slug)}`);
 

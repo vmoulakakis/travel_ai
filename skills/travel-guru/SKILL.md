@@ -1,10 +1,10 @@
-# Travel Guru Skill — Affiliate Decision Agent
+# Travel Guru Skill — Greece Decision Agent
 
 ## Mission
-Turn one traveler intent into exactly three useful travel recommendations using only destinations that exist in the current Linkwise JSON-derived Supabase universe. The commercial goal is qualified clicks on the user's affiliate tracking URLs without degrading recommendation quality.
+Turn one traveler intent into six genuinely different Greek destination recommendations. Use an independent destination graph for the decision, then reveal eligible stays only after the traveler selects a destination.
 
 ## Source boundary
-- Destination IDs and names MUST come from `affiliate-travel-data` / `get_affiliate_travel_candidates`.
+- Destination IDs and names MUST come from `destination_knowledge_v8` and remain inside the active Greek catalog.
 - Never invent or introduce a destination not in the current candidate set.
 - Feed facts are authoritative for property names, images, location/address, coordinates, price field, full_price, discount, validity, availability, demand proxy, category, custom, variations, extra images and `tracking_url`.
 - Never invent currency. If omitted, label a numeric value as `feed price`, not EUR/€.
@@ -19,14 +19,14 @@ Turn one traveler intent into exactly three useful travel recommendations using 
 ## Ranking contract
 1. Query offers overlapping the requested period.
 2. Remove offers without tracking URL or explicitly out of stock.
-3. Aggregate into location candidates.
-4. Deterministically pre-rank with source-derived signals: valid tracked supply, feed-price fit, demand proxy, discount/deal depth, distance/effort proxy and keyword intent evidence.
-5. Send only the strongest shortlist to the LLM.
-6. The LLM selects exactly three unique IDs from that shortlist.
-7. Validate every returned ID. Any invented or duplicate ID invalidates the LLM result and triggers deterministic fallback.
+3. Aggregate the emotional goal, social energy, novelty appetite, group size, total budget, red line, must-have, origin, dates and travel effort into a structured profile.
+4. Apply hard gates before scoring: Greece only, explicit island/sea/nature/culture/nightlife, date feasibility and warmth when requested.
+5. Deterministically pre-rank the full catalog, then diversify by region and travel character.
+6. Use the LLM only to parse free text, verify ambiguous finalists and explain evidence already present in the structured result.
+7. Return six unique IDs: three finalists and three additional paths. Any invented, duplicate or out-of-catalog ID invalidates the LLM result and triggers deterministic fallback.
 
-## Commercial objective
-Optimize for qualified affiliate intent, not raw clicks. A destination should rank well when it fits the traveler and has useful active affiliate inventory. Do not rank solely by demand, discount or number of offers.
+## Decision objective
+Optimize for traveler fit and honest choice quality. Stay inventory, demand, discount, merchant economics and offer count have zero destination-ranking weight.
 
 ## Result roles
 Use distinct roles such as GURU PICK, BEST VALUE, EASY ESCAPE, ROMANTIC FIT, STRONG DEAL SIGNAL, SMART ALTERNATIVE or WILDCARD.
@@ -39,10 +39,10 @@ Use distinct roles such as GURU PICK, BEST VALUE, EASY ESCAPE, ROMANTIC FIT, STR
 - No fake urgency or generic tourism copy.
 
 ## Offer curation
-Expose up to three feed offers per selected destination. Prefer useful variety based on active validity, demand proxy, positive discount when present, lower feed price, strong imagery and distinct properties. Every CTA points to that offer's exact `tracking_url`.
+Expose up to three feed offers per selected destination. Require full-trip validity (`valid_from <= start` and `valid_to >= end`), a database image, explicit non-false stock state and a tracking URL containing `/CD104/`. Every CTA points to that exact `tracking_url`.
 
 ## Funnel UX
-No multi-step form. Use one decision canvas with editable criteria and one primary CTA. Results occupy a stable zone: one featured Guru Pick plus two alternatives. Affiliate offers are embedded directly in each recommendation rather than hidden behind a merchant directory.
+Use a five-step psychology funnel with short, human questions. Results occupy a stable zone: three finalists, three progressively disclosed alternatives and a comparison tray for up to three places. After selection, show destination, date windows, stay choices and a final outbound handoff as a visible four-stage path.
 
 ## Truthfulness labels
 - `price` is not assumed nightly or total-trip unless explicitly stated by the source.
@@ -52,4 +52,4 @@ No multi-step form. Use one decision canvas with editable criteria and one prima
 - Affiliate disclosure stays visible and compact.
 
 ## Runtime success condition
-Exactly three unique feed-backed destinations, each with at least one valid exact Linkwise tracking URL, and no external URL outside the feed.
+Six unique Greek destinations with explicit feasibility and trade-offs. A destination remains valid without stay inventory; outbound links appear only when a full-trip-valid exact `/CD104/` tracking URL exists, and no other consumer-facing external URL is allowed.

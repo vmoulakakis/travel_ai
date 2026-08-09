@@ -6,12 +6,13 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/next-dev.mjs",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:v8": "node --import tsx scripts/v8-matcher-smoke.ts",
-    "test:v9": "node --import tsx scripts/v9-continuity-smoke.ts"
+    "test:v9": "node --import tsx scripts/v9-continuity-smoke.ts",
+    "test:v10": "node --import tsx scripts/v10-scenario-suite.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.36",
