@@ -7,7 +7,7 @@ const validKinds = new Set<DestinationEvidenceKind>([
   "official_place", "seasonal_note", "demand_signal",
 ]);
 const text = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
-const number = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : null;
+const number = (value: unknown) => value == null || value === "" ? null : Number.isFinite(Number(value)) ? Number(value) : null;
 const confidence = (value: unknown): Confidence => Number(value) >= .85 ? "HIGH" : Number(value) >= .65 ? "MEDIUM" : "LOW";
 
 function mapRow(row: Row): DestinationEvidenceItem | null {
