@@ -33,18 +33,25 @@ function overlaps(item: DestinationEvidenceItem, startDate?: string, endDate?: s
 
 export async function loadDestinationEvidence(destinationId: string, startDate?: string, endDate?: string): Promise<DestinationEvidenceBundle> {
   const empty = (): DestinationEvidenceBundle => ({ destinationId, checkedAt: new Date().toISOString(), tripadvisor: [], booking: [], events: [], places: [], seasonal: [], hasCurrentRanking: false, hasDateMatchedEvents: false });
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL, serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !serviceRole) return empty();
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   try {
-    const endpoint = new URL("/rest/v1/destination_evidence_v12", base);
-    endpoint.searchParams.set("select", "id,evidence_kind,subject_name,source_provider,headline,summary,rank_value,rating_value,rating_scale,review_count,source_product_id,starts_at,ends_at,source_month,observed_at,expires_at,confidence");
-    endpoint.searchParams.set("destination_id", `eq.${destinationId}`);
-    endpoint.searchParams.set("status", "eq.verified");
-    endpoint.searchParams.set("order", "confidence.desc,observed_at.desc");
-    const response = await fetch(endpoint, { headers: { apikey: serviceRole, Authorization: `Bearer ${serviceRole}` }, cache: "no-store", signal: AbortSignal.timeout(4500) });
+    const direct = Boolean(base && serviceRole);
+    const endpoint = direct
+      ? new URL("/rest/v1/destination_evidence_v12", base)
+      : new URL(process.env.SUPABASE_DESTINATION_EVIDENCE_V12_URL ?? "https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/destination-evidence-v12");
+    if (direct) {
+      endpoint.searchParams.set("select", "id,evidence_kind,subject_name,source_provider,headline,summary,rank_value,rating_value,rating_scale,review_count,source_product_id,starts_at,ends_at,source_month,observed_at,expires_at,confidence");
+      endpoint.searchParams.set("destination_id", `eq.${destinationId}`);
+      endpoint.searchParams.set("status", "eq.verified");
+      endpoint.searchParams.set("order", "confidence.desc,observed_at.desc");
+    } else endpoint.searchParams.set("slug", destinationId);
+    const response = await fetch(endpoint, { headers: direct ? { apikey: serviceRole as string, Authorization: `Bearer ${serviceRole}` } : { "user-agent": "travel-guru/1.0" }, cache: "no-store", signal: AbortSignal.timeout(4500) });
     if (!response.ok) return empty();
     const now = Date.now();
-    const items = ((await response.json()) as Row[]).map(mapRow).filter((item): item is DestinationEvidenceItem => item !== null).filter(item => Date.parse(item.expiresAt) > now);
+    const payload = await response.json() as Row[] | { evidence?: Row[] };
+    const rows = Array.isArray(payload) ? payload : payload.evidence ?? [];
+    const items = rows.map(mapRow).filter((item): item is DestinationEvidenceItem => item !== null).filter(item => Date.parse(item.expiresAt) > now);
     const tripadvisor = items.filter(item => item.kind.startsWith("tripadvisor_"));
     const booking = items.filter(item => item.kind.startsWith("booking_"));
     const events = items.filter(item => item.kind === "official_event" && overlaps(item, startDate, endDate));
