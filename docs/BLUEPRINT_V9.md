@@ -49,11 +49,12 @@ The product is not a Corfu site and not a hotel catalogue. It is a Greece-wide d
 
 1. `npm run typecheck`
 2. `npm run test:v8`
-3. `npm run build`
-4. Supabase strict-validity query: every returned row must have CD104, a DB image and full-trip date coverage.
-5. Browser: homepage, all three discovery steps, loading council, three results, destination story, three-or-fewer stays, and external CTA.
-6. Browser console and Vercel runtime error scan.
-7. Verify the final external `href` is an exact DB `tracking_url` and that no other external anchor exists.
+3. `npm run test:v9`
+4. `npm run build`
+5. Supabase strict-validity query: every returned row must have CD104, a DB image and full-trip date coverage.
+6. Browser: homepage, all three discovery steps, loading council, three results, destination story, three-or-fewer stays, and external CTA.
+7. Browser console and Vercel runtime error scan.
+8. Verify the final external `href` is an exact DB `tracking_url` and that no other external anchor exists.
 
 ## Recovery map
 
@@ -64,6 +65,7 @@ The product is not a Corfu site and not a hotel catalogue. It is a Greece-wide d
 - Destination engine: `lib/decision/v8-matcher.ts`.
 - Stay validity gate: `get_destination_stays_v8` and migration `20260809001312_strict_full_trip_offer_validity.sql`.
 - DB-photo gateway: `app/api/destination-photo/route.ts`.
-- Outbound analytics: `app/api/track/route.ts` and `match-learning`.
+- Outbound analytics: `app/api/track/route.ts` and Supabase Edge Function `match-learning`.
+- Analytics authentication: Vercel variable `SUPABASE_MATCH_LEARNING_SECRET` matches only the SHA-256 stored as `app_secrets.name = 'match_api_v9'`; never store the raw secret in source or this blueprint.
 
 Any future release must update this file when the user journey, trust gates, data contract or deployment topology changes.
