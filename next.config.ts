@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: { optimizePackageImports: ["@phosphor-icons/react"] },
+  outputFileTracingIncludes: {
+    "/api/guide": ["./public/fonts/*.ttf"],
+    "/api/og": ["./public/fonts/*.ttf"],
+  },
   async headers() {
     return [
       {

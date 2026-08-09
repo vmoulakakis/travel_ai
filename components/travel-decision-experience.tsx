@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AirplaneTilt,
   ArrowRight,
@@ -9,6 +9,7 @@ import {
   CaretDown,
   Check,
   Compass,
+  DownloadSimple,
   ForkKnife,
   Heart,
   Leaf,
@@ -16,6 +17,7 @@ import {
   Mountains,
   Path,
   ShieldCheck,
+  ShareNetwork,
   Sparkle,
   SunHorizon,
   UsersThree,
@@ -105,10 +107,21 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
 
   const stayOffers = useMemo(() => {
     return [...(stayData?.offers ?? [])]
-      .filter(offer => Boolean(offer.validTo) && Date.parse(offer.validTo as string) >= Date.parse(`${trip.endDate}T00:00:00Z`) && offer.trackingUrl.includes("/CD104/"))
+      .filter(offer => (!offer.validFrom || Date.parse(offer.validFrom) <= Date.parse(`${trip.startDate}T23:59:59Z`)) && Boolean(offer.validTo) && Date.parse(offer.validTo as string) >= Date.parse(`${trip.endDate}T00:00:00Z`) && offer.trackingUrl.startsWith("https://go.linkwi.se/") && offer.trackingUrl.includes("/CD104/"))
       .sort((a, b) => offerScore(b, trip.hotelStyle) - offerScore(a, trip.hotelStyle))
       .slice(0, 3);
-  }, [stayData, trip.endDate, trip.hotelStyle]);
+  }, [stayData, trip.startDate, trip.endDate, trip.hotelStyle]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("mode");
+    const destination = params.get("destination")?.trim();
+    if (mode !== "unknown" && mode !== "idea" && mode !== "surprise") return;
+    setEntryMode(mode);
+    setTrip(current => ({ ...current, entryMode: mode, consideredDestination: mode === "idea" && destination ? destination : undefined, noveltyPreference: mode === "surprise" ? "surprise" : current.noveltyPreference, distancePreference: mode === "surprise" ? "any" : current.distancePreference }));
+    const timer = window.setTimeout(() => document.getElementById("discovery")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const patch = <K extends keyof TripRequest>(key: K, value: TripRequest[K]) => setTrip(current => ({ ...current, [key]: value }));
   const setDates = (start: string, end: string) => {
@@ -383,6 +396,8 @@ function DestinationStory({ recommendation, result, insights, trip, lang, offers
       <div className="destination-visual" style={{ backgroundImage: `url('/api/destination-photo?slug=${encodeURIComponent(recommendation.slug)}&start_date=${trip.startDate}&end_date=${trip.endDate}')` }}><div className="visual-date"><CalendarBlank size={21} /><span>{prettyDate(trip.startDate, lang)} — {prettyDate(trip.endDate, lang)}<small>{trip.nights} {say(lang, "νύχτες", "nights")}</small></span></div><div className="visual-proof"><ShieldCheck size={18} weight="duotone" /> {say(lang, "Εικόνα από πραγματική επιλογή διαμονής", "Image from a real stay option")}</div></div>
     </div>
 
+    <ShareTools recommendation={recommendation} trip={trip} lang={lang} />
+
     {windows.length > 0 && <div className="date-windows"><div className="journey-label"><span className="eyebrow">{say(lang, "ΠΟΤΕ ΑΞΙΖΕΙ ΠΕΡΙΣΣΟΤΕΡΟ", "WHEN IT WORKS BEST")}</span><h3>{say(lang, "Τρία παράθυρα. Καθαρό κέρδος και καθαρός συμβιβασμός.", "Three windows. A clear gain and a clear trade-off.")}</h3></div><div className="date-window-grid">{windows.map((window, index) => <button type="button" key={window.id} className={trip.startDate === window.startDate && trip.endDate === window.endDate ? "active" : ""} onClick={() => void onSelectWindow(window)}><span>{index === 0 ? say(lang, "ΠΡΟΤΕΙΝΟΜΕΝΟ", "RECOMMENDED") : say(lang, "ΕΝΑΛΛΑΚΤΙΚΗ", "ALTERNATIVE")}</span><strong>{prettyDate(window.startDate, lang)} → {prettyDate(window.endDate, lang)}</strong><b>{lang === "el" ? window.titleEl : window.titleEn}</b><p>{lang === "el" ? window.tradeoffEl : window.tradeoffEn}</p></button>)}</div></div>}
 
     <div className="journey-strip"><div className="journey-label"><span className="eyebrow">{say(lang, "ΤΟ ΤΑΞΙΔΙ ΣΕ 90″", "THE TRIP IN 90 SECONDS")}</span><h3>{say(lang, "Ένας ρυθμός που μπορείς ήδη να φανταστείς.", "A rhythm you can already picture.")}</h3></div><div className="journey-days">{days.map((day, index) => <div key={day}><span>{index + 1}</span><i /><strong>{index === 1 && insights?.attractions[0]?.name ? insights.attractions[0].name : index === 2 && insights?.restaurants[0]?.name ? insights.restaurants[0].name : day}</strong><small>{index === 0 ? insights?.practicalNotes[0] || say(lang, "check-in, βόλτα, πρώτη εικόνα", "check-in, walk, first impression") : index === 1 ? insights?.attractions[0]?.whyItFits || insights?.attractions[0]?.summary || say(lang, "τοπική ζωή και μια χαρακτηριστική εμπειρία", "local life and a signature experience") : index === 2 ? insights?.restaurants[0]?.whyItFits || insights?.restaurants[0]?.summary || say(lang, "χώρος για αυτό που θα αγαπήσεις", "space for what you will love") : say(lang, "χωρίς πρόγραμμα-μαραθώνιο", "without an itinerary marathon")}</small></div>)}</div></div>
@@ -401,10 +416,35 @@ function StayCard({ offer, index, destination, trip, lang }: { offer: V8StayOffe
     if (navigator.sendBeacon) navigator.sendBeacon("/api/track", new Blob([body], { type: "application/json" }));
     else void fetch("/api/track", { method: "POST", headers: { "content-type": "application/json" }, body, keepalive: true });
   };
+  const guideUrl = `/api/guide?slug=${encodeURIComponent(destination)}&start=${trip.startDate}&end=${trip.endDate}&offer=${encodeURIComponent(offer.sourceProductId)}`;
+  const trackGuide = () => {
+    const body = JSON.stringify({ eventName: "guide_download", destinationId: destination, sourceProductId: offer.sourceProductId, channel: "pdf" });
+    if (navigator.sendBeacon) navigator.sendBeacon("/api/growth/track", new Blob([body], { type: "application/json" }));
+    else void fetch("/api/growth/track", { method: "POST", headers: { "content-type": "application/json" }, body, keepalive: true });
+  };
   return <article className={`stay-card ${index === 0 ? "best" : ""}`}>
     <div className="stay-photo" style={image ? { backgroundImage: `url('${image}')` } : undefined}><span>{index === 0 ? say(lang, "Η επιλογή μας", "Our pick") : index === 1 ? say(lang, "Πιο ήσυχο", "Calmer") : say(lang, "Διαφορετικό mood", "Different mood")}</span></div>
-    <div className="stay-copy"><small>{offer.city || say(lang, "Περιοχή προορισμού", "Destination area")}</small><h4>{offer.propertyName}</h4><p>{cleanDescription(offer.description)}</p><div className="stay-trust"><span><CalendarBlank size={16} /> {say(lang, "Καλύπτει όλες τις ημερομηνίες", "Covers every trip date")}</span>{offer.distanceKm != null && <span><MapPin size={16} /> {offer.distanceKm.toFixed(1)} km</span>}</div><a href={offer.trackingUrl} target="_blank" rel="sponsored nofollow noopener" onClick={track}>{say(lang, "Έλεγξε τιμή & διαθεσιμότητα", "Check price & availability")} <ArrowRight size={18} weight="bold" /></a><small className="stay-fineprint">{say(lang, "Η τελική τιμή και το δωμάτιο επιβεβαιώνονται πριν προχωρήσεις.", "Final price and room are confirmed before you continue.")}</small></div>
+    <div className="stay-copy"><small>{offer.city || say(lang, "Περιοχή προορισμού", "Destination area")}</small><h4>{offer.propertyName}</h4><p>{cleanDescription(offer.description)}</p><div className="stay-trust"><span><CalendarBlank size={16} /> {say(lang, "Καλύπτει όλες τις ημερομηνίες", "Covers every trip date")}</span>{offer.distanceKm != null && <span><MapPin size={16} /> {offer.distanceKm.toFixed(1)} km</span>}</div><a href={offer.trackingUrl} target="_blank" rel="sponsored nofollow noopener" onClick={track}>{say(lang, "Έλεγξε τιμή & διαθεσιμότητα", "Check price & availability")} <ArrowRight size={18} weight="bold" /></a><a className="guide-download" href={guideUrl} onClick={trackGuide}><DownloadSimple size={17} weight="duotone" /> {say(lang, "Πάρε τον προσωπικό οδηγό PDF", "Get your personal PDF guide")}</a><small className="stay-fineprint">{say(lang, "Η τελική τιμή και το δωμάτιο επιβεβαιώνονται πριν προχωρήσεις.", "Final price and room are confirmed before you continue.")}</small></div>
   </article>;
+}
+
+function ShareTools({ recommendation, trip, lang }: { recommendation: V8Recommendation; trip: TripRequest; lang: Lang }) {
+  const [status, setStatus] = useState<"idle" | "shared" | "copied">("idle");
+  const giveawayActive = process.env.NEXT_PUBLIC_GIVEAWAY_ACTIVE === "true" && Boolean(process.env.NEXT_PUBLIC_GIVEAWAY_TERMS_PATH);
+  async function share() {
+    const url = new URL(`/proorismoi/${recommendation.slug}`, window.location.origin);
+    url.searchParams.set("start", trip.startDate);
+    url.searchParams.set("end", trip.endDate);
+    const title = say(lang, `${recommendation.destination}: λες να είναι το επόμενο ταξίδι;`, `${recommendation.destination}: could this be the next trip?`);
+    const text = say(lang, "Ο Ελληνικός AI Travel Guru την έβαλε στις τελικές επιλογές μου. Δες γιατί.", "The Greek AI Travel Guru shortlisted it for me. See why.");
+    let channel: "native" | "clipboard" = "clipboard";
+    try {
+      if (navigator.share) { await navigator.share({ title, text, url: url.toString() }); channel = "native"; setStatus("shared"); }
+      else { await navigator.clipboard.writeText(url.toString()); setStatus("copied"); }
+      void fetch("/api/growth/track", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventName: "social_share", destinationId: recommendation.slug, channel }), keepalive: true });
+    } catch { return; }
+  }
+  return <aside className="share-tools"><div><span className="eyebrow"><ShareNetwork size={18} weight="duotone" /> {say(lang, "ΜΟΙΡΑΣΟΥ ΤΗΝ ΙΔΕΑ", "SHARE THE IDEA")}</span><h3>{say(lang, "Ένα ταξίδι γίνεται πιο αληθινό όταν το συζητάς.", "A trip becomes more real when you talk about it.")}</h3><p>{say(lang, "Η κοινοποίηση ανοίγει με ειδική εικόνα του προορισμού και οδηγεί μόνο στη δική του εσωτερική σελίδα.", "The share opens with a destination card and points only to its internal page.")}</p>{giveawayActive && <small>{say(lang, "Η κοινοποίηση μπορεί να μετρήσει ως συμμετοχή μόνο σύμφωνα με τους επίσημους όρους της ενεργής ενέργειας.", "A share may count as an entry only under the official terms of the active campaign.")}</small>}</div><button type="button" onClick={() => void share()}><ShareNetwork size={20} weight="bold" /> {status === "copied" ? say(lang, "Ο σύνδεσμος αντιγράφηκε", "Link copied") : status === "shared" ? say(lang, "Μοιράστηκε", "Shared") : say(lang, "Μοιράσου το ταξίδι", "Share this trip")}</button></aside>;
 }
 
 function topReason(recommendation: V8Recommendation, lang: Lang) {

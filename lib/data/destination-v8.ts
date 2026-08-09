@@ -9,6 +9,19 @@ function vector(v:unknown){if(Array.isArray(v))return v.map(Number).filter(Numbe
 function cleanHtml(v:string|null){return v?v.replace(/<[^>]*>/g," ").replace(/&nbsp;/gi," ").replace(/\s+/g," ").trim():null}
 function readHeaders():Record<string,string>{const headers:Record<string,string>={"user-agent":"travel-guru/1.0"},secret=process.env.SUPABASE_INGEST_SECRET;if(secret)headers["x-app-secret"]=secret;return headers}
 
+async function fetchJson<T>(url:string,timeoutMs:number):Promise<T>{
+ let lastError:unknown;
+ for(let attempt=0;attempt<2;attempt+=1){
+  try{
+   const response=await fetch(url,{cache:"no-store",headers:readHeaders(),signal:AbortSignal.timeout(timeoutMs)});
+   if(response.ok)return await response.json() as T;
+   lastError=new Error(`Destination data ${response.status}`);
+   if(response.status<500)break;
+  }catch(error){lastError=error}
+ }
+ throw lastError instanceof Error?lastError:new Error("Destination data unavailable");
+}
+
 function mapDestination(row:Record<string,unknown>):V8Destination|null{
  const slug=text(row.slug),nameEl=text(row.name_el),nameEn=text(row.name_en),countryCode=text(row.country_code),countryEl=text(row.country_el),countryEn=text(row.country_en),lat=num(row.latitude),lon=num(row.longitude),vec=vector(row.semantic_vector);
  if(!slug||!nameEl||!nameEn||!countryCode||!countryEl||!countryEn||lat==null||lon==null||vec.length!==16)return null;
@@ -21,9 +34,7 @@ function mapDestination(row:Record<string,unknown>):V8Destination|null{
 }
 
 export async function loadV8DestinationCatalog():Promise<V8Destination[]>{
- const response=await fetch(CATALOG_URL,{cache:"no-store",headers:readHeaders(),signal:AbortSignal.timeout(8000)});
- if(!response.ok)throw new Error(`Destination catalog ${response.status}`);
- const payload=await response.json() as {destinations?:Array<Record<string,unknown>>};
+ const payload=await fetchJson<{destinations?:Array<Record<string,unknown>>}>(CATALOG_URL,8000);
  const rows=(payload.destinations??[]).map(mapDestination).filter((x):x is V8Destination=>Boolean(x));
  if(rows.length<10)throw new Error("Destination catalog is unexpectedly small");
  return rows;
@@ -39,6 +50,5 @@ function mapOffer(row:Record<string,unknown>):V8StayOffer|null{
 
 export async function loadV8StayOffers(slug:string,startDate:string,endDate:string,limit=18):Promise<V8StayOffer[]>{
  const url=new URL(STAYS_URL);url.searchParams.set("slug",slug);url.searchParams.set("start_date",startDate);url.searchParams.set("end_date",endDate);url.searchParams.set("limit",String(Math.max(1,Math.min(30,limit))));
- const response=await fetch(url,{cache:"no-store",headers:readHeaders(),signal:AbortSignal.timeout(7000)});if(!response.ok)throw new Error(`Destination stays ${response.status}`);
- const payload=await response.json() as {offers?:Array<Record<string,unknown>>};return(payload.offers??[]).map(mapOffer).filter((x):x is V8StayOffer=>Boolean(x));
+ const payload=await fetchJson<{offers?:Array<Record<string,unknown>>}>(url.toString(),7000);return(payload.offers??[]).map(mapOffer).filter((x):x is V8StayOffer=>Boolean(x));
 }
