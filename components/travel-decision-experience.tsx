@@ -330,7 +330,7 @@ function DestinationStory({ recommendation, result, insights, trip, lang, offers
   const days = [say(lang, "Άφιξη & πρώτη ανάσα", "Arrival & first breath"), say(lang, "Η μέρα του τόπου", "The day of the place"), say(lang, "Ο δικός σου ρυθμός", "Your own rhythm"), say(lang, "Κλείσιμο χωρίς βιασύνη", "A slow final chapter")];
   const windows = recommendation.dateWindows ?? [];
   return <section id="destination" className="destination-story">
-    {result.council && <div className="council-verdict"><div className="council-verdict-head"><span className="eyebrow">{say(lang, "ΟΙ ΑΝΕΞΑΡΤΗΤΕΣ ΦΩΝΕΣ", "THE INDEPENDENT VOICES")}</span><h3>{say(lang, "Δεν αποφάσισαν από ευγένεια. Έλεγξαν διαφορετικά πράγματα.", "They did not decide to be polite. They checked different things.")}</h3></div><div className="council-voices">{result.council.voices.map(voice => <article key={voice.role}><span>{lang === "el" ? voice.titleEl : voice.titleEn}</span><p>{polishVerdict(voice.verdict, lang)}</p><strong>{voice.pickSlug === recommendation.slug ? say(lang, "Υπερασπίζεται αυτή την επιλογή", "Defends this choice") : say(lang, "Υπερασπίζεται διαφορετική οπτική", "Defends a different perspective")}</strong></article>)}</div></div>}
+    {result.council && <div className="council-verdict"><div className="council-verdict-head"><span className="eyebrow">{say(lang, "ΟΙ ΑΝΕΞΑΡΤΗΤΕΣ ΦΩΝΕΣ", "THE INDEPENDENT VOICES")}</span><h3>{say(lang, "Δεν αποφάσισαν από ευγένεια. Έλεγξαν διαφορετικά πράγματα.", "They did not decide to be polite. They checked different things.")}</h3></div><div className="council-voices">{result.council.voices.map(voice => <article key={voice.role}><span>{lang === "el" ? voice.titleEl : voice.titleEn}</span><p>{polishVerdict(voice.verdict, lang, recommendation)}</p><strong>{voice.pickSlug === recommendation.slug ? say(lang, "Υπερασπίζεται αυτή την επιλογή", "Defends this choice") : say(lang, "Υπερασπίζεται διαφορετική οπτική", "Defends a different perspective")}</strong></article>)}</div></div>}
     <div className="destination-hero">
       <div className="destination-verdict"><span className="eyebrow">{say(lang, "Η ΤΕΛΙΚΗ ΕΤΥΜΗΓΟΡΙΑ", "THE FINAL VERDICT")}</span><h2>{say(lang, `${recommendation.destination}: αυτό είναι το ταξίδι που χρειάζεσαι τώρα.`, `${recommendation.destination}: this is the trip you need now.`)}</h2><p>{insights?.overview || recommendation.why}</p><div className="verdict-reasons"><span><Check size={17} weight="bold" /> {topReason(recommendation, lang)}</span><span><Check size={17} weight="bold" /> {recommendation.budgetLabel}</span><span><Check size={17} weight="bold" /> {recommendation.effortLabel}</span></div><div className="tradeoff-block"><ShieldCheck size={23} weight="duotone" /><div><small>{say(lang, "Ειλικρινές heads-up", "Honest heads-up")}</small><strong>{tradeoff(recommendation, lang)}</strong></div></div></div>
       <div className="destination-visual" style={{ backgroundImage: `url('/api/destination-photo?slug=${encodeURIComponent(recommendation.slug)}&start_date=${trip.startDate}&end_date=${trip.endDate}')` }}><div className="visual-date"><CalendarBlank size={21} /><span>{prettyDate(trip.startDate, lang)} — {prettyDate(trip.endDate, lang)}<small>{trip.nights} {say(lang, "νύχτες", "nights")}</small></span></div><div className="visual-proof"><ShieldCheck size={18} weight="duotone" /> {say(lang, "Εικόνα από πραγματική επιλογή διαμονής", "Image from a real stay option")}</div></div>
@@ -377,9 +377,12 @@ function tradeoff(recommendation: V8Recommendation, lang: Lang) {
   return say(lang, "Δεν βλέπουμε κόκκινη σημαία, αλλά θα κρατούσαμε λίγο ελεύθερο χρόνο αντί για γεμάτο πρόγραμμα.", "There is no red flag, but we would keep some free time instead of over-planning.");
 }
 
-function polishVerdict(value: string, lang: Lang) {
-  if (lang === "en") return value;
+function polishVerdict(value: string, lang: Lang, recommendation: V8Recommendation) {
+  if (/\d/.test(value)) return say(lang, `${recommendation.destination}: παραμένει δυνατή επιλογή μετά τον έλεγχο εποχής, μετακίνησης, κόστους και των πιθανών συμβιβασμών.`, `${recommendation.destination}: remains a strong choice after checking timing, travel effort, cost and the likely trade-offs.`);
+  if (lang === "en") return value.replace(/\bperfect(?:ly)?\b/gi, "very well");
   return value
+    .replace(/ταιριάζει απόλυτα/gi, "ταιριάζει πολύ καλά")
+    .replace(/\bιδανικ(ή|ός|ό)\b/gi, "δυνατ$1")
     .replace(/με καλύτερη προσαρμογή (?:στο|στην) αποφυγή πλήθους/gi, "χωρίς να θυσιάζει την ανάγκη σου για λιγότερο κόσμο")
     .replace(/στο αποφυγή/gi, "στην αποφυγή")
     .replace(/μέτρια προσπάθεια πρόσβασης/gi, "χρειάζεται λίγη περισσότερη ενέργεια για τη μετάβαση")
