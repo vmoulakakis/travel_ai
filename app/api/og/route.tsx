@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     <div style={{ position: "absolute", inset: 0, display: "flex", background: "linear-gradient(90deg, rgba(3,14,26,.97) 0%, rgba(3,14,26,.9) 52%, rgba(3,14,26,.28) 100%)" }} />
     <div style={{ position: "relative", width: "760px", padding: "70px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
       <div style={{ display: "flex", color: "#34d7e8", fontSize: 20, fontWeight: 800, letterSpacing: 4 }}>ΕΛΛΗΝΙΚΟΣ AI TRAVEL GURU</div>
-      <div style={{ display: "flex", flexDirection: "column" }}><div style={{ display: "flex", fontSize: name.length > 35 ? 64 : 82, fontWeight: 800, lineHeight: .94, letterSpacing: -3 }}>{name}</div><div style={{ display: "flex", marginTop: 22, fontSize: 25, color: "#d1dce3", lineHeight: 1.35 }}>Όχι άλλη μία λίστα. Μία ταξιδιωτική απόφαση που ξεκινά από εσένα.</div></div>
+      <div style={{ display: "flex", flexDirection: "column", padding: "24px 26px", borderRadius: 22, background: "rgba(3,14,26,.7)", border: "1px solid rgba(255,255,255,.12)" }}><div style={{ display: "flex", fontSize: name.length > 35 ? 64 : 82, fontWeight: 800, lineHeight: .94, letterSpacing: -3 }}>{name}</div><div style={{ display: "flex", marginTop: 22, fontSize: 25, color: "#eef4f7", lineHeight: 1.35 }}>Όχι άλλη μία λίστα. Μία ταξιδιωτική απόφαση που ξεκινά από εσένα.</div></div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 18, color: "#c9d5dd" }}><span style={{ display: "flex", width: 14, height: 14, borderRadius: 99, background: "#8f6bff" }} /> Αληθινά κριτήρια · ειλικρινείς συμβιβασμοί</div>
     </div>
   </div>, {
