@@ -38,7 +38,7 @@ export async function POST(request:Request){
    emit("council:ready",97,{agreement:council.agreement});
    const publicIntent={...intent,source:"structured" as const,interpretedText:undefined};
    const result:V8RecommendationResponse={version:9,experienceVersion:9,request:trip,generatedAt:new Date().toISOString(),source:"verified-travel-knowledge",intent:publicIntent,catalogSize:catalog.length,mode:"guided",council,continuity:fullContinuity(),recommendations};
-   emit("final",100,{result});void recordV8RecommendationSession(sessionId,trip,intent,recommendations);
+   await recordV8RecommendationSession(sessionId,trip,intent,recommendations);emit("final",100,{result});
   }catch{emit("continuity",100,{message:safePublicMessage(null,trip.language==="en"?"en":"el"),continuity:pendingContinuity()})}finally{if(!closed){closed=true;controller.close()}}
  }});
  const secure=process.env.NODE_ENV==="production"?"; Secure":"";

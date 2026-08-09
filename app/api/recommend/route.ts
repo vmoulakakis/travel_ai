@@ -24,6 +24,6 @@ export async function POST(request:Request){
   const recommendations=toRecommendationsV8(trip,ordered).map(x=>({...x,dateWindows:buildSmartDateWindows(trip,x)}));
   const publicIntent={...intent,source:"structured" as const,interpretedText:undefined};
   const result:V8RecommendationResponse={version:9,experienceVersion:9,request:trip,generatedAt:new Date().toISOString(),source:"verified-travel-knowledge",intent:publicIntent,catalogSize:catalog.length,mode:"guided",council,continuity:fullContinuity(),recommendations};
-  const response=NextResponse.json(result,{headers:{"cache-control":"no-store"}});response.cookies.set("travel_match_session",sessionId,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:7776000});void recordV8RecommendationSession(sessionId,trip,intent,recommendations);return response;
+  await recordV8RecommendationSession(sessionId,trip,intent,recommendations);const response=NextResponse.json(result,{headers:{"cache-control":"no-store"}});response.cookies.set("travel_match_session",sessionId,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:7776000});return response;
  }catch{return NextResponse.json({message:"Οι επιλογές σου έχουν κρατηθεί. Χρειάζομαι λίγο ακόμη για να επιβεβαιώσω το αποτέλεσμα.",continuity:pendingContinuity()},{status:503})}
 }

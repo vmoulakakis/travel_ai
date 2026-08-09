@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
-import "./v5.css";
-import "./research.css";
-import "./weather.css";
 import "./v8.css";
 
 const resolvedSiteUrl = process.env.NEXT_PUBLIC_SITE_URL
