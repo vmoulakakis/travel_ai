@@ -84,7 +84,7 @@ const stageLabels: Record<string, [string, string]> = {
   "verify:start": ["Ο Skeptic ψάχνει λόγο να απορρίψει τις επιλογές", "The Skeptic looks for reasons to reject the choices"],
   "verify:ready": ["Οι αδύναμες επιλογές αποκλείστηκαν", "Weak choices were removed"],
   "council:start": ["Δύο ανεξάρτητες φωνές υπερασπίζονται την τελική επιλογή", "Two independent voices defend the final choice"],
-  "council:ready": ["Η ομάδα ιεράρχησε οκτώ διαφορετικές επιλογές", "The team ranked eight distinct options"],
+  "council:ready": ["Η ομάδα έχτισε ένα χαρτοφυλάκιο πραγματικά διαφορετικών επιλογών", "The team built a portfolio of genuinely distinct options"],
 };
 
 export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|null}) {
@@ -100,7 +100,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
   const [stayData, setStayData] = useState<V8StayResponse | null>(null);
   const [insights, setInsights] = useState<DestinationInsightsResponse | null>(null);
   const [stayLoading, setStayLoading] = useState(false);
-  const [showMore, setShowMore] = useState(false);
+  const [visibleAlternativeCount, setVisibleAlternativeCount] = useState(0);
   const [compareSlugs, setCompareSlugs] = useState<string[]>([]);
   const running = useRef(false);
   const today=useMemo(()=>new Date().toISOString().slice(0,10),[]);
@@ -142,13 +142,13 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
     setStep(0);
     setResult(null);
     setSelected(null);
-    setShowMore(false);
+    setVisibleAlternativeCount(0);
     setCompareSlugs([]);
     setTrip(current => ({ ...current, entryMode:mode, consideredDestination:mode==="idea"?current.consideredDestination:undefined, noveltyPreference:mode==="surprise"?"surprise":current.noveltyPreference, distancePreference:mode==="surprise"?"any":current.distancePreference, tripText:mode==="surprise"?say(lang, "Θέλω μια απρόσμενη επιλογή στην Ελλάδα που να μου ταιριάζει πραγματικά.", "I want an unexpected Greek destination that genuinely fits me."):current.tripText }));
     setTimeout(() => document.getElementById("discovery")?.scrollIntoView({ behavior: "smooth", block: "start" }), 40);
   }
 
-  function beginWeekly(){if(!weeklyPick)return;const moods:TripRequest["moods"]=weeklyPick.tags.includes("beach")?["relax","warmth"]:weeklyPick.tags.includes("nature")?["relax","nature"]:["food","culture"];setTrip(current=>({...current,entryMode:"idea",consideredDestination:weeklyPick.destination,startDate:weeklyPick.startDate,endDate:weeklyPick.endDate,nights:weeklyPick.nights,month:monthFromDate(weeklyPick.startDate),moods}));setEntryMode("idea");setStep(0);setResult(null);setSelected(null);setShowMore(false);setCompareSlugs([]);setTimeout(()=>document.getElementById("discovery")?.scrollIntoView({behavior:"smooth",block:"start"}),40)}
+  function beginWeekly(){if(!weeklyPick)return;const moods:TripRequest["moods"]=weeklyPick.tags.includes("beach")?["relax","warmth"]:weeklyPick.tags.includes("nature")?["relax","nature"]:["food","culture"];setTrip(current=>({...current,entryMode:"idea",consideredDestination:weeklyPick.destination,startDate:weeklyPick.startDate,endDate:weeklyPick.endDate,nights:weeklyPick.nights,month:monthFromDate(weeklyPick.startDate),moods}));setEntryMode("idea");setStep(0);setResult(null);setSelected(null);setVisibleAlternativeCount(0);setCompareSlugs([]);setTimeout(()=>document.getElementById("discovery")?.scrollIntoView({behavior:"smooth",block:"start"}),40)}
 
   async function run() {
     if (running.current) return;
@@ -159,7 +159,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
     setSelected(null);
     setStayData(null);
     setInsights(null);
-    setShowMore(false);
+    setVisibleAlternativeCount(0);
     setCompareSlugs([]);
     setEvents([]);
     let final = false;
@@ -262,7 +262,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
         <div className="hero-copy">
           <span className="eyebrow"><Sparkle size={16} weight="fill" /> {say(lang, "Η προσωπική σου ταξιδιωτική ομάδα", "Your personal travel team")}</span>
           <h1>{say(lang, "Δεν χρειάζεται να ξέρεις πού.", "You do not need to know where.")}<em>{say(lang, " Πες μας πώς θέλεις να νιώσεις.", " Tell us how you want to feel.")}</em></h1>
-          <p>{say(lang, "Ο Guru συνδυάζει ημερομηνίες, budget ανά παρέα, κόκκινες γραμμές και την ψυχολογία του ταξιδιού — και σου δίνει έως οκτώ πραγματικά διαφορετικούς δρόμους, όχι την ίδια απάντηση ξανά και ξανά.", "The Guru combines dates, group budget, red lines and travel psychology — then gives you up to eight genuinely different paths, not the same answer repeatedly.")}</p>
+          <p>{say(lang, "Ο Guru συνδυάζει ημερομηνίες, budget ανά παρέα, κόκκινες γραμμές και την ψυχολογία του ταξιδιού — και σου δίνει έως δώδεκα πραγματικά διαφορετικούς δρόμους, όχι την ίδια απάντηση ξανά και ξανά.", "The Guru combines dates, group budget, red lines and travel psychology — then gives you up to twelve genuinely different paths, not the same answer repeatedly.")}</p>
           <div className="hero-actions">
             <button className="primary" onClick={() => begin("unknown")}>{say(lang, "Δεν ξέρω πού να πάω", "I do not know where to go")} <ArrowRight size={18} weight="bold" /></button>
             <button onClick={() => begin("idea")}>{say(lang, "Έχω κάτι στο μυαλό μου", "I have an idea")}</button>
@@ -286,7 +286,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
       <section id="how" className="guru-promise">
         <div><span>01</span><Heart size={27} weight="duotone" /><h2>{say(lang, "Σε καταλαβαίνει", "Understands you")}</h2><p>{say(lang, "Όχι μόνο φίλτρα. Μαθαίνει τι χρειάζεσαι από αυτό το ταξίδι.", "Beyond filters. It learns what you need from this trip.")}</p></div>
         <div><span>02</span><ShieldCheck size={27} weight="duotone" /><h2>{say(lang, "Αμφισβητεί", "Challenges")}</h2><p>{say(lang, "Ελέγχει εποχή, κόπο μετάβασης και όσα μπορούν να χαλάσουν την επιλογή.", "It checks season, travel effort and the details that could spoil the choice.")}</p></div>
-        <div><span>03</span><Compass size={27} weight="duotone" /><h2>{say(lang, "Σε οδηγεί μέχρι τέλους", "Guides you to the end")}</h2><p>{say(lang, "Έξι επιλογές, σύγκριση, σωστές ημερομηνίες και καθαρή τελική έξοδος.", "Six options, comparison, right dates and a clear final handoff.")}</p></div>
+        <div><span>03</span><Compass size={27} weight="duotone" /><h2>{say(lang, "Σε οδηγεί μέχρι τέλους", "Guides you to the end")}</h2><p>{say(lang, "Τρεις finalists και έως εννέα διαφορετικές διαδρομές εξερεύνησης, με σύγκριση και καθαρή τελική έξοδο.", "Three finalists and up to nine distinct exploration paths, with comparison and a clear final handoff.")}</p></div>
       </section>
 
       <section id="discovery" className={`discovery ${entryMode ? "open" : ""}`}>
@@ -331,11 +331,11 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
       {loading && <AgentCouncil events={events} lang={lang} />}
 
       {result && <section id="results" className="results-section">
-        <div className="results-head"><div><span className="eyebrow">{say(lang, "Η ΑΠΟΦΑΣΗ ΤΗΣ ΟΜΑΔΑΣ", "THE TEAM DECISION")}</span><h2>{say(lang, "Τρεις τελικοί υποψήφιοι. Έως πέντε ακόμη δρόμοι αν θέλεις να ψάξεις βαθύτερα.", "Three finalists. Up to five more paths if you want to explore deeper.")}</h2><p className="profile-summary"><Heart size={18} weight="duotone" /> {result.profileSummary}</p></div><div className="results-proof"><ShieldCheck size={23} weight="duotone" /><span><strong>{result.catalogSize}</strong>{say(lang, " ελληνικοί προορισμοί εξετάστηκαν", " Greek destinations checked")}</span></div></div>
+        <div className="results-head"><div><span className="eyebrow">{say(lang, "Η ΑΠΟΦΑΣΗ ΤΗΣ ΟΜΑΔΑΣ", "THE TEAM DECISION")}</span><h2>{say(lang, `Τρεις finalists. ${Math.max(0,result.recommendations.length-3)} ακόμη διαφορετικοί δρόμοι για βαθύτερη εξερεύνηση.`, `Three finalists. ${Math.max(0,result.recommendations.length-3)} more distinct paths for deeper exploration.`)}</h2><p className="profile-summary"><Heart size={18} weight="duotone" /> {result.profileSummary}</p></div><div className="results-proof"><ShieldCheck size={23} weight="duotone" /><span><strong>{result.eligibleCount??result.catalogSize}</strong>{say(lang, " βιώσιμες επιλογές πέρασαν σταθμισμένο έλεγχο", " viable choices passed weighted checks")}</span></div></div>
         {result.feasibility==="COMPROMISE"&&<div className="feasibility-note"><ShieldCheck size={24} weight="duotone"/><div><strong>{say(lang,"Τα κριτήρια συγκρούονται μεταξύ τους.","Your criteria conflict with each other.")}</strong><p>{say(lang,"Δεν θα βαφτίσουμε έναν συμβιβασμό τέλειο. Οι παρακάτω είναι οι πιο τίμιες επιλογές και δείχνουν καθαρά πού υποχωρείς.","We will not label a compromise perfect. These are the most honest options, with the trade-offs made explicit.")}</p></div></div>}
         <div className="results-grid">{result.recommendations.slice(0, 3).map((recommendation, index) => <ResultCard key={recommendation.slug} recommendation={recommendation} index={index} trip={trip} lang={lang} compared={compareSlugs.includes(recommendation.slug)} onToggleCompare={()=>toggleCompare(recommendation.slug)} onChoose={() => void choose(recommendation)} />)}</div>
-        <div className="more-results-control"><button onClick={()=>setShowMore(current=>!current)}>{showMore?say(lang,"Κρύψε τις επιπλέον επιλογές","Hide extra options"):say(lang,"Δείξε μου έως 5 ακόμη διαφορετικές επιλογές","Show up to 5 more distinct options")} <CaretDown size={18} className={showMore?"turned":""}/></button></div>
-        {showMore&&<div className="alternatives-grid">{result.recommendations.slice(3,8).map((recommendation,index)=><ResultCard key={recommendation.slug} recommendation={recommendation} index={index+3} compact trip={trip} lang={lang} compared={compareSlugs.includes(recommendation.slug)} onToggleCompare={()=>toggleCompare(recommendation.slug)} onChoose={()=>void choose(recommendation)}/>)}</div>}
+        {result.recommendations.length>3&&<div className="more-results-control"><button onClick={()=>setVisibleAlternativeCount(current=>current>=result.recommendations.length-3?0:Math.min(result.recommendations.length-3,current+3))}>{visibleAlternativeCount>=result.recommendations.length-3?say(lang,"Κρύψε τις διαδρομές εξερεύνησης","Hide exploration paths"):say(lang,`Δείξε ${Math.min(3,result.recommendations.length-3-visibleAlternativeCount)} ακόμη · ${result.recommendations.length-3-visibleAlternativeCount} απομένουν`,`Show ${Math.min(3,result.recommendations.length-3-visibleAlternativeCount)} more · ${result.recommendations.length-3-visibleAlternativeCount} remaining`)} <CaretDown size={18} className={visibleAlternativeCount>=result.recommendations.length-3?"turned":""}/></button></div>}
+        {visibleAlternativeCount>0&&<div className="alternatives-grid">{result.recommendations.slice(3,3+visibleAlternativeCount).map((recommendation,index)=><ResultCard key={recommendation.slug} recommendation={recommendation} index={index+3} compact trip={trip} lang={lang} compared={compareSlugs.includes(recommendation.slug)} onToggleCompare={()=>toggleCompare(recommendation.slug)} onChoose={()=>void choose(recommendation)}/>)}</div>}
         {compareSlugs.length>0&&<ComparisonPanel recommendations={result.recommendations.filter(item=>compareSlugs.includes(item.slug))} trip={trip} lang={lang} onChoose={item=>void choose(item)} onRemove={toggleCompare}/>}
       </section>}
 
@@ -373,16 +373,15 @@ function MoodIcon({ mood }: { mood: TripRequest["moods"][number] }) {
 function AgentCouncil({ events, lang }: { events: StreamEvent[]; lang: Lang }) {
   const current = events.at(-1)?.type ?? "understand:start";
   const visible = Object.keys(stageLabels).filter(key => events.some(event => event.type === key)).slice(-4);
-  return <section className="agent-council" aria-live="polite"><div className="council-orbit"><Compass size={44} weight="duotone" /><span /><span /><span /></div><div><span className="eyebrow">{say(lang, "Η ΟΜΑΔΑ ΔΟΥΛΕΥΕΙ", "THE TEAM IS WORKING")}</span><h2>{stageLabels[current]?.[lang === "el" ? 0 : 1] ?? say(lang, "Χτίζουμε την απόφαση…", "Building the decision…")}</h2><div className="agent-list">{visible.map(key => <div key={key} className={key === current ? "active" : "done"}>{key === current ? <Sparkle size={17} weight="fill" /> : <Check size={17} weight="bold" />}<span>{stageLabels[key][lang === "el" ? 0 : 1]}</span><small>{key === current ? say(lang, "τώρα", "now") : say(lang, "ελέγχθηκε", "checked")}</small></div>)}</div><p>{say(lang, "Κάθε επιλογή πρέπει να αντέξει σε έλεγχο σκοπού, εποχής, μετακίνησης και κόστους. Οι τρεις ισχυρότερες γίνονται finalists και τρεις ακόμη μένουν διαθέσιμες για βαθύτερη εξερεύνηση.", "Every choice must survive purpose, timing, travel and cost checks. The strongest three become finalists, with three more available for deeper exploration.")}</p></div></section>;
+  return <section className="agent-council" aria-live="polite"><div className="council-orbit"><Compass size={44} weight="duotone" /><span /><span /><span /></div><div><span className="eyebrow">{say(lang, "Η ΟΜΑΔΑ ΔΟΥΛΕΥΕΙ", "THE TEAM IS WORKING")}</span><h2>{stageLabels[current]?.[lang === "el" ? 0 : 1] ?? say(lang, "Χτίζουμε την απόφαση…", "Building the decision…")}</h2><div className="agent-list">{visible.map(key => <div key={key} className={key === current ? "active" : "done"}>{key === current ? <Sparkle size={17} weight="fill" /> : <Check size={17} weight="bold" />}<span>{stageLabels[key][lang === "el" ? 0 : 1]}</span><small>{key === current ? say(lang, "τώρα", "now") : say(lang, "ελέγχθηκε", "checked")}</small></div>)}</div><p>{say(lang, "Κάθε επιλογή πρέπει να αντέξει σε έλεγχο σκοπού, εποχής, μετακίνησης και κόστους. Οι τρεις ισχυρότερες γίνονται finalists και ο Explorer χτίζει έως εννέα ακόμη διαδρομές με διαφορετικό λόγο ύπαρξης.", "Every choice must survive purpose, timing, travel and cost checks. The strongest three become finalists, and the Explorer builds up to nine more paths, each with a distinct reason to exist.")}</p></div></section>;
 }
 
 function ResultCard({ recommendation, index, trip, lang, compact=false, compared, onToggleCompare, onChoose }: { recommendation: V8Recommendation; index: number; trip: TripRequest; lang: Lang; compact?:boolean; compared:boolean; onToggleCompare:()=>void; onChoose: () => void }) {
-  const titles=[say(lang,"Η επιλογή του Guru","The Guru's choice"),say(lang,"Η πιο εύκολη ισορροπία","The easiest balance"),say(lang,"Η ουσιαστική εναλλακτική","The meaningful alternative"),say(lang,"Το ήσυχο χαρτί","The quieter card"),say(lang,"Η έξυπνη αξία","The smart-value path"),say(lang,"Το wildcard","The wildcard"),say(lang,"Η αλλαγή ρυθμού","The pace changer"),say(lang,"Η απρόσμενη πρόταση","The unexpected pick")];
-  const title=titles[index]??say(lang,"Εναλλακτική","Alternative");
+  const title=explorationTitle(recommendation,lang);
   const fit=recommendation.fitStatus==="strong"?say(lang,"Ισχυρό ταίριασμα","Strong match"):recommendation.fitStatus==="good"?say(lang,"Καλό ταίριασμα","Good match"):say(lang,"Τίμιος συμβιβασμός","Honest compromise");
   return <article className={`result-card ${index === 0 ? "featured" : ""} ${compact?"compact-result":""}`}>
-    <div className="result-photo" style={{ backgroundImage: `url('/api/destination-photo?slug=${encodeURIComponent(recommendation.slug)}&start_date=${trip.startDate}&end_date=${trip.endDate}')` }}><div className="result-top"><span>0{index + 1}</span><span>{title}</span></div><div><small>ΕΛΛΑΔΑ · {prettyDate(trip.startDate, lang)}–{prettyDate(trip.endDate, lang)}</small><h3>{recommendation.destination}</h3></div></div>
-    <div className="result-copy"><div className="match-line"><strong>{fit}</strong><span>{say(lang, "για το δικό σου ταξίδι", "for your trip")}</span></div><p>{cardNarrative(recommendation, trip, lang)}</p><div className="card-persona"><Sparkle size={17} weight="fill"/><span>{psychologyHook(trip, recommendation, lang)}</span></div><div className="reason-list"><span><Heart size={18} /> {topReason(recommendation, lang)}</span><span><CalendarBlank size={18} /> {recommendation.seasonNote}</span><span><AirplaneTilt size={18} /> {recommendation.effortLabel}</span></div><div className="honest-note"><ShieldCheck size={20} weight="duotone" /><span><small>{say(lang, "Τι μας προβληματίζει", "What gives us pause")}</small>{tradeoff(recommendation, lang)}</span></div><div className="result-actions"><button className="compare-button" onClick={onToggleCompare}>{compared?<Check size={18} weight="bold"/>:<Path size={18}/>} {compared?say(lang,"Στη σύγκριση","Comparing"):say(lang,"Σύγκρινε","Compare")}</button><button className="choose-button" onClick={onChoose}>{say(lang, "Δείξε μου το ταξίδι", "Show me the trip")} <ArrowRight size={19} weight="bold" /></button></div></div>
+    <div className="result-photo" style={{ backgroundImage: `url('/api/destination-photo?slug=${encodeURIComponent(recommendation.slug)}&start_date=${trip.startDate}&end_date=${trip.endDate}')` }}><div className="result-top"><span>{String(index+1).padStart(2,"0")}</span><span>{title}</span></div><div><small>ΕΛΛΑΔΑ · {prettyDate(trip.startDate, lang)}–{prettyDate(trip.endDate, lang)}</small><h3>{recommendation.destination}</h3></div></div>
+    <div className="result-copy"><div className="match-line"><strong>{fit}</strong><span>{say(lang, "για το δικό σου ταξίδι", "for your trip")}</span></div><div className="exploration-lens"><Compass size={17} weight="duotone"/><span><small>{say(lang,"ΓΙΑΤΙ ΥΠΑΡΧΕΙ ΣΤΗ ΛΙΣΤΑ","WHY IT IS IN THE SET")}</small>{recommendation.explorationReason}</span></div><p>{cardNarrative(recommendation, trip, lang)}</p><div className="card-persona"><Sparkle size={17} weight="fill"/><span>{psychologyHook(trip, recommendation, lang)}</span></div><div className="reason-list"><span><Heart size={18} /> {topReason(recommendation, lang)}</span><span><CalendarBlank size={18} /> {recommendation.seasonNote}</span><span><AirplaneTilt size={18} /> {recommendation.effortLabel}</span></div><div className="honest-note"><ShieldCheck size={20} weight="duotone" /><span><small>{say(lang, "Τι μας προβληματίζει", "What gives us pause")}</small>{tradeoff(recommendation, lang)}</span></div><div className="result-actions"><button className="compare-button" onClick={onToggleCompare}>{compared?<Check size={18} weight="bold"/>:<Path size={18}/>} {compared?say(lang,"Στη σύγκριση","Comparing"):say(lang,"Σύγκρινε","Compare")}</button><button className="choose-button" onClick={onChoose}>{say(lang, "Δείξε μου το ταξίδι", "Show me the trip")} <ArrowRight size={19} weight="bold" /></button></div></div>
   </article>;
 }
 
@@ -476,6 +475,12 @@ function topReason(recommendation: V8Recommendation, lang: Lang) {
   if (tags.has("food")) return say(lang, "Ο τόπος μπορεί να γίνει μέρος της γεύσης του ταξιδιού", "The place can become part of the trip's flavour");
   if (tags.has("nature")) return say(lang, "Αλλαγή σκηνικού που πραγματικά καθαρίζει το μυαλό", "A change of scene that genuinely clears the mind");
   return say(lang, "Σωστή ισορροπία εμπειρίας και προσπάθειας", "The right balance of experience and effort");
+}
+
+function explorationTitle(recommendation:V8Recommendation,lang:Lang){
+  const labels:Record<V8Recommendation["explorationRole"],[string,string]>={
+    BEST_FIT:["Η επιλογή του Guru","The Guru's choice"],EASIEST:["Η πιο εύκολη διαδρομή","The easiest route"],QUIETER:["Το ήσυχο χαρτί","The quieter card"],SMART_VALUE:["Η έξυπνη αξία","The smart-value path"],GEOGRAPHY_CONTRAST:["Η αλλαγή γεωγραφίας","The geography switch"],BEST_SEASON:["Η σωστή εποχή","The seasonal sweet spot"],NATURE_AND_SEA:["Φύση και θάλασσα","Nature and sea"],CITY_AND_SEA:["Ζωή και θάλασσα","City and sea"],HIDDEN_GEM:["Το κρυφό χαρτί","The hidden gem"],DIFFERENT_RHYTHM:["Η αλλαγή ρυθμού","The pace changer"],WILDCARD:["Το wildcard","The wildcard"],ALTERNATIVE:["Η ουσιαστική εναλλακτική","The meaningful alternative"]
+  };return labels[recommendation.explorationRole]?.[lang==="el"?0:1]??say(lang,"Εναλλακτική","Alternative");
 }
 
 function tradeoff(recommendation: V8Recommendation, lang: Lang) {

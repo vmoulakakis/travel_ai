@@ -54,6 +54,20 @@ export interface V8ScoreBreakdown {
   routeConfidence:number;
 }
 
+export type V8ExplorationRole =
+  | "BEST_FIT"
+  | "EASIEST"
+  | "QUIETER"
+  | "SMART_VALUE"
+  | "GEOGRAPHY_CONTRAST"
+  | "BEST_SEASON"
+  | "NATURE_AND_SEA"
+  | "CITY_AND_SEA"
+  | "HIDDEN_GEM"
+  | "DIFFERENT_RHYTHM"
+  | "WILDCARD"
+  | "ALTERNATIVE";
+
 export interface V8Recommendation {
   slug:string;
   destination:string;
@@ -62,6 +76,8 @@ export interface V8Recommendation {
   countryCode:string;
   regionGroup:string;
   role:string;
+  explorationRole:V8ExplorationRole;
+  explorationReason:string;
   score:number;
   fitStatus:"strong"|"good"|"compromise";
   confidence:Confidence;
@@ -87,6 +103,8 @@ export interface V8RecommendationResponse {
   source:"verified-travel-knowledge";
   intent:V8IntentProfile;
   catalogSize:number;
+  eligibleCount?:number;
+  explorationCount?:number;
   mode:"guided";
   resultCount:number;
   profileSummary:string;

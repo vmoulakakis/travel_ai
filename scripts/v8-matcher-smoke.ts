@@ -58,5 +58,5 @@ assert(greekRomantic.every(x=>x.destination.countryCode==="GR"),`Greek Travel Gu
 assert(greekRomantic.some(x=>x.destination.slug==="nafplio"),`Greek romantic/food shortlist should include Nafplio; got ${greekRomantic.map(x=>x.destination.slug)}`);
 
 const greekWarm=diversifyV8(rankGreece(warmTrip,{rhodes:[58,17],chania:[58,17],corfu:[45,15],arachova:[75,5],halkidiki:[35,13]}),3);
-assert(greekWarm.every(x=>x.destination.tags.includes("warmth")),`Explicit warmth must not return non-warm Greek destinations; got ${greekWarm.map(x=>x.destination.slug)}`);
+assert(greekWarm.every(x=>(x.weather?.temperatureMeanC??0)>=18&&x.breakdown.season>=55),`Explicit warmth must be supported by dates and weather, regardless of a static destination tag; got ${greekWarm.map(x=>x.destination.slug)}`);
 console.log("GREECE_ONLY_GATE_OK",JSON.stringify({greekRomantic:greekRomantic.map(x=>x.destination.slug),greekWarm:greekWarm.map(x=>x.destination.slug)}));
