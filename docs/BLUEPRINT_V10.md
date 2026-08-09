@@ -70,7 +70,7 @@ The product is a Greece-wide decision service, not a Corfu site and not a hotel 
 1. `npm run typecheck`
 2. `npm run test:v8`
 3. `npm run test:v9`
-4. `npm run test:v10` — 100 scenarios and 760 acceptance checks
+4. `npm run test:v10` — 100 scenarios and 786 acceptance checks
 5. `npm run build`
 6. Supabase strict-validity query: all surfaced offers cover the full date range, include a database image and use `/CD104/`.
 7. Browser: homepage, weekly pick, all five funnel stages, agent progress, six results, more-results toggle, comparison, destination story, stays and final outbound handoff.

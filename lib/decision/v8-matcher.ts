@@ -28,6 +28,10 @@ function compute(r:TripRequest,intent:V8IntentProfile,d:V8Destination,weather?:W
  // Explicit warmth is a feasibility requirement, not a soft style preference. Diversity cannot rescue a cold/off-season beach destination.
  if(r.moods.includes("warmth")&&b.season<55)score=Math.min(score,48);
  if(r.moods.includes("warmth")&&weather&&weather.source!=="unavailable"&&weather.score<55)score=Math.min(score,48);
+ if(r.distancePreference==="nearby"&&e.score<70)score-=25+(70-e.score)*1.5;
+ if(r.distancePreference==="easy-hop"&&e.score<55)score-=20+(55-e.score);
+ if(r.avoid==="long-travel"&&e.score<60)score-=22+(60-e.score);
+ if(r.avoid==="crowds"&&d.crowdLevel>=5)score=Math.min(score,20);
  if(r.moods.includes("warmth")&&weather?.temperatureMeanC!=null&&weather.temperatureMeanC<18)score=Math.min(score,46);
  return{destination:d,score:clamp(score),preScore:clamp(score),breakdown:b,weather};
 }
