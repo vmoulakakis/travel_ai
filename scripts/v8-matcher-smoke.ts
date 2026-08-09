@@ -43,8 +43,8 @@ assert(warmTop.slice(0,3).includes("larnaca")&&warmTop.slice(0,3).includes("malt
 assert(warmTop[0]==="larnaca"&&warmTop[1]==="malta",`November warmth must lead with the only strong mild-weather fits; got ${warmTop}`);
 
 const cheap=rank(trip({startDate:"2026-11-06",endDate:"2026-11-09",month:"november",budget:350,moods:["city","culture"],travelerType:"solo",hotelStyle:"value",avoid:"high-cost"}));const cheapScores=Object.fromEntries(cheap.map(x=>[x.destination.slug,x.score]));
-assert(cheapScores.sofia>cheapScores.paris,`Low-budget city trip must rank Sofia above Paris: ${cheapScores.sofia} vs ${cheapScores.paris}`);
-assert(cheapScores.budapest>cheapScores.venice,`Low-budget city trip must rank Budapest above Venice: ${cheapScores.budapest} vs ${cheapScores.venice}`);
+assert(cheapScores.sofia>0&&cheapScores.paris===undefined,`A high-cost red line must keep Sofia and exclude Paris: ${cheapScores.sofia} vs ${cheapScores.paris}`);
+assert(cheapScores.budapest>0&&cheapScores.venice===undefined,`A high-cost red line must keep Budapest and exclude Venice: ${cheapScores.budapest} vs ${cheapScores.venice}`);
 
 const winter=rank(trip({startDate:"2027-01-15",endDate:"2027-01-18",month:"flexible",moods:["nature","relax"],avoid:"crowds",distancePreference:"any"}),{arachova:[76,5],karpenisi:[74,4],bansko:[78,-1],zagori:[70,5],paris:[45,4]});const winterTop=diversifyV8(winter,5).map(x=>x.destination.slug);
 assert(winterTop.slice(0,4).some(x=>["arachova","karpenisi","bansko","zagori"].includes(x)),`Winter nature/relax should prioritize mountain/nature options; got ${winterTop}`);
