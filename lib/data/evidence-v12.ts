@@ -33,20 +33,10 @@ function overlaps(item: DestinationEvidenceItem, startDate?: string, endDate?: s
 
 export async function loadDestinationEvidence(destinationId: string, startDate?: string, endDate?: string): Promise<DestinationEvidenceBundle> {
   const empty = (): DestinationEvidenceBundle => ({ destinationId, checkedAt: new Date().toISOString(), tripadvisor: [], booking: [], events: [], places: [], seasonal: [], hasCurrentRanking: false, hasDateMatchedEvents: false });
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   try {
-    const direct = Boolean(base && serviceRole);
-    const endpoint = direct
-      ? new URL("/rest/v1/destination_evidence_v12", base)
-      : new URL(process.env.SUPABASE_DESTINATION_EVIDENCE_V12_URL ?? "https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/destination-evidence-v12");
-    if (direct) {
-      endpoint.searchParams.set("select", "id,evidence_kind,subject_name,source_provider,headline,summary,rank_value,rating_value,rating_scale,review_count,source_product_id,starts_at,ends_at,source_month,observed_at,expires_at,confidence");
-      endpoint.searchParams.set("destination_id", `eq.${destinationId}`);
-      endpoint.searchParams.set("status", "eq.verified");
-      endpoint.searchParams.set("order", "confidence.desc,observed_at.desc");
-    } else endpoint.searchParams.set("slug", destinationId);
-    const response = await fetch(endpoint, { headers: direct ? { apikey: serviceRole as string, Authorization: `Bearer ${serviceRole}` } : { "user-agent": "travel-guru/1.0" }, cache: "no-store", signal: AbortSignal.timeout(4500) });
+    const endpoint = new URL(process.env.SUPABASE_DESTINATION_EVIDENCE_V12_URL ?? "https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/destination-evidence-v12");
+    endpoint.searchParams.set("slug", destinationId);
+    const response = await fetch(endpoint, { headers: { "user-agent": "travel-guru/1.0" }, cache: "no-store", signal: AbortSignal.timeout(4500) });
     if (!response.ok) return empty();
     const now = Date.now();
     const payload = await response.json() as Row[] | { evidence?: Row[] };

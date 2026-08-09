@@ -77,7 +77,7 @@ The current runtime uses `pdf-lib` because it is already stable in the deployed 
 
 - `destination_evidence_v12`, `destination_media_v12`, and `thematic_dossier_runs_v12` have RLS enabled, explicit default-deny policies, no `anon`, `authenticated`, or `public` grants, and service-role-only access.
 - The client receives a reduced evidence bundle that excludes source URLs and internal payloads.
-- When the Next.js service-role secret is intentionally absent, the read-only `destination-evidence-v12` Edge Function returns the same reduced allow-list. It accepts only a validated destination slug and never returns source URLs, payloads, or credentials.
+- Consumer evidence reads always use the read-only `destination-evidence-v12` Edge Function. It accepts only a validated destination slug and returns a reduced allow-list without source URLs, payloads, or credentials. Next.js service-role configuration cannot change this public evidence contract.
 - Anonymous learning stores structured features and outcomes, not identity or raw private conversation.
 - Secrets live only in Supabase/Vercel environment configuration. Never place raw keys in Git, PDFs, browser code, logs, or this blueprint.
 
