@@ -13,12 +13,12 @@ const resolvedSiteUrl = process.env.NEXT_PUBLIC_SITE_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(resolvedSiteUrl),
-  title: { default: "Travel Guru — η σωστή ταξιδιωτική απόφαση", template: "%s · Travel Guru" },
-  description: "Το προσωπικό σου ταξιδιωτικό συμβούλιο συνδυάζει σκοπό, ημερομηνίες, εποχή, μετακίνηση και budget για να καταλήξει σε επιλογές που αξίζουν πραγματικά.",
+  title: { default: "Ελληνικός AI Travel Guru — βρες πού αξίζει να πας", template: "%s · Ελληνικός AI Travel Guru" },
+  description: "Ο προσωπικός σου AI ταξιδιωτικός σύμβουλος συγκρίνει ελληνικούς προορισμούς με τη διάθεση, τις ημερομηνίες, το budget και τον ρυθμό σου — πριν προτείνει διαμονή.",
   alternates: { canonical: "/", languages: { "el-GR": "/", "en-GB": "/" } },
   robots: { index: true, follow: true },
-  openGraph: { title: "Travel Guru — πού αξίζει πραγματικά να πας", description: "Πέντε διαφορετικοί τρόποι να πετύχει το ταξίδι σου, με ξεκάθαρη κύρια επιλογή.", type: "website", locale: "el_GR", siteName: "Travel Guru" },
-  twitter: { card: "summary_large_image", title: "Travel Guru — η σωστή ταξιδιωτική απόφαση", description: "Το προσωπικό σου ταξιδιωτικό συμβούλιο καταλήγει στις επιλογές που αξίζουν." }
+  openGraph: { title: "Ελληνικός AI Travel Guru — πού αξίζει πραγματικά να πας", description: "Πες πώς θέλεις να νιώσεις και ο Guru θα υπερασπιστεί τρεις ελληνικούς προορισμούς που ταιριάζουν πραγματικά.", type: "website", locale: "el_GR", siteName: "Ελληνικός AI Travel Guru" },
+  twitter: { card: "summary_large_image", title: "Ελληνικός AI Travel Guru", description: "Τρεις προσωπικές επιλογές σε όλη την Ελλάδα, πριν εμφανιστεί οποιοδήποτε κατάλυμα." }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) { return <html lang="el"><body>{children}</body></html>; }

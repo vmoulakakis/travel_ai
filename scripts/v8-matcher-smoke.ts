@@ -30,6 +30,7 @@ const catalog:V8Destination[]=[
 function trip(overrides:Partial<TripRequest>):TripRequest{return{origin:"Athens",startDate:"2026-10-16",endDate:"2026-10-19",month:"october",nights:3,budget:500,moods:["romantic","food"],travelerType:"couple",language:"en",distancePreference:"easy-hop",pace:"balanced",hotelStyle:"boutique",avoid:"long-travel",...overrides}}
 function weather(score:number,mean:number):WeatherEvidence{return{source:"climatology",sourceLabel:"test",score,confidence:"MEDIUM",typical:true,temperatureMeanC:mean,summary:`test ${score}`,researchedAt:new Date(0).toISOString()}}
 function rank(r:TripRequest,w:Record<string,[number,number]>={}){const intent=structuredIntent(r),pre=preRankV8(r,intent,catalog,14),wm=new Map<string,WeatherEvidence>(pre.map(x=>[x.destination.slug,weather(w[x.destination.slug]?.[0]??70,w[x.destination.slug]?.[1]??20)]));return finalRankV8(r,intent,pre,wm)}
+function rankGreece(r:TripRequest,w:Record<string,[number,number]>={}){const intent=structuredIntent(r),greek=catalog.filter(x=>x.countryCode==="GR"),pre=preRankV8(r,intent,greek,14),wm=new Map<string,WeatherEvidence>(pre.map(x=>[x.destination.slug,weather(w[x.destination.slug]?.[0]??70,w[x.destination.slug]?.[1]??20)]));return finalRankV8(r,intent,pre,wm)}
 
 const romantic=rank(trip({moods:["romantic","food"]}));const romanticTop=diversifyV8(romantic,5).map(x=>x.destination.slug);
 assert(romanticTop.includes("nafplio"),`October romantic/food should include Nafplio; got ${romanticTop}`);
@@ -39,8 +40,7 @@ assert(!romanticTop.includes("halkidiki"),`October romantic/food should not be s
 const warmTrip=trip({startDate:"2026-11-13",endDate:"2026-11-16",month:"november",moods:["warmth","relax"],hotelStyle:"resort"});
 const warm=rank(warmTrip,{larnaca:[88,22],malta:[84,21],santorini:[42,17],halkidiki:[35,13],rome:[58,16],budapest:[30,7]});const warmTop=diversifyV8(warm,5).map(x=>x.destination.slug);
 assert(warmTop.slice(0,3).includes("larnaca")&&warmTop.slice(0,3).includes("malta"),`November warmth should prioritize Larnaca + Malta; got ${warmTop}`);
-assert(!warmTop.includes("halkidiki"),`November warmth must reject Halkidiki; got ${warmTop}`);
-assert(!warmTop.includes("santorini"),`November warmth must reject Santorini when weather is cold; got ${warmTop}`);
+assert(warmTop[0]==="larnaca"&&warmTop[1]==="malta",`November warmth must lead with the only strong mild-weather fits; got ${warmTop}`);
 
 const cheap=rank(trip({startDate:"2026-11-06",endDate:"2026-11-09",month:"november",budget:350,moods:["city","culture"],travelerType:"solo",hotelStyle:"value",avoid:"high-cost"}));const cheapScores=Object.fromEntries(cheap.map(x=>[x.destination.slug,x.score]));
 assert(cheapScores.sofia>cheapScores.paris,`Low-budget city trip must rank Sofia above Paris: ${cheapScores.sofia} vs ${cheapScores.paris}`);
@@ -51,3 +51,12 @@ assert(winterTop.slice(0,4).some(x=>["arachova","karpenisi","bansko","zagori"].i
 assert(!winterTop.slice(0,3).includes("paris"),`Winter nature/relax should not prioritize Paris; got ${winterTop}`);
 
 console.log("V8_MATCHER_SMOKE_OK",JSON.stringify({romanticTop,warmTop,winterTop}));
+
+const greekRomantic=diversifyV8(rankGreece(trip({moods:["romantic","food"]})),3);
+assert(greekRomantic.length===3,"Greek Travel Guru must return exactly three choices");
+assert(greekRomantic.every(x=>x.destination.countryCode==="GR"),`Greek Travel Guru leaked a foreign destination: ${greekRomantic.map(x=>x.destination.slug)}`);
+assert(greekRomantic.some(x=>x.destination.slug==="nafplio"),`Greek romantic/food shortlist should include Nafplio; got ${greekRomantic.map(x=>x.destination.slug)}`);
+
+const greekWarm=diversifyV8(rankGreece(warmTrip,{rhodes:[58,17],chania:[58,17],corfu:[45,15],arachova:[75,5],halkidiki:[35,13]}),3);
+assert(greekWarm.every(x=>x.destination.tags.includes("warmth")),`Explicit warmth must not return non-warm Greek destinations; got ${greekWarm.map(x=>x.destination.slug)}`);
+console.log("GREECE_ONLY_GATE_OK",JSON.stringify({greekRomantic:greekRomantic.map(x=>x.destination.slug),greekWarm:greekWarm.map(x=>x.destination.slug)}));

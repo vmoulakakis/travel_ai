@@ -104,5 +104,5 @@ export interface V8StayResponse {
   startDate:string;
   endDate:string;
   offers:V8StayOffer[];
-  availabilityMeaning:"confirm-before-booking";
+  availabilityMeaning:"full-trip-validity-confirm-before-booking";
 }

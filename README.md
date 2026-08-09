@@ -1,8 +1,10 @@
-# Travel Guru V8 — Destination-First Travel AI
+# Ελληνικός AI Travel Guru V9 — Greece-First Travel Decision AI
 
 Travel decision intelligence for travelers starting primarily from Greece.
 
-**Promise:** answer a few questions and get five genuinely different destination matches based on intent, dates, season, effort, duration, budget band and weather — **before hotel inventory enters the decision**.
+**Promise:** answer a few human questions and get three genuinely different Greek destination matches based on emotional need, dates, season, effort, duration, budget and weather — **before hotel inventory enters the decision**.
+
+The current product and recovery blueprint is in [`docs/BLUEPRINT_V9.md`](docs/BLUEPRINT_V9.md).
 
 ## Core rule
 
@@ -38,7 +40,7 @@ GEOLOCATED LINKWISE STAYS
 
 ## Destination Knowledge
 
-`destination_knowledge_v8` is the independent destination graph. The initial catalog contains 42 canonical places: 21 in Greece and 21 abroad. Every destination stores:
+`destination_knowledge_v8` remains the independent destination graph. The current product filters it to 21 active Greek places before scoring. Every destination stores:
 
 - canonical names and aliases
 - latitude / longitude

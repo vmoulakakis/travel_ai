@@ -12,14 +12,14 @@ import type { V8RecommendationResponse } from "@/lib/decision/v8-types";
 import { parseTripRequest } from "@/lib/validation/trip";
 
 export const runtime="nodejs";export const dynamic="force-dynamic";
-function repair(selected:V8Ranked[],pool:V8Ranked[],reject:string[]){const bad=new Set(reject),kept=selected.filter(x=>!bad.has(x.destination.slug)),used=new Set(kept.map(x=>x.destination.slug));for(const x of pool){if(kept.length>=5)break;if(bad.has(x.destination.slug)||used.has(x.destination.slug))continue;kept.push(x);used.add(x.destination.slug)}return kept.slice(0,5)}
+function repair(selected:V8Ranked[],pool:V8Ranked[],reject:string[]){const bad=new Set(reject),kept=selected.filter(x=>!bad.has(x.destination.slug)),used=new Set(kept.map(x=>x.destination.slug));for(const x of pool){if(kept.length>=3)break;if(bad.has(x.destination.slug)||used.has(x.destination.slug))continue;kept.push(x);used.add(x.destination.slug)}return kept.slice(0,3)}
 
 export async function POST(request:Request){
  const body=await request.json().catch(()=>null),parsed=parseTripRequest(body);if(!parsed.success)return NextResponse.json({message:"Χρειάζομαι έγκυρες ημερομηνίες και βασικές προτιμήσεις για να συνεχίσω.",continuity:pendingContinuity()},{status:400});
  const trip=parsed.data,sessionId=crypto.randomUUID();
  try{
-  const[intent,catalog]=await Promise.all([interpretIntentV8(trip),loadV8DestinationCatalog()]);const pre=preRankV8(trip,intent,catalog,14);if(pre.length<5)return NextResponse.json({message:"Δεν υπάρχουν ακόμη αρκετές ασφαλείς επιλογές για αυτόν τον συνδυασμό. Δοκίμασε λίγο πιο ανοιχτά κριτήρια.",continuity:pendingContinuity()},{status:422});
-  const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),12),ranked=finalRankV8(trip,intent,pre,weather),selected=diversifyV8(ranked,5),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,8),verification=await verifyV8(trip,verifyPool),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected;
+  const[intent,allDestinations]=await Promise.all([interpretIntentV8(trip),loadV8DestinationCatalog()]),catalog=allDestinations.filter(destination=>destination.countryCode==="GR");const pre=preRankV8(trip,intent,catalog,14);if(pre.length<5)return NextResponse.json({message:"Δεν υπάρχουν ακόμη αρκετές ασφαλείς επιλογές για αυτόν τον συνδυασμό. Δοκίμασε λίγο πιο ανοιχτά κριτήρια.",continuity:pendingContinuity()},{status:422});
+  const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),12),ranked=finalRankV8(trip,intent,pre,weather),selected=diversifyV8(ranked,3),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,8),verification=await verifyV8(trip,verifyPool),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected;
   const council=await runTravelCouncilV9(trip,fixed),ordered=council.agreement==="STRONG"?[...fixed].sort((a,b)=>a.destination.slug===council.finalSlug?-1:b.destination.slug===council.finalSlug?1:0):fixed;
   const recommendations=toRecommendationsV8(trip,ordered).map(x=>({...x,dateWindows:buildSmartDateWindows(trip,x)}));
   const publicIntent={...intent,source:"structured" as const,interpretedText:undefined};

@@ -31,7 +31,7 @@ export async function loadV8DestinationCatalog():Promise<V8Destination[]>{
 
 function mapOffer(row:Record<string,unknown>):V8StayOffer|null{
  const trackingUrl=text(row.tracking_url),sourceProductId=text(row.source_product_id),propertyName=text(row.property_name);
- if(!trackingUrl||!sourceProductId||!propertyName||!trackingUrl.startsWith("https://go.linkwi.se/"))return null;
+ if(!trackingUrl||!sourceProductId||!propertyName||!trackingUrl.startsWith("https://go.linkwi.se/")||!trackingUrl.includes("/CD104/"))return null;
  const base:AffiliateOffer={sourceProductId,propertyName,description:cleanHtml(text(row.description)),category:text(row.source_category),programId:text(row.program_id),trackingUrl,imageUrl:text(row.image_url),thumbUrl:text(row.thumb_url),availability:text(row.availability),validFrom:text(row.valid_from),validTo:text(row.valid_to),currency:text(row.currency),price:num(row.price),fullPrice:num(row.full_price),discount:num(row.discount),demandSignal:num(row.demand_proxy),starLevel:null};
  const starMatch=propertyName.match(/(?:^|\s)([1-5])\s*\*/);if(starMatch)base.starLevel=Number(starMatch[1]);
  return{...base,city:text(row.city),address:text(row.address),distanceKm:num(row.distance_km)};
