@@ -3,6 +3,7 @@
   "crons": [
     { "path": "/api/jobs/linkwise", "schedule": "17 3 * * *" },
     { "path": "/api/jobs/train-matcher", "schedule": "47 4 * * *" },
-    { "path": "/api/jobs/seo-audit", "schedule": "11 5 * * 1" }
+    { "path": "/api/jobs/seo-audit", "schedule": "11 5 * * 1" },
+    { "path": "/api/jobs/evidence-audit", "schedule": "5 6 * * *" }
   ]
 }

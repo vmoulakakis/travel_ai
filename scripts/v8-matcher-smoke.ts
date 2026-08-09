@@ -52,8 +52,8 @@ assert(!winterTop.slice(0,3).includes("paris"),`Winter nature/relax should not p
 
 console.log("V8_MATCHER_SMOKE_OK",JSON.stringify({romanticTop,warmTop,winterTop}));
 
-const greekRomantic=diversifyV8(rankGreece(trip({moods:["romantic","food"]})),6);
-assert(greekRomantic.length===6,"Greek Travel Guru must return six choices when six are viable");
+const greekRomantic=diversifyV8(rankGreece(trip({moods:["romantic","food"]})),8);
+assert(greekRomantic.length>=6&&greekRomantic.length<=8,"Greek Travel Guru must return six to eight viable choices");
 assert(greekRomantic.every(x=>x.destination.countryCode==="GR"),`Greek Travel Guru leaked a foreign destination: ${greekRomantic.map(x=>x.destination.slug)}`);
 assert(greekRomantic.some(x=>x.destination.slug==="nafplio"),`Greek romantic/food shortlist should include Nafplio; got ${greekRomantic.map(x=>x.destination.slug)}`);
 

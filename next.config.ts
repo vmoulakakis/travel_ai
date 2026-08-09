@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   experimental: { optimizePackageImports: ["@phosphor-icons/react"] },
   outputFileTracingIncludes: {
     "/api/guide": ["./public/fonts/*.ttf"],
+    "/api/thematic-guide": ["./public/fonts/*.ttf"],
     "/api/og": ["./public/fonts/*.ttf"],
   },
   async headers() {

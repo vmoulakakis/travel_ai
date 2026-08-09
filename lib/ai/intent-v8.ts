@@ -32,11 +32,13 @@ export function structuredIntent(request:TripRequest):V8IntentProfile{
 
 export async function interpretIntentV8(request:TripRequest):Promise<V8IntentProfile>{
  const base=structuredIntent(request),text=request.tripText?.trim();if(!text||text.length<8)return base;
- const key=process.env.DEEPSEEK_API_KEY;if(!key)return base;
- const model=process.env.DEEPSEEK_INTENT_MODEL||"deepseek-v4-flash",url=`${process.env.DEEPSEEK_BASE_URL||"https://api.deepseek.com"}/chat/completions`;
+ const deepSeekKey=process.env.DEEPSEEK_API_KEY,selfHostedBase=process.env.SELF_HOSTED_AI_BASE_URL,selfHostedModel=process.env.SELF_HOSTED_AI_MODEL;
+ if(!deepSeekKey&&(!selfHostedBase||!selfHostedModel))return base;
+ const selfHosted=!deepSeekKey, key=deepSeekKey||process.env.SELF_HOSTED_AI_API_KEY||"local",model=selfHosted?selfHostedModel as string:process.env.DEEPSEEK_INTENT_MODEL||"deepseek-v4-flash",url=`${selfHosted?selfHostedBase:process.env.DEEPSEEK_BASE_URL||"https://api.deepseek.com"}`.replace(/\/$/,"")+"/chat/completions";
  const system=`You are a semantic travel-intent parser, not a destination recommender. Convert the user's free text into preference weights only. Never name destinations, hotels, flights, prices, routes or weather. Dimensions: ${V8_DIMENSIONS.join(", ")}. Return JSON only: {"weights":{"dimension":0..1},"summary":"max 90 chars"}. Use only dimensions clearly supported by the text.`;
  try{
-  const response=await fetch(url,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model,messages:[{role:"system",content:system},{role:"user",content:text}],thinking:{type:"enabled"},reasoning_effort:"high",response_format:{type:"json_object"},max_tokens:260}),signal:AbortSignal.timeout(5000)});
+  const body:Record<string,unknown>={model,messages:[{role:"system",content:system},{role:"user",content:text}],response_format:{type:"json_object"},max_tokens:260};if(!selfHosted){body.thinking={type:"enabled"};body.reasoning_effort="high";}
+  const response=await fetch(url,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify(body),signal:AbortSignal.timeout(5000)});
   if(!response.ok)return base;const payload=await response.json() as {choices?:Array<{message?:{content?:string|null}}>},raw=payload.choices?.[0]?.message?.content;if(!raw)return base;const parsed=JSON.parse(raw) as Parsed,weights={...base.weights};
   if(parsed.weights&&typeof parsed.weights==="object")for(const d of V8_DIMENSIONS){const v=Number(parsed.weights[d]);if(Number.isFinite(v)&&v>0)weights[d]=Math.max(weights[d],clamp(v)*.72);}
   for(const mood of request.moods){const m:Record<string,V8Dimension>={romantic:"romantic",relax:"relax",food:"food",culture:"culture",city:"city",nature:"nature",adventure:"adventure",warmth:"warmth"};const d=m[mood];if(d)weights[d]=Math.max(weights[d],.9);}

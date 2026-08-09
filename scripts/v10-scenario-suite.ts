@@ -34,9 +34,9 @@ for(let periodIndex=0;periodIndex<periods.length;periodIndex+=1){
     const request:TripRequest={origin,startDate,endDate:addDays(startDate,nights),month:monthName(startDate),nights,budget:900,moods:["relax"],travelerType:"couple",language:"el",distancePreference:"any",pace:archetype.request.desiredEnergy==="stimulating"?"full":archetype.request.desiredEnergy==="restore"?"slow":"balanced",hotelStyle:archetype.request.avoid==="high-cost"?"value":"any",avoid:"none",entryMode:"unknown",groupSize:2,desiredEnergy:"balanced",socialPreference:"balanced",noveltyPreference:"balanced",mustHave:"none",dateFlexibility:periodIndex%3===0?"few-days":"fixed",...archetype.request};
     const label=`${archetype.name}@${startDate}`;
     try{
-      const intent=structuredIntent(request),pre=preRankV8(request,intent,catalog,18),month=Math.max(0,Number(startDate.slice(5,7))-1),weather=new Map(pre.map(item=>[item.destination.slug,evidence(item.destination.monthFit[month]??60,temperature(month,item.destination.tags.includes("warmth")))])),ranked=finalRankV8(request,intent,pre,weather),selected=diversifyV8(ranked,6),selectedAgain=diversifyV8(ranked,6);
-      assert.equal(selected.length,6,"must return six choices");checks+=1;
-      assert.equal(new Set(selected.map(item=>item.destination.slug)).size,6,"choices must be unique");checks+=1;
+      const intent=structuredIntent(request),pre=preRankV8(request,intent,catalog,18),month=Math.max(0,Number(startDate.slice(5,7))-1),weather=new Map(pre.map(item=>[item.destination.slug,evidence(item.destination.monthFit[month]??60,temperature(month,item.destination.tags.includes("warmth")))])),ranked=finalRankV8(request,intent,pre,weather),selected=diversifyV8(ranked,8),selectedAgain=diversifyV8(ranked,8);
+      assert.equal(selected.length,Math.min(8,ranked.length),"must return up to eight viable choices");checks+=1;
+      assert.equal(new Set(selected.map(item=>item.destination.slug)).size,selected.length,"choices must be unique");checks+=1;
       assert(selected.every(item=>item.destination.countryCode==="GR"),"all choices must stay in Greece");checks+=1;
       assert.deepEqual(selectedAgain.map(item=>item.destination.slug),selected.map(item=>item.destination.slug),"same evidence must produce a stable answer");checks+=1;
       if(request.distancePreference==="island"){assert(selected.every(item=>V8_ISLAND_SLUGS.has(item.destination.slug)),"island-only leaked a mainland destination");checks+=1;}
@@ -50,7 +50,7 @@ for(let periodIndex=0;periodIndex<periods.length;periodIndex+=1){
       if(request.distancePreference==="nearby"){const nearbyViable=ranked.filter(item=>item.breakdown.effort>=65&&(request.avoid!=="crowds"||item.destination.crowdLevel<5)&&(request.avoid!=="high-cost"||item.destination.costTier<5));if(nearbyViable.length>0){assert(selected[0].breakdown.effort>=65,"nearby preference ignored an available low-friction first choice");checks+=1;}if(nearbyViable.length>=2){assert(selected.slice(0,3).filter(item=>item.breakdown.effort>=65).length>=2,"nearby preference ignored multiple available low-friction finalists");checks+=1;}}
       const counts=new Map<string,number>();for(const item of selected)counts.set(item.destination.regionGroup,(counts.get(item.destination.regionGroup)??0)+1);const maxRegion=request.distancePreference==="island"&&request.moods.includes("warmth")?3:2;assert(Math.max(...counts.values())<=maxRegion,"too many choices came from the same region without a hard-constraint reason");checks+=1;
       const feasibility=responseFeasibility(selected);assert(["STRONG","MIXED","COMPROMISE"].includes(feasibility),"missing feasibility state");checks+=1;
-      if(archetype.name==="couple_romance_idea")assert(selected.some(item=>item.destination.slug==="nafplio"),"a viable considered destination disappeared from all six options");
+      if(archetype.name==="couple_romance_idea")assert(selected.some(item=>item.destination.slug==="nafplio"),"a viable considered destination disappeared from all eight options");
       examples[label]=selected.map(item=>item.destination.slug);
     }catch(error){failures.push(`${label}: ${error instanceof Error?error.message:String(error)}`)}
   }

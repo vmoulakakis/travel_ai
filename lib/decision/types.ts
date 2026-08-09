@@ -28,4 +28,35 @@ export interface AffiliateDestinationDetailResponse { version: number; source: "
 export interface DestinationResearchPlace { id: string; name: string; category: "RESTAURANT" | "ATTRACTION" | "HOTEL" | "OTHER"; summary?: string | null; whyItFits?: string | null; evidenceStrength?: Confidence; rating?: number | null; reviewCount?: number | null; imageUrl?: string | null; address?: string | null; distanceKm?: number | null; attribution?: string | null; }
 export interface DestinationResearchReview { id: string; title?: string | null; text?: string | null; rating?: number | null; publishedDate?: string | null; author?: string | null; evidenceStrength?: Confidence; }
 export interface DestinationResearchSource { title: string; url: string; domain: string; sourceType: "web" | "tripadvisor-reference"; }
-export interface DestinationInsightsResponse { source: "verified-synthesis" | "research-pending" | "unavailable"; destination: string; researchedAt: string; overview?: string | null; restaurants: DestinationResearchPlace[]; attractions: DestinationResearchPlace[]; reviews: DestinationResearchReview[]; practicalNotes: string[]; sources: DestinationResearchSource[]; attributionRequired: boolean; }
+export type DestinationEvidenceKind = "tripadvisor_destination_rank" | "tripadvisor_place_rank" | "tripadvisor_rating" | "booking_property_presence" | "booking_property_rating" | "official_event" | "official_place" | "seasonal_note" | "demand_signal";
+export interface DestinationEvidenceItem {
+  id: string;
+  kind: DestinationEvidenceKind;
+  subjectName: string;
+  provider: string;
+  headline: string;
+  summary?: string | null;
+  rank?: number | null;
+  rating?: number | null;
+  ratingScale?: number | null;
+  reviewCount?: number | null;
+  sourceProductId?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  sourceMonth?: string | null;
+  observedAt: string;
+  expiresAt: string;
+  confidence: Confidence;
+}
+export interface DestinationEvidenceBundle {
+  destinationId: string;
+  checkedAt: string;
+  tripadvisor: DestinationEvidenceItem[];
+  booking: DestinationEvidenceItem[];
+  events: DestinationEvidenceItem[];
+  places: DestinationEvidenceItem[];
+  seasonal: DestinationEvidenceItem[];
+  hasCurrentRanking: boolean;
+  hasDateMatchedEvents: boolean;
+}
+export interface DestinationInsightsResponse { source: "verified-synthesis" | "research-pending" | "unavailable"; destination: string; researchedAt: string; overview?: string | null; restaurants: DestinationResearchPlace[]; attractions: DestinationResearchPlace[]; reviews: DestinationResearchReview[]; practicalNotes: string[]; sources: DestinationResearchSource[]; attributionRequired: boolean; evidence?: DestinationEvidenceBundle; }
