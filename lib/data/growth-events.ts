@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/data/supabase-admin";
 
-export type GrowthEventName = "social_share" | "guide_download";
-export type GrowthChannel = "native" | "clipboard" | "pdf" | "unknown";
+export type GrowthEventName = "social_share" | "stay_selected" | "thematic_guide_download" | "guide_download" | "guide_email_sent" | "final_exit";
+export type GrowthChannel = "native" | "clipboard" | "pdf" | "email" | "map" | "tracking" | "unknown";
 
 export async function recordGrowthEvent(input: { sessionId?: string | null; eventName: GrowthEventName; destinationId: string; sourceProductId?: string | null; channel?: GrowthChannel; metadata?: Record<string, unknown> }) {
   const admin = getSupabaseAdmin();

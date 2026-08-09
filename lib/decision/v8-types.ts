@@ -118,6 +118,8 @@ export interface V8StayOffer extends AffiliateOffer {
   city?:string|null;
   address?:string|null;
   distanceKm?:number|null;
+  latitude?:number|null;
+  longitude?:number|null;
 }
 
 export interface V8StayResponse {

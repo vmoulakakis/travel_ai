@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { getSiteUrl, SITE_NAME } from "@/lib/site";
 import "./globals.css";
 import "./v8.css";
+import "leaflet/dist/leaflet.css";
 
 const resolvedSiteUrl = getSiteUrl();
 

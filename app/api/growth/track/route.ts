@@ -5,8 +5,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const cookie = /(?:^|;\s*)travel_match_session=([0-9a-f-]{36})(?:;|$)/i;
 const safe = /^[a-zA-Z0-9:_-]{1,160}$/;
-const events = new Set<GrowthEventName>(["social_share", "guide_download"]);
-const channels = new Set<GrowthChannel>(["native", "clipboard", "pdf", "unknown"]);
+const events = new Set<GrowthEventName>(["social_share", "stay_selected", "thematic_guide_download", "guide_download", "guide_email_sent", "final_exit"]);
+const channels = new Set<GrowthChannel>(["native", "clipboard", "pdf", "email", "map", "tracking", "unknown"]);
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
