@@ -78,6 +78,10 @@ Explicit requirements can become feasibility guards. For example, a user explici
 
 Optional. Structured answers require no LLM. DeepSeek is used only when the traveler adds natural-language intent such as “quiet, great food, not too touristy, easy to reach.” It converts that text to semantic preference weights. It does not name destinations or invent facts.
 
+### Independent result audit
+
+Every recommendation now passes a deterministic audit of explicit free-text constraints, must-haves, season and route evidence. Failed candidates are removed and the shortlist is regenerated, with a maximum of three evidence-changing attempts. Configure `AUDIT_AI_BASE_URL`, `AUDIT_AI_MODEL` and `AUDIT_AI_API_KEY` to add a second independent OpenAI-compatible audit call through a self-hosted runtime such as LocalAI or vLLM. The local model may reject an evidence inconsistency but cannot introduce a destination or override deterministic constraints. If high confidence cannot be reached, the API returns no recommendation instead of unrelated results.
+
 ### OpenAI
 
 Optional low-cost final consistency verifier. Default model: `gpt-5.4-nano`. It runs only when the numeric ranking is genuinely ambiguous or contains a risk signal. Clear ranking sets skip the call entirely.

@@ -1,5 +1,6 @@
 import { interpretIntentV8 } from "@/lib/ai/intent-v8";
 import { verifyV8 } from "@/lib/ai/openai-verifier-v8";
+import { auditAndRepairV10 } from "@/lib/ai/result-auditor-v10";
 import { runTravelCouncilV9 } from "@/lib/ai/travel-council-v9";
 import { fullContinuity, pendingContinuity, safePublicMessage } from "@/lib/continuity";
 import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
@@ -33,9 +34,9 @@ export async function POST(request:Request){
    emit("weather:ready",80,{checked:weather.size,preview:selected.map(x=>({destination:trip.language==="en"?x.destination.nameEn:x.destination.nameEl}))});
    const selectedSlugs=new Set(selected.map(x=>x.destination.slug)),verificationPool=[...selected,...ranked.filter(x=>!selectedSlugs.has(x.destination.slug))].slice(0,18);
    emit("verify:start",86,{conditional:true});const verification=await verifyV8(trip,verificationPool),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected;
-   emit("verify:ready",91,{checked:verification.checked,corrected:verification.checked&&!verification.passed});
+   const audited=await auditAndRepairV10(trip,fixed,ranked,12);emit("verify:ready",91,{checked:true,corrected:audited.audit.attempts>1,confidence:audited.audit.confidence});if(!audited.audit.passed||!audited.items.length){emit("continuity",100,{message:trip.language==="en"?"No result satisfies every criterion with high confidence. Change one hard requirement.":"Κανένα αποτέλεσμα δεν ικανοποιεί με υψηλή βεβαιότητα όλα τα κριτήρια. Άλλαξε ένα αυστηρό κριτήριο.",continuity:pendingContinuity()});return;}
    emit("council:start",93);
-   const council=await runTravelCouncilV9(trip,fixed),ordered=council.agreement==="STRONG"?[...fixed].sort((a,b)=>a.destination.slug===council.finalSlug?-1:b.destination.slug===council.finalSlug?1:0):fixed;
+   const council=await runTravelCouncilV9(trip,audited.items),ordered=council.agreement==="STRONG"?[...audited.items].sort((a,b)=>a.destination.slug===council.finalSlug?-1:b.destination.slug===council.finalSlug?1:0):audited.items;
    const recommendations=toRecommendationsV8(trip,ordered).map(x=>({...x,dateWindows:buildSmartDateWindows(trip,x)}));
    emit("council:ready",97,{agreement:council.agreement});
    const publicIntent={...intent,source:"structured" as const,interpretedText:undefined};

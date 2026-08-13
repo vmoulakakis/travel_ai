@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { auditAndRepairV10 } from "../lib/ai/result-auditor-v10";
+import type { V8Ranked } from "../lib/decision/v8-matcher";
+import type { V8Destination } from "../lib/decision/v8-types";
+import type { TripRequest } from "../lib/validation/trip";
+const destination=(slug:string,profile:string):V8Destination=>({slug,nameEl:slug,nameEn:slug,countryCode:"GR",countryEl:"Ελλάδα",countryEn:"Greece",latitude:1,longitude:1,regionGroup:"test",aliases:[slug],tags:["nature"],vector:Array(16).fill(.5),monthFit:Array(12).fill(80),idealNightsMin:2,idealNightsMax:5,costTier:2,effortAthens:"road-near",effortThessaloniki:"road-near",directFromAthens:false,routeConfidence:.9,travelerFit:{},crowdLevel:2,hotelRadiusKm:20,knowledgeSource:"test",seasonProfile:profile});
+const ranked=(slug:string,profile:string):V8Ranked=>({destination:destination(slug,profile),score:80,preScore:80,breakdown:{intent:80,season:80,effort:80,duration:80,budget:80,weather:80,traveler:80,crowdFit:80,routeConfidence:90},weather:null});
+const request={origin:"Athens",startDate:"2026-10-10",endDate:"2026-10-13",month:"october",nights:3,budget:800,moods:["nature"],travelerType:"couple",language:"el",distancePreference:"any",pace:"balanced",hotelStyle:"any",avoid:"none",groupSize:2,desiredEnergy:"restore",socialPreference:"quiet",noveltyPreference:"balanced",mustHave:"nature",dateFlexibility:"open",transportMode:"car",stayLocationPreference:"balanced",tripText:"ΘΕΛΩ ΜΟΝΟ ΒΟΥΝΟ"} satisfies TripRequest;
+async function main(){const island=ranked("naxos","summer_island"),mountain=ranked("karpenisi","mountain"),result=await auditAndRepairV10(request,[island,mountain],[island,mountain],12);assert(result.audit.passed&&result.audit.confidence==="HIGH","Audit must reach a high-confidence valid result");assert.deepEqual(result.items.map(item=>item.destination.slug),["karpenisi"],"Audit must remove an island from a mountain-only request");assert.equal(result.audit.attempts,2,"Audit must repair and rerun once");console.log("RESULT_AUDITOR_OK",JSON.stringify(result.audit));}
+void main();

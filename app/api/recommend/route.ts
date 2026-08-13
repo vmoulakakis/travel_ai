@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { interpretIntentV8 } from "@/lib/ai/intent-v8";
 import { verifyV8 } from "@/lib/ai/openai-verifier-v8";
+import { auditAndRepairV10 } from "@/lib/ai/result-auditor-v10";
 import { runTravelCouncilV9 } from "@/lib/ai/travel-council-v9";
 import { fullContinuity, pendingContinuity } from "@/lib/continuity";
 import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
@@ -21,8 +22,8 @@ export async function POST(request:Request){
  const trip=parsed.data,sessionId=crypto.randomUUID();
  try{
   const[intent,allDestinations]=await Promise.all([interpretIntentV8(trip),loadV8DestinationCatalog()]),catalog=allDestinations.filter(destination=>destination.countryCode==="GR"),hardConstraint=geographyConstraint(trip,catalog);const pre=preRankV8(trip,intent,catalog,30),minimum=hardConstraint?.allowedSlugs?.size===1?1:3;if(pre.length<minimum)return NextResponse.json({message:"Δεν υπάρχουν ακόμη ασφαλείς επιλογές που να περνούν όλα όσα ζήτησες. Άλλαξε ένα υποχρεωτικό κριτήριο.",continuity:pendingContinuity()},{status:422});
-  const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),18),ranked=finalRankV8(trip,intent,pre,weather),selected=diversifyV8(ranked,12),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,18),verification=await verifyV8(trip,verifyPool),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected;
-  const council=await runTravelCouncilV9(trip,fixed),ordered=council.agreement==="STRONG"?[...fixed].sort((a,b)=>a.destination.slug===council.finalSlug?-1:b.destination.slug===council.finalSlug?1:0):fixed;
+  const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),18),ranked=finalRankV8(trip,intent,pre,weather),selected=diversifyV8(ranked,12),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,18),verification=await verifyV8(trip,verifyPool),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected,audited=await auditAndRepairV10(trip,fixed,ranked,12);if(!audited.audit.passed||!audited.items.length)return NextResponse.json({message:"Δεν μπορώ να επιβεβαιώσω επιλογές που ικανοποιούν με υψηλή βεβαιότητα όλα τα κριτήρια. Άλλαξε ένα αυστηρό κριτήριο.",continuity:pendingContinuity()},{status:422});
+  const council=await runTravelCouncilV9(trip,audited.items),ordered=council.agreement==="STRONG"?[...audited.items].sort((a,b)=>a.destination.slug===council.finalSlug?-1:b.destination.slug===council.finalSlug?1:0):audited.items;
   const recommendations=toRecommendationsV8(trip,ordered).map(x=>({...x,dateWindows:buildSmartDateWindows(trip,x)}));
   const publicIntent={...intent,source:"structured" as const,interpretedText:undefined};
   const result:V8RecommendationResponse={version:9,experienceVersion:9,request:trip,generatedAt:new Date().toISOString(),source:"verified-travel-knowledge",intent:publicIntent,catalogSize:catalog.length,eligibleCount:ranked.length,explorationCount:Math.max(0,recommendations.length-3),mode:"guided",resultCount:recommendations.length,profileSummary:profileSummary(trip),feasibility:responseFeasibility(ordered),council,continuity:fullContinuity(),recommendations};
