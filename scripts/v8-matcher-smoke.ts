@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { structuredIntent } from "../lib/ai/intent-v8";
+import { GREEK_ISLAND_SLUGS } from "../lib/decision/geography-constraint";
 import { diversifyV8, finalRankV8, preRankV8 } from "../lib/decision/v8-matcher";
 import { V8_DIMENSIONS,type V8Destination } from "../lib/decision/v8-types";
 import type { WeatherEvidence } from "../lib/decision/types";
@@ -75,6 +76,9 @@ assert(macedonia.length>=3,"Macedonia-only request should retain the three curat
 assert(macedonia.every(item=>item.destination.regionGroup==="macedonia"),`Macedonia-only text leaked destinations: ${macedonia.map(item=>item.destination.slug)}`);
 const chiosOnly=rankGreece({...westernProfile,tripText:"ΘΕΛΩ ΜΟΝΟ ΠΑΡΑΘΑΛΑΣΣΙΑ ΧΙΟ"});
 assert.deepEqual(chiosOnly.map(item=>item.destination.slug),["chios"],`Explicit Chios-only request leaked destinations: ${chiosOnly.map(item=>item.destination.slug)}`);
+const mountainOnly=rankGreece({...westernProfile,tripText:"ΘΕΛΩ ΜΟΝΟ ΒΟΥΝΟ"});
+assert(mountainOnly.length>0,"Mountain-only request should retain viable mountain destinations");
+assert(mountainOnly.every(item=>item.destination.seasonProfile==="mountain"&&!GREEK_ISLAND_SLUGS.has(item.destination.slug)),`Mountain-only text leaked non-mountain or island destinations: ${mountainOnly.map(item=>item.destination.slug)}`);
 const parsedElectric=parseTripRequest({...westernProfile,transportMode:"electric-car"});
 assert(parsedElectric.success&&parsedElectric.data.transportMode==="electric-car","Electric car must survive request validation");
 console.log("FREE_TEXT_HARD_CONSTRAINT_OK",JSON.stringify({query:westernProfile.tripText,results:western.map(item=>item.destination.slug),electricCar:parsedElectric.success}));
