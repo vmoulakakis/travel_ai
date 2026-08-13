@@ -7,7 +7,11 @@ const clamp=(v:number,min=0,max=100)=>Math.max(min,Math.min(max,v));
 const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
 const index=Object.fromEntries(V8_DIMENSIONS.map((d,i)=>[d,i])) as Record<V8Dimension,number>;
 const effortBase:Record<string,number>={local:100,"road-near":96,"ferry-easy":90,"road-medium":82,"domestic-flight":80,"short-flight":78,"domestic-flight-plus-road":68,"medium-flight":62,"ferry-long":58,"road-long":55,"long-flight":44,medium:62};
-export const V8_ISLAND_SLUGS=new Set(["aegina","chania","corfu","hydra","naxos","paros","rhodes","santorini","syros"]);
+export const V8_ISLAND_SLUGS=new Set([
+ "aegina","agios-nikolaos","alonissos","amorgos","chania","corfu","evia","hydra","karpathos","kefalonia",
+ "kos","milos","naxos","paros","paxos","rethymno","rhodes","samothrace","santorini","skiathos","skopelos",
+ "symi","syros","tinos","zakynthos",
+]);
 
 function isOrigin(r:TripRequest,d:V8Destination){const o=norm(r.origin);return[norm(d.nameEl),norm(d.nameEn),...d.aliases.map(norm)].includes(o)}
 function intentFit(intent:V8IntentProfile,d:V8Destination){let sum=0,wSum=0;for(const dim of V8_DIMENSIONS){const w=intent.weights[dim]??0;if(w<=.01)continue;sum+=w*(d.vector[index[dim]]??.05);wSum+=w}return wSum?clamp(sum/wSum*100):55}
@@ -24,7 +28,10 @@ function weights(r:TripRequest,intent:V8IntentProfile){const outdoor=Math.max(in
 function compute(r:TripRequest,intent:V8IntentProfile,d:V8Destination,weather?:WeatherEvidence|null):V8Ranked{
  const e=effort(r,d),b:V8ScoreBreakdown={intent:Math.round(intentFit(intent,d)),season:Math.round(seasonFit(r,d)),effort:Math.round(e.score),duration:Math.round(durationFit(r,d)),budget:Math.round(budgetFit(r,d)),weather:Math.round(weather?.score??62),traveler:Math.round(travelerFit(r,d)),crowdFit:Math.round(crowdFit(r,d)),routeConfidence:Math.round(d.routeConfidence*100)},w=weights(r,intent);
  let score=b.intent*w.intent+b.season*w.season+b.effort*w.effort+b.duration*w.duration+b.budget*w.budget+b.weather*w.weather+b.traveler*w.traveler+b.crowdFit*w.crowd;
- if(isOrigin(r,d))score=0;if(r.distancePreference==="island"&&!V8_ISLAND_SLUGS.has(d.slug))score=0;if(!matchesMustHave(r,d))score=0;if(r.avoid==="crowds"&&d.crowdLevel>=5)score-=16;if(r.avoid==="high-cost"&&d.costTier>budgetTarget(r)+1)score-=18;if(r.avoid==="high-cost"&&d.costTier>=5)score=Math.min(score,45);if(r.socialPreference==="quiet"&&d.crowdLevel>=5)score-=9;if(r.noveltyPreference==="surprise"&&d.crowdLevel<=3)score+=4;if(r.noveltyPreference==="familiar"&&d.routeConfidence>=.95)score+=3;if(consideredFit(r,d)&&b.season>=55&&b.budget>=48)score+=7;if(b.season<40)score-=8;
+ if(isOrigin(r,d))score=0;if(r.distancePreference==="island"&&!V8_ISLAND_SLUGS.has(d.slug))score=0;if(!matchesMustHave(r,d))score=0;if(r.avoid==="crowds"&&d.crowdLevel>=5)score-=16;if(r.avoid==="high-cost"&&d.costTier>budgetTarget(r)+1)score-=18;if(r.avoid==="high-cost"&&d.costTier>=5)score=Math.min(score,45);if(r.socialPreference==="quiet"&&d.crowdLevel>=5)score-=9;if(r.noveltyPreference==="surprise"&&d.crowdLevel<=3)score+=4;if(r.noveltyPreference==="familiar"&&d.routeConfidence>=.95)score+=3;
+ // Keep a user's explicitly considered, feasible idea in the comparison set without forcing it to win.
+ if(consideredFit(r,d)&&b.season>=55&&b.budget>=48)score+=12;
+ if(b.season<40)score-=8;
  // Explicit warmth is a feasibility requirement, not a soft style preference. Diversity cannot rescue a cold/off-season beach destination.
  if(r.moods.includes("warmth")&&b.season<55)score=Math.min(score,48);
  if(r.moods.includes("warmth")&&weather&&weather.source!=="unavailable"&&weather.score<55)score=Math.min(score,48);
@@ -43,8 +50,9 @@ function portfolioScore(candidate:V8Ranked,selected:V8Ranked[],lens:number){cons
 function regionCapFor(ranked:V8Ranked[],count:number){const capacity=new Map<string,number>();for(const item of ranked)capacity.set(item.destination.regionGroup,(capacity.get(item.destination.regionGroup)??0)+1);for(let cap=1;cap<=count;cap+=1)if([...capacity.values()].reduce((sum,value)=>sum+Math.min(value,cap),0)>=count)return Math.max(2,cap);return count}
 function pick(pool:V8Ranked[],selected:V8Ranked[],role:V8ExplorationRole,predicate:(item:V8Ranked)=>boolean,lens:(item:V8Ranked)=>number,regionCap=Infinity){let bestIndex=-1,bestScore=-Infinity;for(let i=0;i<pool.length;i+=1){const candidate=pool[i],regionCount=selected.filter(item=>item.destination.regionGroup===candidate.destination.regionGroup).length;if(regionCount>=regionCap||!predicate(candidate))continue;const value=portfolioScore(candidate,selected,lens(candidate));if(value>bestScore){bestScore=value;bestIndex=i}}if(bestIndex<0)return false;selected.push({...pool.splice(bestIndex,1)[0],explorationRole:role});return true}
 export function diversifyV8(ranked:V8Ranked[],count=12){const pool=ranked.filter(item=>item.score>0).map(item=>({...item})),selected:V8Ranked[]=[];if(!pool.length)return selected;const targetCount=Math.min(count,pool.length),regionCap=regionCapFor(pool,targetCount);selected.push({...pool.shift()!,explorationRole:"BEST_FIT"});
- const finalistFloor=Math.max(45,selected[0].score-12),finalistEligible=(item:V8Ranked)=>item.score>=finalistFloor&&item.breakdown.crowdFit>30&&item.breakdown.budget>30;
- pick(pool,selected,"EASIEST",finalistEligible,item=>item.score*.78+item.breakdown.effort*.22,regionCap);
+ // Finalists remain accuracy-first. Diversity may break near ties, but it cannot promote a weak option merely to look different.
+ const finalistFloor=Math.max(56,selected[0].score-8),finalistEligible=(item:V8Ranked)=>item.score>=finalistFloor&&item.breakdown.season>=45&&item.breakdown.crowdFit>30&&item.breakdown.budget>30;
+ pick(pool,selected,"EASIEST",finalistEligible,item=>item.score*.9+item.breakdown.effort*.1,regionCap);
  if(selected.length<3)pick(pool,selected,"ALTERNATIVE",finalistEligible,item=>item.score,regionCap);
  while(selected.length<Math.min(3,count)&&pool.length)pick(pool,selected,"ALTERNATIVE",()=>true,item=>item.score,regionCap);
  const firstIsIsland=V8_ISLAND_SLUGS.has(selected[0].destination.slug),selectors:Array<[V8ExplorationRole,(item:V8Ranked)=>boolean,(item:V8Ranked)=>number]>=[

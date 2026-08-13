@@ -70,7 +70,7 @@ The production V8 score is explainable. Depending on intent, the normalized blen
 
 Explicit requirements can become feasibility guards. For example, a user explicitly asking for warmth cannot receive an off-season/cold beach destination merely because diversity would otherwise promote it.
 
-`npm run test:v8` contains mandatory regression scenarios for romantic/food, November warmth, low-budget city/culture and winter nature/relax matching. CI fails if these invariants regress.
+`npm run test:strict` runs the V8/V9 regression checks plus 100 strict traveler scenarios. It verifies hard constraints, stable evidence-based output, catalog coverage and concentration limits so the same destinations do not dominate unrelated profiles.
 
 ## AI roles
 
@@ -149,7 +149,7 @@ Every pull request runs:
 ```bash
 npm install
 npm run typecheck
-npm run test:v8
+npm run test:strict
 npm run build
 ```
 

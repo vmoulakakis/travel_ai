@@ -28,7 +28,7 @@ function minimalRegionCap(ranked:ReturnType<typeof finalRankV8>,count:number){co
 async function main(){
 const catalog=(await loadV8DestinationCatalog()).filter(item=>item.countryCode==="GR");
 assert(catalog.length>=20,`Expected a nationwide Greek catalog, got ${catalog.length}`);
-let checks=0;const failures:string[]=[];const examples:Record<string,string[]>={};
+let checks=0;const failures:string[]=[];const examples:Record<string,string[]>={};const finalistFrequency=new Map<string,number>();const winnerFrequency=new Map<string,number>();
 for(let periodIndex=0;periodIndex<periods.length;periodIndex+=1){
   for(let archetypeIndex=0;archetypeIndex<archetypes.length;archetypeIndex+=1){
     const archetype=archetypes[archetypeIndex],startDate=periods[periodIndex],nights=2+((periodIndex+archetypeIndex)%6),origin=(periodIndex+archetypeIndex)%4===0?"Thessaloniki":(periodIndex+archetypeIndex)%4===1?"Patras":(periodIndex+archetypeIndex)%4===2?"Heraklion":"Athens";
@@ -53,6 +53,8 @@ for(let periodIndex=0;periodIndex<periods.length;periodIndex+=1){
       const feasibility=responseFeasibility(selected);assert(["STRONG","MIXED","COMPROMISE"].includes(feasibility),"missing feasibility state");checks+=1;
       if(archetype.name==="couple_romance_idea")assert(selected.some(item=>item.destination.slug==="nafplio"),"a viable considered destination disappeared from all twelve options");
       examples[label]=selected.map(item=>item.destination.slug);
+      selected.slice(0,3).forEach(item=>finalistFrequency.set(item.destination.slug,(finalistFrequency.get(item.destination.slug)??0)+1));
+      if(selected[0])winnerFrequency.set(selected[0].destination.slug,(winnerFrequency.get(selected[0].destination.slug)??0)+1);
     }catch(error){failures.push(`${label}: ${error instanceof Error?error.message:String(error)}`)}
   }
 }
@@ -63,7 +65,12 @@ assert(strictSelected.some(item=>V8_ISLAND_SLUGS.has(item.destination.slug))&&st
 assert(new Set(strictSelected.map(item=>item.destination.regionGroup)).size>=4,"strict scenario must span at least four regions");checks+=1;
 assert(new Set(strictSelected.map(item=>item.explorationRole)).size>=8,"strict scenario must expose multiple exploration lenses");checks+=1;
 assert.equal(new Set(strictRecommendations.map(item=>item.why)).size,strictRecommendations.length,"destination narratives must not be repeated");checks+=1;
+const finalistCoverage=finalistFrequency.size,winnerCoverage=winnerFrequency.size,maxFinalistShare=Math.max(...finalistFrequency.values())/100,maxWinnerShare=Math.max(...winnerFrequency.values())/100;
+assert(finalistCoverage>=Math.min(20,Math.ceil(catalog.length*.55)),`finalists cover only ${finalistCoverage}/${catalog.length} destinations across 100 distinct briefs`);checks+=1;
+assert(winnerCoverage>=Math.min(15,Math.ceil(catalog.length*.35)),`only ${winnerCoverage}/${catalog.length} destinations ever win across 100 distinct briefs`);checks+=1;
+assert(maxFinalistShare<=.35,`one destination appears in the finalists for ${(maxFinalistShare*100).toFixed(0)}% of distinct briefs`);checks+=1;
+assert(maxWinnerShare<=.25,`one destination wins ${(maxWinnerShare*100).toFixed(0)}% of distinct briefs`);checks+=1;
 assert.equal(failures.length,0,`V10 scenario failures (${failures.length}):\n${failures.join("\n")}`);
-console.log("V10_100_SCENARIOS_OK",JSON.stringify({scenarios:100,checks,catalogSize:catalog.length,strictExplorer:strictSelected.map(item=>({slug:item.destination.slug,role:item.explorationRole})),examples:Object.fromEntries(Object.entries(examples).slice(0,5))}));
+console.log("V10_100_SCENARIOS_OK",JSON.stringify({scenarios:100,checks,catalogSize:catalog.length,finalistCoverage,winnerCoverage,maxFinalistShare,maxWinnerShare,topFinalists:[...finalistFrequency.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10),strictExplorer:strictSelected.map(item=>({slug:item.destination.slug,role:item.explorationRole})),examples:Object.fromEntries(Object.entries(examples).slice(0,5))}));
 }
 void main();

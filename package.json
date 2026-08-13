@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test:v8": "node --import tsx scripts/v8-matcher-smoke.ts",
     "test:v9": "node --import tsx scripts/v9-continuity-smoke.ts",
-    "test:v10": "node --import tsx scripts/v10-scenario-suite.ts"
+    "test:v10": "node --import tsx scripts/v10-scenario-suite.ts",
+    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.36",
