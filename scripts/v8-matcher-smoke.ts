@@ -16,6 +16,7 @@ const catalog:V8Destination[]=[
  d("kavala","Kavala","GR",["romantic","food","culture","city","nature","beach","family","value","short_break","shoulder_season"],"coast_city",2,"domestic-flight",3,.95,true,"macedonia",2,5),
  d("santorini","Santorini","GR",["romantic","food","culture","beach","luxury","warmth","short_break","shoulder_season"],"summer_island",5,"domestic-flight",5,.98,true,"cyclades",2,5),
  d("halkidiki","Halkidiki","GR",["relax","nature","beach","family","luxury","warmth"],"summer_island",3,"domestic-flight-plus-road",5,.9,false,"macedonia",3,7),
+ d("chios","Χίο","GR",["relax","food","culture","nature","beach","family","value","shoulder_season"],"summer_island",2,"domestic-flight",2,.94,true,"north-aegean",3,7),
  d("arachova","Arachova","GR",["romantic","relax","nature","adventure","luxury","wellness","short_break"],"mountain",3,"road-near",4,.95,false,"central-greece",2,4),
  d("karpenisi","Karpenisi","GR",["romantic","relax","nature","adventure","family","wellness","value"],"mountain",2,"road-medium",2,.95,false,"central-greece",2,5),
  d("zagori","Zagori","GR",["romantic","relax","food","nature","adventure","luxury","wellness","shoulder_season"],"nature_all",3,"domestic-flight-plus-road",2,.8,false,"epirus",3,5),
@@ -72,6 +73,8 @@ assert(western.every(item=>item.destination.regionGroup==="ionian"||item.destina
 const macedonia=rankGreece({...westernProfile,tripText:"ΘΕΛΩ ΝΑ ΠΑΩ ΜΑΚΕΔΟΝΙΑ ΜΟΝΟ"});
 assert(macedonia.length>=3,"Macedonia-only request should retain the three curated Macedonian choices");
 assert(macedonia.every(item=>item.destination.regionGroup==="macedonia"),`Macedonia-only text leaked destinations: ${macedonia.map(item=>item.destination.slug)}`);
+const chiosOnly=rankGreece({...westernProfile,tripText:"ΘΕΛΩ ΜΟΝΟ ΠΑΡΑΘΑΛΑΣΣΙΑ ΧΙΟ"});
+assert.deepEqual(chiosOnly.map(item=>item.destination.slug),["chios"],`Explicit Chios-only request leaked destinations: ${chiosOnly.map(item=>item.destination.slug)}`);
 const parsedElectric=parseTripRequest({...westernProfile,transportMode:"electric-car"});
 assert(parsedElectric.success&&parsedElectric.data.transportMode==="electric-car","Electric car must survive request validation");
 console.log("FREE_TEXT_HARD_CONSTRAINT_OK",JSON.stringify({query:westernProfile.tripText,results:western.map(item=>item.destination.slug),electricCar:parsedElectric.success}));

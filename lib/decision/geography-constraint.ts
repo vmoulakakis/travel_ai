@@ -5,7 +5,7 @@ const norm=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300
 const hardWords=new Set(["μονο","αποκλειστικα","θελω","ζηταω","only","exclusively","want"]);
 export const GREEK_ISLAND_SLUGS=new Set(["aegina","agios-nikolaos","alonissos","amorgos","chania","corfu","evia","hydra","karpathos","kefalonia","kos","milos","naxos","paros","paxos","rethymno","rhodes","samothrace","santorini","skiathos","skopelos","symi","syros","tinos","zakynthos"]);
 const westernSlugs=new Set(["corfu","paxos","lefkada","kefalonia","zakynthos","ioannina","zagori","parga","nafpaktos","patras","olympia"]);
-export type GeographyConstraint={id:string;labelEl:string;labelEn:string;allowedRegions?:ReadonlySet<string>;allowedSlugs?:ReadonlySet<string>;geography?:"island"|"mainland"};
+export type GeographyConstraint={id:string;labelEl:string;labelEn:string;allowedRegions?:ReadonlySet<string>;allowedSlugs?:ReadonlySet<string>;requiredTags?:ReadonlySet<string>;geography?:"island"|"mainland"};
 type Rule={id:string;el:string;en:string;phrases:string[];regions?:string[];slugs?:ReadonlySet<string>};
 const rules:Rule[]=[
  {id:"western-greece",el:"μόνο Δυτική Ελλάδα",en:"Western Greece only",phrases:["δυτικη ελλαδα","δυτικα της ελλαδας","western greece","west greece"],regions:["ionian","epirus"],slugs:westernSlugs},
@@ -17,11 +17,16 @@ const rules:Rule[]=[
  {id:"thrace",el:"μόνο Θράκη",en:"Thrace only",phrases:["θρακη","thrace"],regions:["thrace"],slugs:new Set(["samothrace"])},
  {id:"central-greece",el:"μόνο Στερεά Ελλάδα",en:"Central Greece only",phrases:["στερεα ελλαδα","κεντρικη ελλαδα","central greece"],regions:["central-greece"]},
 ];
-export function geographyConstraint(request:TripRequest):GeographyConstraint|null{
+export function geographyConstraint(request:TripRequest,catalog:readonly V8Destination[]=[]):GeographyConstraint|null{
  const text=norm(request.tripText??""),tokens=new Set(text.split(" ").filter(Boolean)),negatedOnly=text.includes("δεν θελω μονο")||text.includes("δεν ζηταω μονο")||text.includes("not only"),hard=!negatedOnly&&[...hardWords].some(marker=>tokens.has(marker));
  const mainland=text.includes("οχι νησι")||text.includes("χωρις νησι")||text.includes("ηπειρωτικη ελλαδα")||text.includes("mainland only")||text.includes("no island");if(mainland)return{id:"mainland-only",labelEl:"χωρίς νησί",labelEn:"mainland only",geography:"mainland"};
  const notOnlyIslands=text.includes("οχι μονο νησι")||text.includes("not only island"),island=!notOnlyIslands&&(text.includes("μονο νησι")||text.includes("θελω νησι")||text.includes("island only")||text.includes("only island"));if(island)return{id:"island-only",labelEl:"μόνο νησί",labelEn:"island only",geography:"island"};
- if(!hard)return null;const rule=rules.find(item=>item.phrases.some(phrase=>text.includes(phrase)));if(!rule)return null;
- return{id:rule.id,labelEl:rule.el,labelEn:rule.en,...(rule.regions?{allowedRegions:new Set(rule.regions)}:{}),...(rule.slugs?{allowedSlugs:rule.slugs}:{})};
+ if(!hard)return null;
+ const coastal=text.includes("παραθαλασ")||text.includes("διπλα στη θαλασσα")||text.includes("κοντα στη θαλασσα")||text.includes("seaside")||text.includes("coastal");
+ const destination=catalog.find(item=>[item.slug,item.nameEl,item.nameEn,...item.aliases].some(alias=>{const value=norm(alias);return value.length>=3&&(text===value||text.startsWith(`${value} `)||text.endsWith(` ${value}`)||text.includes(` ${value} `));}));
+ const rule=rules.find(item=>item.phrases.some(phrase=>text.includes(phrase)));
+ if(destination)return{id:`destination-${destination.slug}${coastal?"-coastal":""}`,labelEl:`μόνο ${destination.nameEl}${coastal?" και παραθαλάσσια":""}`,labelEn:`${destination.nameEn} only${coastal?", seaside":""}`,allowedSlugs:new Set([destination.slug]),...(coastal?{requiredTags:new Set(["beach"])}:{})};
+ if(!rule&&!coastal)return null;
+ return{id:rule?.id??"coastal-only",labelEl:rule?.el??"μόνο παραθαλάσσια",labelEn:rule?.en??"seaside only",...(rule?.regions?{allowedRegions:new Set(rule.regions)}:{}),...(rule?.slugs?{allowedSlugs:rule.slugs}:{}),...(coastal?{requiredTags:new Set(["beach"])}:{})};
 }
-export function matchesGeographyConstraint(destination:V8Destination,constraint:GeographyConstraint|null){if(!constraint)return true;if(destination.countryCode!=="GR")return false;if(constraint.geography==="island"&&!GREEK_ISLAND_SLUGS.has(destination.slug))return false;if(constraint.geography==="mainland"&&GREEK_ISLAND_SLUGS.has(destination.slug))return false;if(constraint.allowedRegions||constraint.allowedSlugs)return Boolean(constraint.allowedRegions?.has(destination.regionGroup)||constraint.allowedSlugs?.has(destination.slug));return true}
+export function matchesGeographyConstraint(destination:V8Destination,constraint:GeographyConstraint|null){if(!constraint)return true;if(destination.countryCode!=="GR")return false;if(constraint.geography==="island"&&!GREEK_ISLAND_SLUGS.has(destination.slug))return false;if(constraint.geography==="mainland"&&GREEK_ISLAND_SLUGS.has(destination.slug))return false;if(constraint.requiredTags&&![...constraint.requiredTags].every(tag=>destination.tags.includes(tag as never)))return false;if(constraint.allowedRegions||constraint.allowedSlugs)return Boolean(constraint.allowedRegions?.has(destination.regionGroup)||constraint.allowedSlugs?.has(destination.slug));return true}

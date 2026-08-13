@@ -6,6 +6,7 @@ import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
 import { recordV8RecommendationSession } from "@/lib/data/match-learning-v8";
 import { enrichV8Weather } from "@/lib/data/weather-v8";
 import { buildSmartDateWindows } from "@/lib/decision/date-windows-v9";
+import { geographyConstraint } from "@/lib/decision/geography-constraint";
 import { diversifyV8,finalRankV8,preRankV8,responseFeasibility,toRecommendationsV8,type V8Ranked } from "@/lib/decision/v8-matcher";
 import type { V8RecommendationResponse } from "@/lib/decision/v8-types";
 import { parseTripRequest, type TripRequest } from "@/lib/validation/trip";
@@ -25,7 +26,7 @@ export async function POST(request:Request){
    emit("understand:start",8,{hasFreeText:Boolean(trip.tripText)});emit("catalog:start",12);
    const[intent,allDestinations]=await Promise.all([interpretIntentV8(trip),loadV8DestinationCatalog()]),catalog=allDestinations.filter(destination=>destination.countryCode==="GR");
    emit("understand:ready",24,{summary:intent.summary});emit("catalog:ready",36,{catalogSize:catalog.length});
-   const pre=preRankV8(trip,intent,catalog,30);if(pre.length<3){emit("continuity",100,{message:safePublicMessage(null,trip.language==="en"?"en":"el"),continuity:pendingContinuity()});return;}
+   const hardConstraint=geographyConstraint(trip,catalog),pre=preRankV8(trip,intent,catalog,30),minimum=hardConstraint?.allowedSlugs?.size===1?1:3;if(pre.length<minimum){emit("continuity",100,{message:trip.language==="en"?"No safe option passes every mandatory detail. Change one hard requirement.":"Δεν υπάρχει ασφαλής επιλογή που να περνά όλα τα υποχρεωτικά στοιχεία. Άλλαξε ένα αυστηρό κριτήριο.",continuity:pendingContinuity()});return;}
    emit("shortlist:ready",52,{preview:pre.slice(0,7).map(x=>({destination:trip.language==="en"?x.destination.nameEn:x.destination.nameEl}))});
    emit("weather:start",60,{candidates:Math.min(18,pre.length)});
    const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),18),ranked=finalRankV8(trip,intent,pre,weather),selected=diversifyV8(ranked,12);
