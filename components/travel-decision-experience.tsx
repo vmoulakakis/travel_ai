@@ -5,6 +5,8 @@ import {
   AirplaneTilt,
   ArrowRight,
   Buildings,
+  Bell,
+  Calculator,
   CalendarBlank,
   CaretDown,
   Check,
@@ -24,6 +26,7 @@ import {
   SunHorizon,
   UsersThree,
   Waves,
+  X,
 } from "@phosphor-icons/react";
 import { StayChoiceMap } from "@/components/stay-choice-map";
 import type { TripRequest, Month, EntryMode } from "@/lib/validation/trip";
@@ -355,7 +358,18 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
     </main>
 
     <footer className="guru-footer"><span>ΕΛΛΗΝΙΚΟΣ AI TRAVEL GURU</span><span>{say(lang, "Πραγματικά δεδομένα · καθαρές επιλογές · καμία ψεύτικη πίεση", "Real data · clear choices · no fake pressure")}</span></footer>
+    <TravelDesktop trip={trip} lang={lang} constraintLabel={understoodConstraint?(lang==="el"?understoodConstraint.labelEl:understoodConstraint.labelEn):null} result={result}/>
   </div>;
+}
+
+function TravelDesktop({trip,lang,constraintLabel,result}:{trip:TripRequest;lang:Lang;constraintLabel:string|null;result:V8RecommendationResponse|null}){
+ const[panel,setPanel]=useState<"closed"|"notifications"|"calculator">("closed"),[distance,setDistance]=useState(300),[fuelPrice,setFuelPrice]=useState(1.85),[consumption,setConsumption]=useState(7),[tolls,setTolls]=useState(25),[dailyExtras,setDailyExtras]=useState(35),[evPrice,setEvPrice]=useState(.45),[evConsumption,setEvConsumption]=useState(18);
+ const people=Math.max(1,trip.groupSize??1),days=Math.max(1,trip.nights+1),roundTripKm=Math.max(0,distance*2),electric=trip.transportMode==="electric-car",transport=electric?roundTripKm/100*evConsumption*evPrice:trip.transportMode==="no-car"?0:roundTripKm/100*consumption*fuelPrice,extras=dailyExtras*people*days,totalTravel=transport+tolls+extras,stayBudget=Math.max(0,trip.budget-totalTravel),perPerson=trip.budget/people,perDay=trip.budget/people/days;
+ const notifications=[constraintLabel?{title:say(lang,"Ο περιορισμός σου κλειδώθηκε","Your constraint is locked"),body:constraintLabel}:null,result?{title:say(lang,"Η σύγκριση είναι έτοιμη","Your comparison is ready"),body:say(lang,`${result.recommendations.length} διαφορετικές επιλογές πέρασαν τον έλεγχο.`,`${result.recommendations.length} distinct choices passed the checks.`)}:{title:say(lang,"Υπολόγισε το πραγματικό κόστος","Calculate the real cost"),body:say(lang,"Δες τι μένει για διαμονή αφού αφαιρεθούν μετακίνηση, διόδια και καθημερινά έξοδα.","See what remains for stays after transport, tolls and daily extras.")}].filter((item):item is {title:string;body:string}=>Boolean(item));
+ return <aside className={`travel-desktop ${panel!=="closed"?"open":""}`} aria-label={say(lang,"Εργαλεία ταξιδιού","Travel tools")}>
+   {panel!=="closed"&&<div className="desktop-window" role="dialog" aria-modal="false" aria-label={panel==="calculator"?say(lang,"Travel calculator","Travel calculator"):say(lang,"Ειδοποιήσεις","Notifications")}><div className="window-bar"><span>{panel==="calculator"?<Calculator size={17}/>:<Bell size={17}/>} {panel==="calculator"?say(lang,"TRAVEL CALCULATOR","TRAVEL CALCULATOR"):say(lang,"TRAVEL NOTIFICATIONS","TRAVEL NOTIFICATIONS")}</span><button onClick={()=>setPanel("closed")} aria-label={say(lang,"Κλείσιμο","Close")}><X size={17}/></button></div>{panel==="notifications"?<div className="notification-list">{notifications.map((item,index)=><article key={`${item.title}-${index}`}><span>{index+1}</span><div><strong>{item.title}</strong><p>{item.body}</p></div></article>)}</div>:<div className="travel-calculator"><div className="calc-summary"><span>{say(lang,"Συνολικό budget","Total budget")}<strong>€{trip.budget.toFixed(0)}</strong></span><span>{say(lang,"Ανά άτομο / ημέρα","Per person / day")}<strong>€{perDay.toFixed(0)}</strong></span><span className="highlight">{say(lang,"Μένουν για διαμονή","Left for stays")}<strong>€{stayBudget.toFixed(0)}</strong></span></div><div className="calc-grid"><label>{say(lang,"Απόσταση μονής διαδρομής (km)","One-way distance (km)")}<input type="number" min="0" value={distance} onChange={event=>setDistance(Number(event.target.value)||0)}/></label>{electric?<><label>kWh / 100 km<input type="number" min="0" step=".1" value={evConsumption} onChange={event=>setEvConsumption(Number(event.target.value)||0)}/></label><label>€ / kWh<input type="number" min="0" step=".01" value={evPrice} onChange={event=>setEvPrice(Number(event.target.value)||0)}/></label></>:trip.transportMode!=="no-car"?<><label>{say(lang,"Κατανάλωση L/100 km","Consumption L/100 km")}<input type="number" min="0" step=".1" value={consumption} onChange={event=>setConsumption(Number(event.target.value)||0)}/></label><label>{say(lang,"Τιμή καυσίμου €/L","Fuel price €/L")}<input type="number" min="0" step=".01" value={fuelPrice} onChange={event=>setFuelPrice(Number(event.target.value)||0)}/></label></>:null}<label>{say(lang,"Διόδια / εισιτήρια €","Tolls / tickets €")}<input type="number" min="0" value={tolls} onChange={event=>setTolls(Number(event.target.value)||0)}/></label><label>{say(lang,"Έξοδα ανά άτομο / ημέρα €","Extras per person / day €")}<input type="number" min="0" value={dailyExtras} onChange={event=>setDailyExtras(Number(event.target.value)||0)}/></label></div><dl><div><dt>{electric?say(lang,"Εκτίμηση φόρτισης","Charging estimate"):say(lang,"Εκτίμηση μετακίνησης","Transport estimate")}</dt><dd>€{transport.toFixed(0)}</dd></div><div><dt>{say(lang,"Καθημερινά έξοδα","Daily extras")}</dt><dd>€{extras.toFixed(0)}</dd></div><div><dt>{say(lang,"Budget ανά άτομο","Budget per person")}</dt><dd>€{perPerson.toFixed(0)}</dd></div></dl><small>{say(lang,"Εκτίμηση προγραμματισμού, όχι τελική τιμή. Άλλαξε τα πεδία με τα πραγματικά στοιχεία σου.","Planning estimate, not a final price. Replace the defaults with your real figures.")}</small></div>}</div>}
+   <div className="desktop-launcher"><button className={panel==="calculator"?"active":""} onClick={()=>setPanel(current=>current==="calculator"?"closed":"calculator")}><Calculator size={20}/><span>{say(lang,"Calculator","Calculator")}</span></button><button className={panel==="notifications"?"active":""} onClick={()=>setPanel(current=>current==="notifications"?"closed":"notifications")}><Bell size={20}/><i>{notifications.length}</i><span>{say(lang,"Ειδοποιήσεις","Notifications")}</span></button></div>
+ </aside>
 }
 
 function DbPhoto({ slug, className, label, startDate = "2026-09-18", endDate = "2026-09-22" }: { slug: string; className?: string; label: string; startDate?: string; endDate?: string }) {
