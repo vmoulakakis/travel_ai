@@ -548,7 +548,8 @@ function cleanDescription(value?: string | null) {
 function cardNarrative(recommendation: V8Recommendation, trip: TripRequest, lang: Lang) {
   const opening = recommendation.why.replace(/\s+/g, " ").trim();
   const pace = trip.pace === "slow" ? say(lang,"Εδώ δεν χρειάζεται να κυνηγάς το πρόγραμμα: ο τόπος αποδίδει όταν αφήνεις χώρο ανάμεσα στις εμπειρίες.","You do not need to chase an itinerary here: the place works when you leave breathing room between experiences.") : trip.pace === "full" ? say(lang,"Έχει αρκετές διαφορετικές υφές για γεμάτες ημέρες, χωρίς να βασίζεται σε μία μόνο εικόνα.","It has enough different textures for full days without relying on a single postcard moment.") : say(lang,"Σου επιτρέπει να εναλλάξεις εμπειρία και παύση χωρίς να νιώθεις ότι χάνεις κάτι.","It lets you alternate experience and pause without feeling that you are missing out.");
-  return `${opening} ${pace}`;
+  const advice=recommendation.localAdvice?.[0],local=advice?say(lang,`Ένας ντόπιος θα σου έλεγε: ${advice}`,`A local would tell you: ${advice}`):"";
+  return `${opening} ${pace} ${local}`.trim();
 }
 
 function psychologyHook(trip: TripRequest, recommendation: V8Recommendation, lang: Lang) {
