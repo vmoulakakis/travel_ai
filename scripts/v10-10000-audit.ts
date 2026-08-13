@@ -15,6 +15,7 @@ const constraints=[
  {id:"peloponnese",phrases:["θέλω μόνο Πελοπόννησο","αποκλειστικά Πελοπόννησος","Peloponnese only"]},{id:"ionian",phrases:["θέλω μόνο Ιόνιο","αποκλειστικά Ιόνια νησιά","Ionian only"]},
  {id:"epirus",phrases:["θέλω μόνο Ήπειρο","αποκλειστικά Ήπειρος","Epirus only"]},{id:"cyclades",phrases:["θέλω μόνο Κυκλάδες","αποκλειστικά Κυκλάδες","Cyclades only"]},
  {id:"dodecanese",phrases:["θέλω μόνο Δωδεκάνησα","αποκλειστικά Δωδεκάνησα","Dodecanese only"]},{id:"sporades",phrases:["θέλω μόνο Σποράδες","αποκλειστικά Σποράδες","Sporades only"]},
+ {id:"macedonia",phrases:["ΘΕΛΩ ΝΑ ΠΑΩ ΜΑΚΕΔΟΝΙΑ ΜΟΝΟ","αποκλειστικά στη Μακεδονία","Macedonia only"]},
  {id:"thrace",phrases:["θέλω μόνο Θράκη","αποκλειστικά στη Θράκη","Thrace only"]},
  {id:"northern-greece",phrases:["θέλω μόνο βόρεια Ελλάδα","αποκλειστικά βόρεια της Ελλάδας","Northern Greece only"]},{id:"central-greece",phrases:["θέλω μόνο Στερεά Ελλάδα","αποκλειστικά κεντρική Ελλάδα","Central Greece only"]},
  {id:"mainland-only",phrases:["όχι νησί","χωρίς νησί παρακαλώ","mainland only"]},{id:"island-only",phrases:["θέλω μόνο νησί","μόνο νησί παρακαλώ","island only"]},

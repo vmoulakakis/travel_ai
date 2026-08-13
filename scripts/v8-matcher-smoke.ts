@@ -13,6 +13,7 @@ const catalog:V8Destination[]=[
  d("nafplio","Nafplio","GR",["romantic","food","culture","city","short_break","shoulder_season","value"],"city_med",2,"road-near",3,.95,false,"peloponnese",2,4),
  d("monemvasia","Monemvasia","GR",["romantic","relax","food","culture","nature","luxury","short_break","shoulder_season"],"city_med",3,"road-medium",2,.95,false,"peloponnese",2,4),
  d("thessaloniki","Thessaloniki","GR",["romantic","food","culture","city","nightlife","family","value","short_break","shoulder_season"],"city_cont",2,"domestic-flight",4,.98,true,"macedonia",2,4),
+ d("kavala","Kavala","GR",["romantic","food","culture","city","nature","beach","family","value","short_break","shoulder_season"],"coast_city",2,"domestic-flight",3,.95,true,"macedonia",2,5),
  d("santorini","Santorini","GR",["romantic","food","culture","beach","luxury","warmth","short_break","shoulder_season"],"summer_island",5,"domestic-flight",5,.98,true,"cyclades",2,5),
  d("halkidiki","Halkidiki","GR",["relax","nature","beach","family","luxury","warmth"],"summer_island",3,"domestic-flight-plus-road",5,.9,false,"macedonia",3,7),
  d("arachova","Arachova","GR",["romantic","relax","nature","adventure","luxury","wellness","short_break"],"mountain",3,"road-near",4,.95,false,"central-greece",2,4),
@@ -68,6 +69,9 @@ const westernProfile=trip({travelerType:"friends",groupSize:3,nights:2,endDate:"
 const western=diversifyV8(rankGreece(westernProfile),12);
 assert(western.length>0,"Western Greece constraint should retain viable western choices");
 assert(western.every(item=>item.destination.regionGroup==="ionian"||item.destination.regionGroup==="epirus"||["nafpaktos","patras","olympia"].includes(item.destination.slug)),`Western-only text leaked destinations: ${western.map(item=>item.destination.slug)}`);
+const macedonia=rankGreece({...westernProfile,tripText:"ΘΕΛΩ ΝΑ ΠΑΩ ΜΑΚΕΔΟΝΙΑ ΜΟΝΟ"});
+assert(macedonia.length>=3,"Macedonia-only request should retain the three curated Macedonian choices");
+assert(macedonia.every(item=>item.destination.regionGroup==="macedonia"),`Macedonia-only text leaked destinations: ${macedonia.map(item=>item.destination.slug)}`);
 const parsedElectric=parseTripRequest({...westernProfile,transportMode:"electric-car"});
 assert(parsedElectric.success&&parsedElectric.data.transportMode==="electric-car","Electric car must survive request validation");
 console.log("FREE_TEXT_HARD_CONSTRAINT_OK",JSON.stringify({query:westernProfile.tripText,results:western.map(item=>item.destination.slug),electricCar:parsedElectric.success}));

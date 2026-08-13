@@ -13,6 +13,7 @@ const rules:Rule[]=[
  {id:"ionian",el:"μόνο Ιόνιο",en:"Ionian only",phrases:["ιονιο","ιονια νησια","ionian"],regions:["ionian"]},{id:"epirus",el:"μόνο Ήπειρος",en:"Epirus only",phrases:["ηπειρο","ηπειρος","epirus"],regions:["epirus"]},
  {id:"cyclades",el:"μόνο Κυκλάδες",en:"Cyclades only",phrases:["κυκλαδες","cyclades"],regions:["cyclades"]},{id:"dodecanese",el:"μόνο Δωδεκάνησα",en:"Dodecanese only",phrases:["δωδεκανησα","dodecanese"],regions:["dodecanese"]},
  {id:"sporades",el:"μόνο Σποράδες",en:"Sporades only",phrases:["σποραδες","sporades"],regions:["sporades"]},{id:"northern-greece",el:"μόνο Βόρεια Ελλάδα",en:"Northern Greece only",phrases:["βορεια ελλαδα","βορεια της ελλαδας","northern greece","north greece"],regions:["macedonia","epirus","thessaly","north-aegean"]},
+ {id:"macedonia",el:"μόνο Μακεδονία",en:"Macedonia only",phrases:["μακεδονια","macedonia"],regions:["macedonia"]},
  {id:"thrace",el:"μόνο Θράκη",en:"Thrace only",phrases:["θρακη","thrace"],regions:["thrace"],slugs:new Set(["samothrace"])},
  {id:"central-greece",el:"μόνο Στερεά Ελλάδα",en:"Central Greece only",phrases:["στερεα ελλαδα","κεντρικη ελλαδα","central greece"],regions:["central-greece"]},
 ];
