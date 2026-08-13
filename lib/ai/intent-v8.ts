@@ -27,6 +27,12 @@ export function structuredIntent(request:TripRequest):V8IntentProfile{
  if(request.nights<=4)w.short_break=Math.max(w.short_break,.55);
  const month=Number(request.startDate.slice(5,7));if(month===4||month===5||month===9||month===10||month===11)w.shoulder_season=Math.max(w.shoulder_season,.25);
  if(request.moods.includes("warmth"))w.beach=Math.max(w.beach,.45);
+ const free=(request.tripText??"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ if(/βουνο|ορειν|mountain/.test(free)){w.nature=Math.max(w.nature,.92);w.adventure=Math.max(w.adventure,.55);w.wellness=Math.max(w.wellness,.35)}
+ if(/παραθαλασ|θαλασσ|παραλι|seaside|coast|beach/.test(free))w.beach=Math.max(w.beach,.92);
+ if(/πολη|αστικ|city|urban/.test(free)){w.city=Math.max(w.city,.88);w.culture=Math.max(w.culture,.4)}
+ if(/ησυχ|ηρεμι|quiet|calm/.test(free))w.relax=Math.max(w.relax,.82);
+ if(/φαγητ|γαστρονομ|food|restaurant/.test(free))w.food=Math.max(w.food,.82);
  return{weights:w,source:"structured",summary:request.moods.join(" + ")};
 }
 

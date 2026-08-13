@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { structuredIntent } from "../lib/ai/intent-v8";
-import { GREEK_ISLAND_SLUGS } from "../lib/decision/geography-constraint";
+import { GREEK_ISLAND_SLUGS,GREEK_MOUNTAIN_SLUGS } from "../lib/decision/geography-constraint";
 import { diversifyV8, finalRankV8, preRankV8 } from "../lib/decision/v8-matcher";
 import { V8_DIMENSIONS,type V8Destination } from "../lib/decision/v8-types";
 import type { WeatherEvidence } from "../lib/decision/types";
@@ -78,7 +78,10 @@ const chiosOnly=rankGreece({...westernProfile,tripText:"ΘΕΛΩ ΜΟΝΟ ΠΑΡ
 assert.deepEqual(chiosOnly.map(item=>item.destination.slug),["chios"],`Explicit Chios-only request leaked destinations: ${chiosOnly.map(item=>item.destination.slug)}`);
 const mountainOnly=rankGreece({...westernProfile,tripText:"ΘΕΛΩ ΜΟΝΟ ΒΟΥΝΟ"});
 assert(mountainOnly.length>0,"Mountain-only request should retain viable mountain destinations");
-assert(mountainOnly.every(item=>item.destination.seasonProfile==="mountain"&&!GREEK_ISLAND_SLUGS.has(item.destination.slug)),`Mountain-only text leaked non-mountain or island destinations: ${mountainOnly.map(item=>item.destination.slug)}`);
+assert(mountainOnly.every(item=>GREEK_MOUNTAIN_SLUGS.has(item.destination.slug)&&!GREEK_ISLAND_SLUGS.has(item.destination.slug)),`Mountain-only text leaked non-mountain or island destinations: ${mountainOnly.map(item=>item.destination.slug)}`);
+const mountainSoft=rankGreece({...westernProfile,tripText:"Θέλω βουνό και ηρεμία"});
+assert(mountainSoft.some(item=>item.destination.seasonProfile!=="mountain"),"Non-exclusive mountain text must preserve alternatives");
+assert(["arachova","karpenisi","zagori"].some(slug=>mountainSoft.slice(0,5).some(item=>item.destination.slug===slug)),"Non-exclusive mountain text must promote the closest mountain fits");
 const parsedElectric=parseTripRequest({...westernProfile,transportMode:"electric-car"});
 assert(parsedElectric.success&&parsedElectric.data.transportMode==="electric-car","Electric car must survive request validation");
 console.log("FREE_TEXT_HARD_CONSTRAINT_OK",JSON.stringify({query:westernProfile.tripText,results:western.map(item=>item.destination.slug),electricCar:parsedElectric.success}));

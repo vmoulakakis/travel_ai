@@ -32,7 +32,6 @@ import { StayChoiceMap } from "@/components/stay-choice-map";
 import type { TripRequest, Month, EntryMode } from "@/lib/validation/trip";
 import type { V8Recommendation, V8RecommendationResponse, V8StayOffer, V8StayResponse } from "@/lib/decision/v8-types";
 import { scoreStayOffer } from "@/lib/decision/stay-offer-score";
-import { geographyConstraint } from "@/lib/decision/geography-constraint";
 import type { DestinationInsightsResponse } from "@/lib/decision/types";
 import type { ContinuityEnvelope } from "@/lib/continuity";
 import type { SmartDateWindow } from "@/lib/decision/date-windows-v9";
@@ -115,7 +114,6 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
   const [compareSlugs, setCompareSlugs] = useState<string[]>([]);
   const running = useRef(false);
   const today=useMemo(()=>new Date().toISOString().slice(0,10),[]);
-  const understoodConstraint=useMemo(()=>geographyConstraint(trip),[trip.tripText]);
 
   const stayOffers = useMemo(() => {
     return [...(stayData?.offers ?? [])]
@@ -162,8 +160,8 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
 
   function beginWeekly(){if(!weeklyPick)return;const moods:TripRequest["moods"]=weeklyPick.tags.includes("beach")?["relax","warmth"]:weeklyPick.tags.includes("nature")?["relax","nature"]:["food","culture"];setTrip(current=>({...current,entryMode:"idea",consideredDestination:weeklyPick.destination,startDate:weeklyPick.startDate,endDate:weeklyPick.endDate,nights:weeklyPick.nights,month:monthFromDate(weeklyPick.startDate),moods}));setEntryMode("idea");setStep(0);setResult(null);setSelected(null);setVisibleAlternativeCount(0);setCompareSlugs([]);setTimeout(()=>document.getElementById("discovery")?.scrollIntoView({behavior:"smooth",block:"start"}),40)}
 
-  async function run() {
-    if (running.current) return;
+  async function run(attempt=0) {
+    if (running.current&&attempt===0) return;
     running.current = true;
     setLoading(true);
     setError(null);
@@ -206,8 +204,9 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
         if (final) break;
       }
       if (!final) throw new Error(say(lang, "Η σύγκριση σταμάτησε πριν από την απόφαση.", "The comparison stopped before the decision."));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : say(lang, "Κάτι δεν πήγε σωστά.", "Something went wrong."));
+    } catch {
+      if(attempt<1)return await run(attempt+1);
+      setError(null);
     } finally {
       running.current = false;
       setLoading(false);
@@ -336,7 +335,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
           <div className="question-pair"><Question title={say(lang, "Πώς θέλεις να μένεις;", "How do you like to stay?")}><div className="choice-row compact">{([['boutique','Boutique'],['luxury','Luxury'],['value',say(lang,'Καλή αξία','Good value')],['resort','Resort'],['any',say(lang,'Ανοιχτός','Open')]] as const).map(([value, label]) => <Choice key={value} active={trip.hotelStyle === value} onClick={() => patch("hotelStyle", value)}>{label}</Choice>)}</div></Question><Question title={say(lang,"Μπορούν να μετακινηθούν λίγο οι ημερομηνίες;","Can the dates move a little?")}><div className="choice-row">{([['fixed',say(lang,'Είναι σταθερές','Fixed')],['few-days',say(lang,'± λίγες ημέρες','A few days')],['open',say(lang,'Είμαι ανοιχτός','Open')]] as const).map(([value,label])=><Choice key={value} active={trip.dateFlexibility===value} onClick={()=>patch("dateFlexibility",value)}>{label}</Choice>)}</div></Question></div>
           <Question title={say(lang,"Πού θέλεις να είναι η βάση σου;","Where should your base be?")} hint={say(lang,"Χρησιμοποιείται όταν ταξινομούμε τα πραγματικά καταλύματα του προορισμού.","Used when ranking the destination's real stays.")}><div className="choice-row">{([['central',say(lang,'Στο κέντρο / με τα πόδια','Central / walkable')],['balanced',say(lang,'Ισορροπία','Balanced')],['outside',say(lang,'Πιο έξω και ήσυχα','Outside and quieter')]] as const).map(([value,label])=><Choice key={value} active={trip.stayLocationPreference===value} onClick={()=>patch("stayLocationPreference",value)}>{label}</Choice>)}</div></Question>
           {entryMode === "idea" && <Question title={say(lang,"Ποιο μέρος έχεις στο μυαλό σου;","Which place do you have in mind?")} hint={say(lang,"Θα το εξετάσουμε, αλλά δεν θα το προωθήσουμε αν δεν περνά τα κριτήριά σου.","We will consider it, but not force it past your criteria.")}><input aria-label={say(lang,"Προορισμός που σκέφτεσαι","Destination you are considering")} className="destination-input" value={trip.consideredDestination??""} placeholder={say(lang,"π.χ. Κέρκυρα","e.g. Corfu")} onChange={event=>patch("consideredDestination",event.target.value)}/></Question>}
-          <Question title={say(lang, "Πες κάτι που δεν χώρεσε στις επιλογές.", "Tell us what the choices missed.")} hint={say(lang, "Προαιρετικό — μίλα φυσικά.", "Optional — speak naturally.")}><textarea maxLength={320} value={trip.tripText ?? ""} placeholder={say(lang, "π.χ. θέλω ήσυχα πρωινά, ωραίο φαγητό και λίγη ζωή το βράδυ, χωρίς να τρέχω", "e.g. quiet mornings, great food and a little evening energy, without rushing")} onChange={event => patch("tripText", event.target.value)} />{understoodConstraint&&<div className="constraint-confirmation" role="status"><ShieldCheck size={18} weight="fill"/><span><strong>{say(lang,"Κατάλαβα τον αυστηρό περιορισμό:","Hard constraint understood:")}</strong> {lang==="el"?understoodConstraint.labelEl:understoodConstraint.labelEn}</span></div>}</Question>
+          <Question title={say(lang, "Πες κάτι που δεν χώρεσε στις επιλογές.", "Tell us what the choices missed.")} hint={say(lang, "Προαιρετικό — μίλα φυσικά. Μόνο οι ρητά αποκλειστικές λέξεις περιορίζουν τις τελικές επιλογές.", "Optional — speak naturally. Only explicit exclusive wording limits final choices.")}><textarea maxLength={320} value={trip.tripText ?? ""} placeholder={say(lang, "π.χ. θέλω ήσυχα πρωινά, ωραίο φαγητό και λίγη ζωή το βράδυ, χωρίς να τρέχω", "e.g. quiet mornings, great food and a little evening energy, without rushing")} onChange={event => patch("tripText", event.target.value)} /></Question>
         </div>}
 
         {entryMode && <div className="discovery-actions">{step > 0 ? <button className="back" onClick={() => setStep(current => current - 1)}>{say(lang, "Πίσω", "Back")}</button> : <span />}{step < 4 ? <button className="next" onClick={() => setStep(current => current + 1)}>{say(lang, "Συνέχισε", "Continue")} <ArrowRight size={18} weight="bold" /></button> : <button className="next final" disabled={loading} onClick={() => void run()}>{say(lang, "Σύγκρινε την Ελλάδα για εμένα", "Compare Greece for me")} <Sparkle size={18} weight="fill" /></button>}</div>}
@@ -358,7 +357,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
     </main>
 
     <footer className="guru-footer"><span>ΕΛΛΗΝΙΚΟΣ AI TRAVEL GURU</span><span>{say(lang, "Πραγματικά δεδομένα · καθαρές επιλογές · καμία ψεύτικη πίεση", "Real data · clear choices · no fake pressure")}</span></footer>
-    <TravelDesktop trip={trip} lang={lang} constraintLabel={understoodConstraint?(lang==="el"?understoodConstraint.labelEl:understoodConstraint.labelEn):null} result={result}/>
+    <TravelDesktop trip={trip} lang={lang} constraintLabel={null} result={result}/>
   </div>;
 }
 
