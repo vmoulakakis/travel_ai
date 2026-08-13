@@ -281,7 +281,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
           <DbPhoto slug={weeklyPick?.slug??"corfu"} className="gallery-main" label={weeklyPick?.destination??"Κέρκυρα"} startDate={trip.startDate} endDate={trip.endDate}/>
           <DbPhoto slug="chania" className="gallery-top" label="Χανιά" startDate={trip.startDate} endDate={trip.endDate}/>
           <DbPhoto slug="santorini" className="gallery-bottom" label="Σαντορίνη" startDate={trip.startDate} endDate={trip.endDate}/>
-          <div className="gallery-stamp"><strong>21</strong><span>{say(lang, "προορισμοί σε μία απόφαση", "destinations in one decision")}</span></div>
+          <div className="gallery-stamp"><strong>41</strong><span>{say(lang, "ελεγμένοι ελληνικοί προορισμοί", "curated Greek destinations")}</span></div>
         </div>
       </section>
 
