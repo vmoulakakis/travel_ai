@@ -6,6 +6,7 @@ import { fullContinuity, pendingContinuity, safePublicMessage } from "@/lib/cont
 import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
 import { recordV8RecommendationSession } from "@/lib/data/match-learning-v8";
 import { enrichV8Weather } from "@/lib/data/weather-v8";
+import { screenResearchEvidence } from "@/lib/decision/research-intent-v13";
 import { buildSmartDateWindows } from "@/lib/decision/date-windows-v9";
 import { geographyConstraint } from "@/lib/decision/geography-constraint";
 import { diversifyV8,finalRankV8,preRankV8,responseFeasibility,toRecommendationsV8,type V8Ranked } from "@/lib/decision/v8-matcher";
@@ -30,11 +31,11 @@ export async function POST(request:Request){
    const hardConstraint=geographyConstraint(trip,catalog),pre=preRankV8(trip,intent,catalog,30),minimum=hardConstraint?1:3;if(pre.length<minimum){emit("continuity",100,{message:"",continuity:pendingContinuity()});return;}
    emit("shortlist:ready",52,{preview:pre.slice(0,7).map(x=>({destination:trip.language==="en"?x.destination.nameEn:x.destination.nameEl}))});
    emit("weather:start",60,{candidates:Math.min(18,pre.length)});
-   const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),18),ranked=finalRankV8(trip,intent,pre,weather),selected=diversifyV8(ranked,12);
+   const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),18),weatherRanked=finalRankV8(trip,intent,pre,weather),research=await screenResearchEvidence(trip,weatherRanked,18),ranked=research.ranked,selected=diversifyV8(ranked,12);
    emit("weather:ready",80,{checked:weather.size,preview:selected.map(x=>({destination:trip.language==="en"?x.destination.nameEn:x.destination.nameEl}))});
    const selectedSlugs=new Set(selected.map(x=>x.destination.slug)),verificationPool=[...selected,...ranked.filter(x=>!selectedSlugs.has(x.destination.slug))].slice(0,18);
    emit("verify:start",86,{conditional:true});const verification=await verifyV8(trip,verificationPool),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected;
-   const audited=await auditAndRepairV10(trip,fixed,ranked,12);emit("verify:ready",91,{checked:true,corrected:audited.audit.attempts>1,confidence:audited.audit.confidence});if(!audited.audit.passed||!audited.items.length){emit("continuity",100,{message:trip.language==="en"?"No result satisfies every criterion with high confidence. Change one hard requirement.":"Κανένα αποτέλεσμα δεν ικανοποιεί με υψηλή βεβαιότητα όλα τα κριτήρια. Άλλαξε ένα αυστηρό κριτήριο.",continuity:pendingContinuity()});return;}
+   const audited=await auditAndRepairV10(trip,fixed,ranked,12,research.evidence);emit("verify:ready",91,{checked:true,corrected:audited.audit.attempts>1,confidence:audited.audit.confidence});if(!audited.audit.passed||!audited.items.length){emit("continuity",100,{message:trip.language==="en"?"There is not enough verified evidence for those criteria and dates yet.":"Δεν υπάρχουν ακόμη επαληθευμένα στοιχεία για αυτά τα κριτήρια και τις ημερομηνίες.",continuity:pendingContinuity()});return;}
    emit("council:start",93);
    const council=await runTravelCouncilV9(trip,audited.items),ordered=council.agreement==="STRONG"?[...audited.items].sort((a,b)=>a.destination.slug===council.finalSlug?-1:b.destination.slug===council.finalSlug?1:0):audited.items;
    const recommendations=toRecommendationsV8(trip,ordered).map(x=>({...x,dateWindows:buildSmartDateWindows(trip,x)}));

@@ -7,6 +7,7 @@ import { fullContinuity, pendingContinuity } from "@/lib/continuity";
 import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
 import { recordV8RecommendationSession } from "@/lib/data/match-learning-v8";
 import { enrichV8Weather } from "@/lib/data/weather-v8";
+import { screenResearchEvidence } from "@/lib/decision/research-intent-v13";
 import { buildSmartDateWindows } from "@/lib/decision/date-windows-v9";
 import { geographyConstraint } from "@/lib/decision/geography-constraint";
 import { diversifyV8,finalRankV8,preRankV8,responseFeasibility,toRecommendationsV8,type V8Ranked } from "@/lib/decision/v8-matcher";
@@ -22,7 +23,7 @@ export async function POST(request:Request){
  const trip=parsed.data,sessionId=crypto.randomUUID();
  try{
   const[intent,allDestinations]=await Promise.all([interpretIntentV8(trip),loadV8DestinationCatalog()]),catalog=allDestinations.filter(destination=>destination.countryCode==="GR"),hardConstraint=geographyConstraint(trip,catalog);const pre=preRankV8(trip,intent,catalog,30),minimum=hardConstraint?1:3;if(pre.length<minimum)return NextResponse.json({message:"Δεν υπάρχουν διαθέσιμες επιλογές για αυτόν τον συνδυασμό.",continuity:pendingContinuity()},{status:422});
-  const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),18),ranked=finalRankV8(trip,intent,pre,weather),selected=diversifyV8(ranked,12),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,18),verification=await verifyV8(trip,verifyPool),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected,audited=await auditAndRepairV10(trip,fixed,ranked,12);if(!audited.audit.passed||!audited.items.length)return NextResponse.json({message:"Δεν μπορώ να επιβεβαιώσω επιλογές που ικανοποιούν με υψηλή βεβαιότητα όλα τα κριτήρια. Άλλαξε ένα αυστηρό κριτήριο.",continuity:pendingContinuity()},{status:422});
+  const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),18),weatherRanked=finalRankV8(trip,intent,pre,weather),research=await screenResearchEvidence(trip,weatherRanked,18),ranked=research.ranked,selected=diversifyV8(ranked,12),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,18),verification=await verifyV8(trip,verifyPool),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected,audited=await auditAndRepairV10(trip,fixed,ranked,12,research.evidence);if(!audited.audit.passed||!audited.items.length)return NextResponse.json({message:"Δεν υπάρχουν ακόμη επαληθευμένα στοιχεία που να καλύπτουν τα συγκεκριμένα κριτήρια και τις ημερομηνίες σου.",continuity:pendingContinuity()},{status:422});
   const council=await runTravelCouncilV9(trip,audited.items),ordered=council.agreement==="STRONG"?[...audited.items].sort((a,b)=>a.destination.slug===council.finalSlug?-1:b.destination.slug===council.finalSlug?1:0):audited.items;
   const recommendations=toRecommendationsV8(trip,ordered).map(x=>({...x,dateWindows:buildSmartDateWindows(trip,x)}));
   const publicIntent={...intent,source:"structured" as const,interpretedText:undefined};

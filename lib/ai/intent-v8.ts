@@ -33,6 +33,8 @@ export function structuredIntent(request:TripRequest):V8IntentProfile{
  if(/πολη|αστικ|city|urban/.test(free)){w.city=Math.max(w.city,.88);w.culture=Math.max(w.culture,.4)}
  if(/ησυχ|ηρεμι|quiet|calm/.test(free))w.relax=Math.max(w.relax,.82);
  if(/φαγητ|γαστρονομ|food|restaurant/.test(free))w.food=Math.max(w.food,.82);
+ if(/αρχαι|αρχαιολογ|μνημει|ancient|archaeolog|historic site/.test(free))w.culture=Math.max(w.culture,.98);
+ if(/εκδηλω|φεστιβαλ|συναυλι|event|festival|concert/.test(free)){w.culture=Math.max(w.culture,.86);w.city=Math.max(w.city,.55)}
  return{weights:w,source:"structured",summary:request.moods.join(" + ")};
 }
 
