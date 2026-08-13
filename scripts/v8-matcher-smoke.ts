@@ -9,7 +9,7 @@ import { parseTripRequest } from "../lib/validation/trip";
 
 const profiles:Record<string,number[]>={city_med:[80,82,90,94,90,75,60,58,88,96,92,84],city_cont:[70,72,88,94,96,88,78,78,96,96,88,76],summer_island:[25,30,45,65,85,98,100,100,96,72,42,30],mountain:[92,92,88,75,65,55,45,45,65,82,90,95],nature_all:[70,72,85,95,98,90,82,82,96,96,88,76],warm_winter:[88,90,94,94,88,75,65,65,82,94,94,90],coast_city:[55,60,80,92,96,98,100,100,96,90,70,55]};
 const vector=(tags:string[])=>V8_DIMENSIONS.map(x=>tags.includes(x)?1:.05);
-function d(slug:string,name:string,country:string,tags:string[],profile:string,cost:1|2|3|4|5,effort:string,crowd:1|2|3|4|5=3,route=.9,direct=true,region=country,nMin=2,nMax=5):V8Destination{return{slug,nameEl:name,nameEn:name,countryCode:country,countryEl:country,countryEn:country,latitude:40,longitude:20,regionGroup:region,aliases:[name],tags:tags as V8Destination["tags"],vector:vector(tags),monthFit:profiles[profile],idealNightsMin:nMin,idealNightsMax:nMax,costTier:cost,effortAthens:effort,effortThessaloniki:effort,directFromAthens:direct,routeConfidence:route,travelerFit:{},crowdLevel:crowd,hotelRadiusKm:30,knowledgeSource:"test",seasonProfile:profile}}
+function d(slug:string,name:string,country:string,tags:string[],profile:string,cost:1|2|3|4|5,effort:string,crowd:1|2|3|4|5=3,route=.9,direct=true,region=country,nMin=2,nMax=5,latitude=40,longitude=20):V8Destination{return{slug,nameEl:name,nameEn:name,countryCode:country,countryEl:country,countryEn:country,latitude,longitude,regionGroup:region,aliases:[name],tags:tags as V8Destination["tags"],vector:vector(tags),monthFit:profiles[profile],idealNightsMin:nMin,idealNightsMax:nMax,costTier:cost,effortAthens:effort,effortThessaloniki:effort,directFromAthens:direct,routeConfidence:route,travelerFit:{},crowdLevel:crowd,hotelRadiusKm:30,knowledgeSource:"test",seasonProfile:profile}}
 const catalog:V8Destination[]=[
  d("nafplio","Nafplio","GR",["romantic","food","culture","city","short_break","shoulder_season","value"],"city_med",2,"road-near",3,.95,false,"peloponnese",2,4),
  d("monemvasia","Monemvasia","GR",["romantic","relax","food","culture","nature","luxury","short_break","shoulder_season"],"city_med",3,"road-medium",2,.95,false,"peloponnese",2,4),
@@ -17,6 +17,10 @@ const catalog:V8Destination[]=[
  d("kavala","Kavala","GR",["romantic","food","culture","city","nature","beach","family","value","short_break","shoulder_season"],"coast_city",2,"domestic-flight",3,.95,true,"macedonia",2,5),
  d("santorini","Santorini","GR",["romantic","food","culture","beach","luxury","warmth","short_break","shoulder_season"],"summer_island",5,"domestic-flight",5,.98,true,"cyclades",2,5),
  d("halkidiki","Halkidiki","GR",["relax","nature","beach","family","luxury","warmth"],"summer_island",3,"domestic-flight-plus-road",5,.9,false,"macedonia",3,7),
+ d("larissa","Λάρισα","GR",["food","culture","city","family","value","short_break"],"city_cont",2,"road-medium",3,.96,false,"thessaly",2,4,39.639,22.419),
+ d("volos","Βόλος","GR",["relax","food","culture","city","nature","beach","family","value"],"coast_city",2,"road-medium",3,.96,false,"thessaly",2,5,39.362,22.943),
+ d("pelion","Πήλιο","GR",["romantic","relax","food","nature","adventure","family","wellness"],"mountain",2,"road-medium",2,.94,false,"thessaly",2,5,39.390,23.050),
+ d("meteora","Μετέωρα","GR",["romantic","culture","nature","adventure","family","short_break"],"mountain",2,"road-medium",3,.95,false,"thessaly",2,4,39.721,21.631),
  d("chios","Χίο","GR",["relax","food","culture","nature","beach","family","value","shoulder_season"],"summer_island",2,"domestic-flight",2,.94,true,"north-aegean",3,7),
  d("arachova","Arachova","GR",["romantic","relax","nature","adventure","luxury","wellness","short_break"],"mountain",3,"road-near",4,.95,false,"central-greece",2,4),
  d("karpenisi","Karpenisi","GR",["romantic","relax","nature","adventure","family","wellness","value"],"mountain",2,"road-medium",2,.95,false,"central-greece",2,5),
@@ -82,6 +86,9 @@ assert(mountainOnly.every(item=>GREEK_MOUNTAIN_SLUGS.has(item.destination.slug)&
 const mountainSoft=rankGreece({...westernProfile,tripText:"Θέλω βουνό και ηρεμία"});
 assert(mountainSoft.some(item=>item.destination.seasonProfile!=="mountain"),"Non-exclusive mountain text must preserve alternatives");
 assert(["arachova","karpenisi","zagori"].some(slug=>mountainSoft.slice(0,5).some(item=>item.destination.slug===slug)),"Non-exclusive mountain text must promote the closest mountain fits");
+const nearThessaly=rankGreece({...westernProfile,tripText:"Θέλω κάτι κοντά Λάρισα και Βόλο"});
+assert(nearThessaly.length>0,"Larissa/Volos proximity must retain nearby choices");
+assert(nearThessaly.every(item=>["larissa","volos","pelion","meteora"].includes(item.destination.slug)),`Larissa/Volos proximity leaked unrelated places: ${nearThessaly.map(item=>item.destination.slug)}`);
 const parsedElectric=parseTripRequest({...westernProfile,transportMode:"electric-car"});
 assert(parsedElectric.success&&parsedElectric.data.transportMode==="electric-car","Electric car must survive request validation");
 console.log("FREE_TEXT_HARD_CONSTRAINT_OK",JSON.stringify({query:westernProfile.tripText,results:western.map(item=>item.destination.slug),electricCar:parsedElectric.success}));
