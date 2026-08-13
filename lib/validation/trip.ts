@@ -13,7 +13,7 @@ export type SocialPreference = "quiet" | "balanced" | "lively";
 export type NoveltyPreference = "familiar" | "balanced" | "surprise";
 export type MustHave = "sea" | "nature" | "culture" | "nightlife" | "none";
 export type DateFlexibility = "fixed" | "few-days" | "open";
-export type TransportMode = "no-car" | "car" | "any";
+export type TransportMode = "no-car" | "car" | "electric-car" | "any";
 export type StayLocationPreference = "central" | "balanced" | "outside";
 
 export interface TripRequest {
@@ -50,7 +50,7 @@ const months=new Set<Month>(["september","october","november","flexible"]);
 const moods=new Set<Mood>(["relax","romantic","food","warmth","city","nature","adventure","culture"]);
 const travelers=new Set<TravelerType>(["solo","couple","family","friends"]);
 const refinements=new Set<Refinement>(["cheaper","warmer","closer","shorter","romantic","adventurous"]);
-const languages=new Set<Language>(["el","en"]),distances=new Set<DistancePreference>(["nearby","easy-hop","island","any"]),paces=new Set<PacePreference>(["slow","balanced","full"]),hotelStyles=new Set<HotelStyle>(["luxury","boutique","resort","value","any"]),avoidances=new Set<Avoidance>(["long-travel","high-cost","crowds","none"]),entryModes=new Set<EntryMode>(["unknown","idea","surprise"]),energies=new Set<DesiredEnergy>(["restore","balanced","stimulating"]),socialPreferences=new Set<SocialPreference>(["quiet","balanced","lively"]),noveltyPreferences=new Set<NoveltyPreference>(["familiar","balanced","surprise"]),mustHaves=new Set<MustHave>(["sea","nature","culture","nightlife","none"]),dateFlexibilities=new Set<DateFlexibility>(["fixed","few-days","open"]),transportModes=new Set<TransportMode>(["no-car","car","any"]),stayLocationPreferences=new Set<StayLocationPreference>(["central","balanced","outside"]);
+const languages=new Set<Language>(["el","en"]),distances=new Set<DistancePreference>(["nearby","easy-hop","island","any"]),paces=new Set<PacePreference>(["slow","balanced","full"]),hotelStyles=new Set<HotelStyle>(["luxury","boutique","resort","value","any"]),avoidances=new Set<Avoidance>(["long-travel","high-cost","crowds","none"]),entryModes=new Set<EntryMode>(["unknown","idea","surprise"]),energies=new Set<DesiredEnergy>(["restore","balanced","stimulating"]),socialPreferences=new Set<SocialPreference>(["quiet","balanced","lively"]),noveltyPreferences=new Set<NoveltyPreference>(["familiar","balanced","surprise"]),mustHaves=new Set<MustHave>(["sea","nature","culture","nightlife","none"]),dateFlexibilities=new Set<DateFlexibility>(["fixed","few-days","open"]),transportModes=new Set<TransportMode>(["no-car","car","electric-car","any"]),stayLocationPreferences=new Set<StayLocationPreference>(["central","balanced","outside"]);
 const isoDate=/^\d{4}-\d{2}-\d{2}$/;
 function validDate(value:unknown):value is string{if(typeof value!=="string"||!isoDate.test(value))return false;return Number.isFinite(Date.parse(`${value}T00:00:00Z`))}
 function derivedMonth(startDate:string):Month{const month=Number(startDate.slice(5,7));return month===9?"september":month===10?"october":month===11?"november":"flexible"}

@@ -1,6 +1,7 @@
 import type { WeatherEvidence,Confidence } from "@/lib/decision/types";
 import type { TripRequest } from "@/lib/validation/trip";
 import { V8_DIMENSIONS,type V8Destination,type V8Dimension,type V8ExplorationRole,type V8IntentProfile,type V8Recommendation,type V8ScoreBreakdown } from "@/lib/decision/v8-types";
+import { geographyConstraint,matchesGeographyConstraint } from "@/lib/decision/geography-constraint";
 
 export interface V8Ranked{destination:V8Destination;score:number;preScore:number;breakdown:V8ScoreBreakdown;weather?:WeatherEvidence|null;explorationRole?:V8ExplorationRole}
 const clamp=(v:number,min=0,max=100)=>Math.max(min,Math.min(max,v));
@@ -45,7 +46,7 @@ function compute(r:TripRequest,intent:V8IntentProfile,d:V8Destination,weather?:W
  return{destination:d,score:clamp(score),preScore:clamp(score),breakdown:b,weather};
 }
 
-export function preRankV8(r:TripRequest,intent:V8IntentProfile,catalog:V8Destination[],limit=30){const eligible=catalog.filter(d=>(r.distancePreference!=="island"||V8_ISLAND_SLUGS.has(d.slug))&&matchesMustHave(r,d)&&(r.avoid!=="crowds"||d.crowdLevel<5)&&(r.avoid!=="high-cost"||d.costTier<5));return eligible.map(d=>compute(r,intent,d,null)).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,Math.max(12,limit))}
+export function preRankV8(r:TripRequest,intent:V8IntentProfile,catalog:V8Destination[],limit=30){const geo=geographyConstraint(r),eligible=catalog.filter(d=>matchesGeographyConstraint(d,geo)&&(r.distancePreference!=="island"||V8_ISLAND_SLUGS.has(d.slug))&&matchesMustHave(r,d)&&(r.avoid!=="crowds"||d.crowdLevel<5)&&(r.avoid!=="high-cost"||d.costTier<5));return eligible.map(d=>compute(r,intent,d,null)).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,Math.max(12,limit))}
 export function finalRankV8(r:TripRequest,intent:V8IntentProfile,pre:V8Ranked[],weather:Map<string,WeatherEvidence>){return pre.map(x=>compute(r,intent,x.destination,weather.get(x.destination.slug)??null)).sort((a,b)=>b.score-a.score)}
 function jaccard(a:string[],b:string[]){const A=new Set(a),B=new Set(b),i=[...A].filter(x=>B.has(x)).length,u=new Set([...a,...b]).size;return u?i/u:0}
 function portfolioScore(candidate:V8Ranked,selected:V8Ranked[],lens:number){const sameRegion=selected.filter(item=>item.destination.regionGroup===candidate.destination.regionGroup).length,similarity=selected.length?Math.max(...selected.map(item=>jaccard(item.destination.tags,candidate.destination.tags))):0,island=V8_ISLAND_SLUGS.has(candidate.destination.slug),hasOtherGeography=selected.some(item=>V8_ISLAND_SLUGS.has(item.destination.slug)!==island);return lens-(sameRegion>=2?70:sameRegion*10)-similarity*9+(sameRegion===0?7:0)+(hasOtherGeography?2:0)}
@@ -84,7 +85,7 @@ function why(r:TripRequest,x:V8Ranked){const d=x.destination,el=r.language!=="en
 function seasonNote(r:TripRequest,x:V8Ranked){if(x.weather&&x.weather.source!=="unavailable")return x.weather.summary;return r.language==="en"?"This period is a sound seasonal choice for the destination.":"Η περίοδος που διάλεξες είναι εποχικά κατάλληλη για τον προορισμό."}
 function localAdvice(r:TripRequest,x:V8Ranked){const d=x.destination,el=r.language!=="en",e=effort(r,d),notes:string[]=[];
  if(r.transportMode==="no-car"&&["road-medium","road-long","domestic-flight-plus-road"].includes(e.klass))notes.push(el?"Χωρίς αυτοκίνητο, υπολόγισε οργανωμένη μεταφορά ή πιο κεντρική βάση· η τελευταία σύνδεση είναι το δύσκολο κομμάτι.":"Without a car, plan a transfer or a central base; the final connection is the awkward part.");
- else if(r.transportMode==="car"&&e.klass.startsWith("road"))notes.push(el?"Το αυτοκίνητο εδώ σου δίνει πραγματικό πλεονέκτημα: δεν εξαρτάσαι από τοπικές συνδέσεις και μπορείς να μείνεις λίγο πιο έξω.":"A car is a real advantage here: you avoid relying on local links and can stay a little outside.");
+ else if((r.transportMode==="car"||r.transportMode==="electric-car")&&e.klass.startsWith("road"))notes.push(el?"Το αυτοκίνητο εδώ σου δίνει πραγματικό πλεονέκτημα: δεν εξαρτάσαι από τοπικές συνδέσεις και μπορείς να μείνεις λίγο πιο έξω.":"A car is a real advantage here: you avoid relying on local links and can stay a little outside.");
  else if(e.klass.includes("ferry"))notes.push(el?"Μην χτίσεις σφιχτό πρόγραμμα γύρω από την άφιξη· η ακτοπλοϊκή σύνδεση θέλει περιθώριο.":"Do not build a tight plan around arrival; leave margin for the ferry connection.");
  else if(e.klass.includes("flight"))notes.push(el?"Κοίτα την πλήρη διαδρομή μέχρι το κατάλυμα, όχι μόνο τη διάρκεια της πτήσης.":"Check the complete trip to the stay, not only the flight time.");
  if(d.crowdLevel>=4)notes.push(el?"Το άγχος εδώ δεν είναι ο προορισμός αλλά το πού θα μείνεις: τα πιο κεντρικά και φωτογραφημένα σημεία γεμίζουν πρώτα.":"The stress point is not the destination but where you stay: central, photogenic areas fill first.");

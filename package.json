@@ -15,7 +15,8 @@
     "test:v10": "node --import tsx scripts/v10-scenario-suite.ts",
     "test:population": "node --import tsx scripts/v10-population-suite.ts",
     "test:availability": "node --import tsx scripts/stay-availability-smoke.ts",
-    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:availability"
+    "test:charging": "node --import tsx scripts/ev-charging-smoke.ts",
+    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:availability && npm run test:charging"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.36",

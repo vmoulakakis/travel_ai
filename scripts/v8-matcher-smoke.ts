@@ -4,6 +4,7 @@ import { diversifyV8, finalRankV8, preRankV8 } from "../lib/decision/v8-matcher"
 import { V8_DIMENSIONS,type V8Destination } from "../lib/decision/v8-types";
 import type { WeatherEvidence } from "../lib/decision/types";
 import type { TripRequest } from "../lib/validation/trip";
+import { parseTripRequest } from "../lib/validation/trip";
 
 const profiles:Record<string,number[]>={city_med:[80,82,90,94,90,75,60,58,88,96,92,84],city_cont:[70,72,88,94,96,88,78,78,96,96,88,76],summer_island:[25,30,45,65,85,98,100,100,96,72,42,30],mountain:[92,92,88,75,65,55,45,45,65,82,90,95],nature_all:[70,72,85,95,98,90,82,82,96,96,88,76],warm_winter:[88,90,94,94,88,75,65,65,82,94,94,90],coast_city:[55,60,80,92,96,98,100,100,96,90,70,55]};
 const vector=(tags:string[])=>V8_DIMENSIONS.map(x=>tags.includes(x)?1:.05);
@@ -60,3 +61,13 @@ assert(greekRomantic.some(x=>x.destination.slug==="nafplio"),`Greek romantic/foo
 const greekWarm=diversifyV8(rankGreece(warmTrip,{rhodes:[58,17],chania:[58,17],corfu:[45,15],arachova:[75,5],halkidiki:[35,13]}),3);
 assert(greekWarm.every(x=>(x.weather?.temperatureMeanC??0)>=18&&x.breakdown.season>=55),`Explicit warmth must be supported by dates and weather, regardless of a static destination tag; got ${greekWarm.map(x=>x.destination.slug)}`);
 console.log("GREECE_ONLY_GATE_OK",JSON.stringify({greekRomantic:greekRomantic.map(x=>x.destination.slug),greekWarm:greekWarm.map(x=>x.destination.slug)}));
+
+// Regression from the real funnel: free text containing "μόνο δυτική Ελλάδα" is a hard boundary,
+// regardless of boutique preference, open dates, budget, or diversity pressure.
+const westernProfile=trip({travelerType:"friends",groupSize:3,nights:2,endDate:"2026-10-18",budget:800,hotelStyle:"boutique",dateFlexibility:"open",stayLocationPreference:"balanced",distancePreference:"any",avoid:"none",tripText:"θέλω μόνο δυτική ελλάδα"});
+const western=diversifyV8(rankGreece(westernProfile),12);
+assert(western.length>0,"Western Greece constraint should retain viable western choices");
+assert(western.every(item=>item.destination.regionGroup==="ionian"||item.destination.regionGroup==="epirus"||["nafpaktos","patras","olympia"].includes(item.destination.slug)),`Western-only text leaked destinations: ${western.map(item=>item.destination.slug)}`);
+const parsedElectric=parseTripRequest({...westernProfile,transportMode:"electric-car"});
+assert(parsedElectric.success&&parsedElectric.data.transportMode==="electric-car","Electric car must survive request validation");
+console.log("FREE_TEXT_HARD_CONSTRAINT_OK",JSON.stringify({query:westernProfile.tripText,results:western.map(item=>item.destination.slug),electricCar:parsedElectric.success}));
