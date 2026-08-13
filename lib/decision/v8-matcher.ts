@@ -1,18 +1,14 @@
 import type { WeatherEvidence,Confidence } from "@/lib/decision/types";
 import type { TripRequest } from "@/lib/validation/trip";
 import { V8_DIMENSIONS,type V8Destination,type V8Dimension,type V8ExplorationRole,type V8IntentProfile,type V8Recommendation,type V8ScoreBreakdown } from "@/lib/decision/v8-types";
-import { geographyConstraint,matchesGeographyConstraint } from "@/lib/decision/geography-constraint";
+import { geographyConstraint,GREEK_ISLAND_SLUGS,matchesGeographyConstraint } from "@/lib/decision/geography-constraint";
 
 export interface V8Ranked{destination:V8Destination;score:number;preScore:number;breakdown:V8ScoreBreakdown;weather?:WeatherEvidence|null;explorationRole?:V8ExplorationRole}
 const clamp=(v:number,min=0,max=100)=>Math.max(min,Math.min(max,v));
 const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
 const index=Object.fromEntries(V8_DIMENSIONS.map((d,i)=>[d,i])) as Record<V8Dimension,number>;
 const effortBase:Record<string,number>={local:100,"road-near":96,"ferry-easy":90,"road-medium":82,"domestic-flight":80,"short-flight":78,"domestic-flight-plus-road":68,"medium-flight":62,"ferry-long":58,"road-long":55,"long-flight":44,medium:62};
-export const V8_ISLAND_SLUGS=new Set([
- "aegina","agios-nikolaos","alonissos","amorgos","chania","corfu","evia","hydra","karpathos","kefalonia",
- "kos","milos","naxos","paros","paxos","rethymno","rhodes","samothrace","santorini","skiathos","skopelos",
- "symi","syros","tinos","zakynthos",
-]);
+export const V8_ISLAND_SLUGS=GREEK_ISLAND_SLUGS;
 
 function isOrigin(r:TripRequest,d:V8Destination){const o=norm(r.origin);return[norm(d.nameEl),norm(d.nameEn),...d.aliases.map(norm)].includes(o)}
 function intentFit(intent:V8IntentProfile,d:V8Destination){let sum=0,wSum=0;for(const dim of V8_DIMENSIONS){const w=intent.weights[dim]??0;if(w<=.01)continue;sum+=w*(d.vector[index[dim]]??.05);wSum+=w}return wSum?clamp(sum/wSum*100):55}
