@@ -27,6 +27,7 @@ import {
 import { StayChoiceMap } from "@/components/stay-choice-map";
 import type { TripRequest, Month, EntryMode } from "@/lib/validation/trip";
 import type { V8Recommendation, V8RecommendationResponse, V8StayOffer, V8StayResponse } from "@/lib/decision/v8-types";
+import { scoreStayOffer } from "@/lib/decision/stay-offer-score";
 import type { DestinationInsightsResponse } from "@/lib/decision/types";
 import type { ContinuityEnvelope } from "@/lib/continuity";
 import type { SmartDateWindow } from "@/lib/decision/date-windows-v9";
@@ -63,6 +64,8 @@ const defaultTrip: TripRequest = {
   noveltyPreference: "balanced",
   mustHave: "none",
   dateFlexibility: "fixed",
+  transportMode: "any",
+  stayLocationPreference: "balanced",
 };
 
 const moodOptions = [
@@ -111,9 +114,9 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
   const stayOffers = useMemo(() => {
     return [...(stayData?.offers ?? [])]
       .filter(offer => (!offer.validFrom || Date.parse(offer.validFrom) <= Date.parse(`${trip.startDate}T23:59:59Z`)) && Boolean(offer.validTo) && Date.parse(offer.validTo as string) >= Date.parse(`${trip.endDate}T00:00:00Z`) && offer.trackingUrl.startsWith("https://go.linkwi.se/") && offer.trackingUrl.includes("/CD104/"))
-      .sort((a, b) => offerScore(b, trip.hotelStyle) - offerScore(a, trip.hotelStyle))
+      .sort((a, b) => scoreStayOffer(b, trip.hotelStyle, trip.stayLocationPreference) - scoreStayOffer(a, trip.hotelStyle, trip.stayLocationPreference))
       .slice(0, 3);
-  }, [stayData, trip.startDate, trip.endDate, trip.hotelStyle]);
+  }, [stayData, trip.startDate, trip.endDate, trip.hotelStyle, trip.stayLocationPreference]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -319,11 +322,13 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
           <Question title={say(lang,"Τι πρέπει οπωσδήποτε να υπάρχει;","What must be there?")} hint={say(lang,"Αυτό είναι σκληρό κριτήριο — οι επιλογές που δεν το έχουν απορρίπτονται.","This is a hard constraint — options without it are removed.")}><div className="choice-row">{([['sea',say(lang,'Θάλασσα','Sea')],['nature',say(lang,'Φύση','Nature')],['culture',say(lang,'Χαρακτήρας & πολιτισμός','Culture')],['nightlife',say(lang,'Βραδινή ζωή','Nightlife')],['none',say(lang,'Κανένα must','No must-have')]] as const).map(([value,label])=><Choice key={value} active={trip.mustHave===value} onClick={()=>patch("mustHave",value)}>{label}</Choice>)}</div></Question>
           <Question title={say(lang, "Τι θα σου χαλούσε σίγουρα το ταξίδι;", "What would definitely spoil the trip?")}><div className="choice-row">{([['long-travel',say(lang,'Πολλή ταλαιπωρία','Too much travel')],['high-cost',say(lang,'Να ξεφύγει το κόστος','Cost running away')],['crowds',say(lang,'Υπερβολικός κόσμος','Too many crowds')],['none',say(lang,'Δεν έχω κόκκινη γραμμή','No red line')]] as const).map(([value, label]) => <Choice key={value} active={trip.avoid === value} onClick={() => patch("avoid", value)}>{label}</Choice>)}</div></Question>
           <Question title={say(lang, "Πόση μετακίνηση αντέχεις;", "How much travel effort feels okay?")}><div className="choice-row compact">{([['nearby',say(lang,'Κοντά','Nearby')],['easy-hop',say(lang,'Εύκολη μετάβαση','Easy hop')],['any',say(lang,'Όπου αξίζει','Wherever fits')],['island',say(lang,'Μόνο νησί','Island only')]] as const).map(([value, label]) => <Choice key={value} active={trip.distancePreference === value} onClick={() => patch("distancePreference", value)}>{label}</Choice>)}</div></Question>
+          <Question title={say(lang,"Θα έχεις αυτοκίνητο;","Will you have a car?")} hint={say(lang,"Αλλάζει ποιες διαδρομές είναι πραγματικά εύκολες, όχι απλώς την εμφάνιση των αποτελεσμάτων.","This changes which routes are genuinely practical, not just how results look.")}><div className="choice-row">{([['no-car',say(lang,'Χωρίς αυτοκίνητο','No car')],['car',say(lang,'Με αυτοκίνητο','With a car')],['any',say(lang,'Δεν με περιορίζει','No constraint')]] as const).map(([value,label])=><Choice key={value} active={trip.transportMode===value} onClick={()=>patch("transportMode",value)}>{label}</Choice>)}</div></Question>
         </div>}
 
         {entryMode && step === 4 && <div className="question-stage">
           <Question title={say(lang, "Ποιο είναι το συνολικό budget για όλους;", "What is the total budget for everyone?")} hint={say(lang, `Υπολογίζεται για ${trip.groupSize??1} ταξιδιώτες και ${trip.nights} νύχτες — όχι ανά άτομο.`, `Calculated for ${trip.groupSize??1} travellers and ${trip.nights} nights — not per person.`)}><div className="budget-row">{[300, 500, 800, 1200, 1800, 2500].map(value => <Choice key={value} active={trip.budget === value} onClick={() => patch("budget", value)}>€{value}</Choice>)}</div></Question>
           <div className="question-pair"><Question title={say(lang, "Πώς θέλεις να μένεις;", "How do you like to stay?")}><div className="choice-row compact">{([['boutique','Boutique'],['luxury','Luxury'],['value',say(lang,'Καλή αξία','Good value')],['resort','Resort'],['any',say(lang,'Ανοιχτός','Open')]] as const).map(([value, label]) => <Choice key={value} active={trip.hotelStyle === value} onClick={() => patch("hotelStyle", value)}>{label}</Choice>)}</div></Question><Question title={say(lang,"Μπορούν να μετακινηθούν λίγο οι ημερομηνίες;","Can the dates move a little?")}><div className="choice-row">{([['fixed',say(lang,'Είναι σταθερές','Fixed')],['few-days',say(lang,'± λίγες ημέρες','A few days')],['open',say(lang,'Είμαι ανοιχτός','Open')]] as const).map(([value,label])=><Choice key={value} active={trip.dateFlexibility===value} onClick={()=>patch("dateFlexibility",value)}>{label}</Choice>)}</div></Question></div>
+          <Question title={say(lang,"Πού θέλεις να είναι η βάση σου;","Where should your base be?")} hint={say(lang,"Χρησιμοποιείται όταν ταξινομούμε τα πραγματικά καταλύματα του προορισμού.","Used when ranking the destination's real stays.")}><div className="choice-row">{([['central',say(lang,'Στο κέντρο / με τα πόδια','Central / walkable')],['balanced',say(lang,'Ισορροπία','Balanced')],['outside',say(lang,'Πιο έξω και ήσυχα','Outside and quieter')]] as const).map(([value,label])=><Choice key={value} active={trip.stayLocationPreference===value} onClick={()=>patch("stayLocationPreference",value)}>{label}</Choice>)}</div></Question>
           {entryMode === "idea" && <Question title={say(lang,"Ποιο μέρος έχεις στο μυαλό σου;","Which place do you have in mind?")} hint={say(lang,"Θα το εξετάσουμε, αλλά δεν θα το προωθήσουμε αν δεν περνά τα κριτήριά σου.","We will consider it, but not force it past your criteria.")}><input aria-label={say(lang,"Προορισμός που σκέφτεσαι","Destination you are considering")} className="destination-input" value={trip.consideredDestination??""} placeholder={say(lang,"π.χ. Κέρκυρα","e.g. Corfu")} onChange={event=>patch("consideredDestination",event.target.value)}/></Question>}
           <Question title={say(lang, "Πες κάτι που δεν χώρεσε στις επιλογές.", "Tell us what the choices missed.")} hint={say(lang, "Προαιρετικό — μίλα φυσικά.", "Optional — speak naturally.")}><textarea maxLength={320} value={trip.tripText ?? ""} placeholder={say(lang, "π.χ. θέλω ήσυχα πρωινά, ωραίο φαγητό και λίγη ζωή το βράδυ, χωρίς να τρέχω", "e.g. quiet mornings, great food and a little evening energy, without rushing")} onChange={event => patch("tripText", event.target.value)} /></Question>
         </div>}
@@ -533,15 +538,6 @@ function polishVerdict(value: string, lang: Lang, recommendation: V8Recommendati
     .replace(/μέτρια προσπάθεια πρόσβασης/gi, "χρειάζεται λίγη περισσότερη ενέργεια για τη μετάβαση")
     .replace(/\s+,/g, ",")
     .trim();
-}
-
-function offerScore(offer: V8StayOffer, style: TripRequest["hotelStyle"]) {
-  let score = 100 - (offer.distanceKm ?? 20);
-  if (style === "luxury") score += (offer.starLevel ?? 0) * 12;
-  if (style === "value" && offer.price != null) score += Math.max(0, 80 - offer.price) / 3;
-  if (style === "boutique" && /boutique|design/i.test(`${offer.propertyName} ${offer.description ?? ""}`)) score += 25;
-  if (style === "resort" && /resort|spa|all inclusive/i.test(`${offer.propertyName} ${offer.description ?? ""}`)) score += 25;
-  return score;
 }
 
 function cleanDescription(value?: string | null) {

@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import { structuredIntent } from "../lib/ai/intent-v8";
+import { diversifyV8, finalRankV8, preRankV8 } from "../lib/decision/v8-matcher";
+import { loadV8DestinationCatalog } from "../lib/data/destination-v8";
+import type { WeatherEvidence } from "../lib/decision/types";
+import type { Mood, TripRequest } from "../lib/validation/trip";
+
+const seed=0x51f15e,COUNT=1000;
+let state=seed;
+const random=()=>{let t=state+=0x6d2b79f5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296};
+const pick=<T>(values:readonly T[])=>values[Math.floor(random()*values.length)];
+const shuffle=<T>(values:readonly T[])=>values.map(value=>({value,order:random()})).sort((a,b)=>a.order-b.order).map(x=>x.value);
+const addDays=(iso:string,days:number)=>new Date(Date.parse(`${iso}T00:00:00Z`)+days*86400000).toISOString().slice(0,10);
+const starts=["2026-09-18","2026-10-16","2026-11-13","2026-12-11","2027-01-15","2027-03-19","2027-04-16","2027-05-14","2027-06-18","2027-07-16","2027-08-20"];
+const moods:readonly Mood[]=["relax","romantic","food","warmth","city","nature","adventure","culture"];
+const backgrounds=["remote-professional","shift-worker","retired-couple","new-parents","family-with-teens","single-parent","student-budget","food-obsessed-couple","outdoor-solo","culture-first-solo","friends-reunion","quiet-neurodivergent-traveler","mobility-conscious-traveler","pet-owner","burned-out-manager"] as const;
+const weather=(score:number,temp:number):WeatherEvidence=>({source:"climatology",sourceLabel:"population-suite",score,confidence:"MEDIUM",typical:true,temperatureMeanC:temp,summary:"population evidence",researchedAt:new Date(0).toISOString()});
+function request(index:number):TripRequest{
+ const travelerType=pick(["solo","couple","family","friends"] as const),groupSize=travelerType==="solo"?1:travelerType==="couple"?2:travelerType==="family"?pick([3,4,5,6]):pick([3,4,5,6,7,8]),startDate=pick(starts),nights=pick([2,3,4,5,6,7,9,12]),chosen=shuffle(moods).slice(0,pick([1,2,2,2,3]));
+ const perPersonNight=pick([45,65,85,110,145,190,260]),budget=Math.min(5000,Math.max(150,Math.round(perPersonNight*groupSize*nights))),background=backgrounds[index%backgrounds.length];
+ return{origin:pick(["Athens","Thessaloniki","Patras","Heraklion","Larissa","Ioannina"]),startDate,endDate:addDays(startDate,nights),month:"flexible",nights,budget,moods:chosen,travelerType,language:"el",distancePreference:pick(["nearby","easy-hop","island","any"] as const),pace:pick(["slow","balanced","full"] as const),hotelStyle:pick(["luxury","boutique","resort","value","any"] as const),avoid:pick(["long-travel","high-cost","crowds","none"] as const),entryMode:pick(["unknown","surprise"] as const),groupSize,desiredEnergy:pick(["restore","balanced","stimulating"] as const),socialPreference:pick(["quiet","balanced","lively"] as const),noveltyPreference:pick(["familiar","balanced","surprise"] as const),mustHave:pick(["sea","nature","culture","nightlife","none"] as const),dateFlexibility:pick(["fixed","few-days","open"] as const),transportMode:pick(["no-car","car","any"] as const),stayLocationPreference:pick(["central","balanced","outside"] as const),tripText:`Background: ${background}.`};
+}
+function rank(r:TripRequest,catalog:Awaited<ReturnType<typeof loadV8DestinationCatalog>>){
+ const intent=structuredIntent(r),pre=preRankV8(r,intent,catalog,30),month=Number(r.startDate.slice(5,7)),map=new Map(pre.map(item=>{const warm=item.destination.tags.includes("warmth"),hash=[...item.destination.slug].reduce((sum,char)=>sum+char.charCodeAt(0),month*17),temp=warm?19+hash%10:10+hash%13;return[item.destination.slug,weather(item.destination.monthFit[month-1]??60,temp)]}));
+ return diversifyV8(finalRankV8(r,intent,pre,map),12);
+}
+const signature=(ranked:ReturnType<typeof diversifyV8>,n=3)=>ranked.slice(0,n).map(x=>x.destination.slug).join("|");
+const inc=(map:Map<string,number>,key:string)=>map.set(key,(map.get(key)??0)+1);
+const sorted=(map:Map<string,number>)=>[...map.entries()].sort((a,b)=>b[1]-a[1]);
+
+async function main(){
+ const catalog=(await loadV8DestinationCatalog()).filter(x=>x.countryCode==="GR"),profiles=Array.from({length:COUNT},(_,i)=>request(i)),winner=new Map<string,number>(),finalists=new Map<string,number>(),top3Sets=new Map<string,number>(),top12Sets=new Map<string,number>(),segments=new Map<string,Map<string,number>>();
+ const results=profiles.map(profile=>{const ranked=rank(profile,catalog),win=ranked[0]?.destination.slug??"none";inc(winner,win);ranked.slice(0,3).forEach(x=>inc(finalists,x.destination.slug));inc(top3Sets,signature(ranked));inc(top12Sets,signature(ranked,12));const key=profile.travelerType,segment=segments.get(key)??new Map<string,number>();inc(segment,win);segments.set(key,segment);return ranked});
+ const duplicateTop3=[...top3Sets.values()].filter(x=>x>1).reduce((s,x)=>s+x,0),duplicateTop12=[...top12Sets.values()].filter(x=>x>1).reduce((s,x)=>s+x,0);
+ const fields=["travelerType","moods","budget","origin","startDate","nights","distancePreference","pace","hotelStyle","avoid","desiredEnergy","socialPreference","noveltyPreference","mustHave","dateFlexibility","tripText"] as const,sensitivity:Record<string,number>={};
+ for(const field of fields){let changed=0;for(let i=0;i<120;i+=1){const base=profiles[i],variant={...base};if(field==="travelerType")variant.travelerType=base.travelerType==="solo"?"family":"solo";else if(field==="moods")variant.moods=base.moods.includes("nature")?["city","culture"]:["nature","relax"];else if(field==="budget")variant.budget=Math.min(5000,Math.max(150,base.budget*2));else if(field==="origin")variant.origin=base.origin==="Athens"?"Heraklion":"Athens";else if(field==="startDate"){variant.startDate=base.startDate==="2027-07-16"?"2027-01-15":"2027-07-16";variant.endDate=addDays(variant.startDate,base.nights)}else if(field==="nights"){variant.nights=base.nights<=4?9:3;variant.endDate=addDays(base.startDate,variant.nights)}else if(field==="distancePreference")variant.distancePreference=base.distancePreference==="island"?"nearby":"island";else if(field==="pace")variant.pace=base.pace==="slow"?"full":"slow";else if(field==="hotelStyle")variant.hotelStyle=base.hotelStyle==="luxury"?"value":"luxury";else if(field==="avoid")variant.avoid=base.avoid==="crowds"?"none":"crowds";else if(field==="desiredEnergy")variant.desiredEnergy=base.desiredEnergy==="restore"?"stimulating":"restore";else if(field==="socialPreference")variant.socialPreference=base.socialPreference==="quiet"?"lively":"quiet";else if(field==="noveltyPreference")variant.noveltyPreference=base.noveltyPreference==="surprise"?"familiar":"surprise";else if(field==="mustHave")variant.mustHave=base.mustHave==="sea"?"culture":"sea";else if(field==="dateFlexibility")variant.dateFlexibility=base.dateFlexibility==="fixed"?"open":"fixed";else variant.tripText=base.tripText?.includes("mobility")?"Background: nightlife-loving extrovert.":"Background: mobility-conscious traveler.";
+   if(signature(rank(base,catalog))!==signature(rank(variant,catalog)))changed+=1;
+  }sensitivity[field]=Number((changed/120).toFixed(3));
+ }
+ const maxWinner=sorted(winner)[0],maxFinalist=sorted(finalists)[0],output={seed,profiles:COUNT,catalogSize:catalog.length,uniqueWinners:winner.size,uniqueFinalists:finalists.size,uniqueTop3Orders:top3Sets.size,uniqueTop12Orders:top12Sets.size,duplicateTop3Profiles:duplicateTop3,duplicateTop12Profiles:duplicateTop12,maxWinner:{slug:maxWinner[0],count:maxWinner[1],share:maxWinner[1]/COUNT},maxFinalist:{slug:maxFinalist[0],count:maxFinalist[1],share:maxFinalist[1]/COUNT},topWinners:sorted(winner).slice(0,15),segmentWinners:Object.fromEntries([...segments].map(([k,v])=>[k,sorted(v).slice(0,5)])),counterfactualTop3ChangeRate:sensitivity};
+ console.log("V10_1000_POPULATION_OK",JSON.stringify(output));
+ assert(winner.size>=20,`Only ${winner.size} destinations ever win`);assert(maxWinner[1]/COUNT<=.22,`${maxWinner[0]} dominates ${maxWinner[1]/COUNT}`);assert(top3Sets.size>=500,`Only ${top3Sets.size} unique finalist orders`);
+}
+void main();
