@@ -4,6 +4,28 @@ import { V8_DIMENSIONS,type V8Dimension,type V8IntentProfile } from "@/lib/decis
 type Parsed={weights?:Partial<Record<V8Dimension,number>>;summary?:string};
 const clamp=(v:number)=>Math.max(0,Math.min(1,v));
 const blank=()=>Object.fromEntries(V8_DIMENSIONS.map(k=>[k,0])) as Record<V8Dimension,number>;
+const normalizedFreeText=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").replace(/\s+/g," ").trim();
+const has=(text:string,pattern:RegExp)=>pattern.test(text);
+
+function applyFreeTextSignals(w:Record<V8Dimension,number>,raw:string){
+ const free=normalizedFreeText(raw);if(!free)return;
+ // Greek + English + common Greeklish forms are deterministic so ordinary users do not need an LLM call for basic meaning.
+ if(has(free,/βουνο|ορειν|mountain|vouno|bouno|orein|orino/)){w.nature=Math.max(w.nature,.92);w.adventure=Math.max(w.adventure,.55);w.wellness=Math.max(w.wellness,.35)}
+ if(has(free,/παραθαλασ|θαλασσ|παραλι|seaside|coast|beach|paralia|thalass|thalasa|parathalass|parathalas/))w.beach=Math.max(w.beach,.92);
+ if(has(free,/πολη|αστικ|city|urban|\bpoli\b|astik/)){w.city=Math.max(w.city,.88);w.culture=Math.max(w.culture,.4)}
+ if(has(free,/ησυχ|ηρεμι|χαλαρ|quiet|calm|relax|isyxi|isixi|irem|xalar|chalar/)){w.relax=Math.max(w.relax,.82);w.wellness=Math.max(w.wellness,.28)}
+ if(has(free,/φαγητ|γαστρονομ|food|restaurant|fagit|gastronom|estiatori/))w.food=Math.max(w.food,.84);
+ if(has(free,/φυση|φυσικ|nature|\bfusi\b|\bfysi\b|fysh|fysik/))w.nature=Math.max(w.nature,.9);
+ if(has(free,/αρχαι|αρχαιολογ|μνημει|πολιτισ|παλια πολη|ancient|archaeolog|historic site|heritage|arxai|archaia|mnimei|politism|palia poli/))w.culture=Math.max(w.culture,.98);
+ if(has(free,/εκδηλω|φεστιβαλ|συναυλι|event|festival|concert|ekdilos|synauli|sinavl/)){w.culture=Math.max(w.culture,.86);w.city=Math.max(w.city,.55)}
+ if(has(free,/ρομαντ|ζευγαρ|romantic|romance|zeygar|zeugar/))w.romantic=Math.max(w.romantic,.86);
+ if(has(free,/βραδιν|νυχτεριν|nightlife|bars?\b|vradin|nyxt|nicht/)){w.nightlife=Math.max(w.nightlife,.72);w.city=Math.max(w.city,.45)}
+ if(has(free,/περιπετει|πεζοπορ|adventure|hiking|peripet|pezopor/)){w.adventure=Math.max(w.adventure,.84);w.nature=Math.max(w.nature,.55)}
+ if(has(free,/ηλιο|ζεστ|sunny|sun |warm|ilios|zesti|zesto/)){w.warmth=Math.max(w.warmth,.82);w.beach=Math.max(w.beach,.5)}
+ if(has(free,/παιδι|οικογεν|with kids|children|family|paidia|paidi|oikogene/))w.family=Math.max(w.family,.9);
+ if(has(free,/τοπικ.{0,10}χαρακτηρ|local character|authentic|αυθεντικ|topik.{0,10}xarakt|authent/)){w.culture=Math.max(w.culture,.72);w.value=Math.max(w.value,.2)}
+ if(has(free,/χωρις πολ.{0,12}οδηγ|λιγη οδηγ|not much driv|less driv|xwris pol.{0,12}odig|lig.{0,8}odig/)){w.short_break=Math.max(w.short_break,.65);w.relax=Math.max(w.relax,.55)}
+}
 
 export function structuredIntent(request:TripRequest):V8IntentProfile{
  const w=blank();
@@ -27,14 +49,7 @@ export function structuredIntent(request:TripRequest):V8IntentProfile{
  if(request.nights<=4)w.short_break=Math.max(w.short_break,.55);
  const month=Number(request.startDate.slice(5,7));if(month===4||month===5||month===9||month===10||month===11)w.shoulder_season=Math.max(w.shoulder_season,.25);
  if(request.moods.includes("warmth"))w.beach=Math.max(w.beach,.45);
- const free=(request.tripText??"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
- if(/βουνο|ορειν|mountain/.test(free)){w.nature=Math.max(w.nature,.92);w.adventure=Math.max(w.adventure,.55);w.wellness=Math.max(w.wellness,.35)}
- if(/παραθαλασ|θαλασσ|παραλι|seaside|coast|beach/.test(free))w.beach=Math.max(w.beach,.92);
- if(/πολη|αστικ|city|urban/.test(free)){w.city=Math.max(w.city,.88);w.culture=Math.max(w.culture,.4)}
- if(/ησυχ|ηρεμι|quiet|calm/.test(free))w.relax=Math.max(w.relax,.82);
- if(/φαγητ|γαστρονομ|food|restaurant/.test(free))w.food=Math.max(w.food,.82);
- if(/αρχαι|αρχαιολογ|μνημει|ancient|archaeolog|historic site/.test(free))w.culture=Math.max(w.culture,.98);
- if(/εκδηλω|φεστιβαλ|συναυλι|event|festival|concert/.test(free)){w.culture=Math.max(w.culture,.86);w.city=Math.max(w.city,.55)}
+ applyFreeTextSignals(w,request.tripText??"");
  return{weights:w,source:"structured",summary:request.moods.join(" + ")};
 }
 
