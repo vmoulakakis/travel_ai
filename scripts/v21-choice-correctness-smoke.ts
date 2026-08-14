@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { structuredIntent } from "../lib/ai/intent-v8";
 import { diversifyV8,type V8Ranked } from "../lib/decision/v8-matcher";
-import { scoreGlobalStayCandidateV21,semanticEligibilityReasonV21 } from "../lib/decision/choice-correctness-v21";
+import { filterPortfolioV21,scoreGlobalStayCandidateV21,semanticEligibilityReasonV21 } from "../lib/decision/choice-correctness-v21";
 import type { GlobalStayCandidateV21 } from "../lib/data/global-stays-v21";
 import type { StayConstraintSpec,V8Destination,V8IntentProfile } from "../lib/decision/v8-types";
 import type { TripRequest } from "../lib/validation/trip";
@@ -30,8 +30,10 @@ const weakStay=scoreGlobalStayCandidateV21(stay("Generic Hotel","standard hotel"
 assert.ok(strongStay.eligible&&weakStay.eligible);
 assert.ok(strongStay.score>weakStay.score+10,"best property fit must react to stay criteria without using inventory count");
 
-const portfolio=diversifyV8([ranked(food,82),ranked(destination("relevant"),70),ranked(destination("weak"),45)],12,trip);
+const rawPortfolio=diversifyV8([ranked(food,82),ranked(destination("relevant"),70),ranked(destination("weak"),45)],12,trip),portfolio=filterPortfolioV21(rawPortfolio);
 assert.ok(portfolio.some(item=>item.destination.slug==="relevant"));
-assert.ok(!portfolio.some(item=>item.destination.slug==="weak"),"diversity must not surface an irrelevant low-score alternative");
+assert.ok(!portfolio.some(item=>item.destination.slug==="weak"),"final portfolio must not expose an irrelevant low-score diversity filler");
+const compromise=filterPortfolioV21([ranked(destination("c1"),55),ranked(destination("c2"),44),ranked(destination("c3"),38),ranked(destination("c4"),33)]);
+assert.equal(compromise.length,4,"a wholly compromise set may retain broad feasible exploration instead of pretending three strong answers exist");
 
 console.log("V21 choice correctness smoke: PASS");
