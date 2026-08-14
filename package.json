@@ -1,6 +1,6 @@
 {
   "name": "travel-ai-decision-engine",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "engines": {"node": ">=22.0.0"},
   "scripts": {
@@ -28,7 +28,8 @@
     "test:v17:choice1000": "node --import tsx scripts/v17-1000-choice-audit.ts",
     "test:v18:semantic": "node --import tsx scripts/v18-semantic-intent-smoke.ts",
     "test:v19:match10000": "node --import tsx scripts/v19-10000-semantic-match-audit.ts",
-    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:audit:10000 && npm run test:availability && npm run test:charging && npm run test:result-auditor && npm run test:geo-composition && npm run test:research-scout && npm run test:stay-cities && npm run test:v15:architecture && npm run test:v15:greeklish && npm run test:v15:1000 && npm run test:v16:stay && npm run test:v16:router && npm run test:v16:stay1000 && npm run test:v17:choice1000 && npm run test:v18:semantic && npm run test:v19:match10000"
+    "test:v20:truth": "node --import tsx scripts/v20-production-truth-smoke.ts",
+    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:audit:10000 && npm run test:availability && npm run test:charging && npm run test:result-auditor && npm run test:geo-composition && npm run test:research-scout && npm run test:stay-cities && npm run test:v15:architecture && npm run test:v15:greeklish && npm run test:v15:1000 && npm run test:v16:stay && npm run test:v16:router && npm run test:v16:stay1000 && npm run test:v17:choice1000 && npm run test:v18:semantic && npm run test:v19:match10000 && npm run test:v20:truth"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.36",
