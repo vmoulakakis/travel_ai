@@ -5,7 +5,7 @@ import { generateText, type LanguageModel } from "ai";
 export type CouncilModelPreference = "creative" | "critical";
 export type ModelTierV16="free"|"deepseek"|"openai";
 export type SemanticTaskV16="intent"|"stay-constraints"|"research"|"council"|"verification";
-export interface RoutingContextV16{task:SemanticTaskV16;text?:string|null;deterministicConfidence?:number;hardConstraintRisk?:boolean;contradictorySignals?:boolean;forceSemantic?:boolean;}
+export interface RoutingContextV16{task:SemanticTaskV16;text?:string|null;deterministicConfidence?:number;hardConstraintRisk?:boolean;contradictorySignals?:boolean;forceSemantic?:boolean;preferReasoner?:boolean;}
 export interface RoutedModelV16{tier:ModelTierV16;model:LanguageModel;maxOutputTokens:number;timeoutMs:number;label:string;}
 export interface LLMRequestBudgetV16{reserve:(route:RoutedModelV16,steps?:number)=>boolean;snapshot:()=>{freeCalls:number;paidCalls:number;openAICalls:number;reservedOutputTokens:number};}
 
@@ -24,17 +24,17 @@ export function semanticRiskV16(context:RoutingContextV16){
 }
 
 export function routingDecisionV16(context:RoutingContextV16){
- const risk=semanticRiskV16(context),deterministicThreshold=envNumber("LLM_DETERMINISTIC_CONFIDENCE_THRESHOLD",.93,.5,1),deepSeekThreshold=envNumber("LLM_DEEPSEEK_RISK_THRESHOLD",.68,.2,1),deepSeekConfidenceThreshold=envNumber("LLM_DEEPSEEK_CONFIDENCE_THRESHOLD",.55,.15,.9),openAIThreshold=envNumber("LLM_OPENAI_RISK_THRESHOLD",.9,.4,1),confidence=clamp(context.deterministicConfidence??.8),forced=context.forceSemantic===true;
- return{risk,useAnyModel:forced||confidence<deterministicThreshold||context.hardConstraintRisk===true||context.contradictorySignals===true,allowDeepSeek:risk>=deepSeekThreshold||context.hardConstraintRisk===true||context.contradictorySignals===true||confidence<deepSeekConfidenceThreshold,allowOpenAI:risk>=openAIThreshold&&(context.hardConstraintRisk===true||context.contradictorySignals===true)};
+ const risk=semanticRiskV16(context),deterministicThreshold=envNumber("LLM_DETERMINISTIC_CONFIDENCE_THRESHOLD",.93,.5,1),deepSeekThreshold=envNumber("LLM_DEEPSEEK_RISK_THRESHOLD",.68,.2,1),deepSeekConfidenceThreshold=envNumber("LLM_DEEPSEEK_CONFIDENCE_THRESHOLD",.55,.15,.9),openAIThreshold=envNumber("LLM_OPENAI_RISK_THRESHOLD",.9,.4,1),confidence=clamp(context.deterministicConfidence??.8),forced=context.forceSemantic===true,preferReasoner=context.preferReasoner===true;
+ return{risk,useAnyModel:forced||confidence<deterministicThreshold||context.hardConstraintRisk===true||context.contradictorySignals===true,allowDeepSeek:preferReasoner||risk>=deepSeekThreshold||context.hardConstraintRisk===true||context.contradictorySignals===true||confidence<deepSeekConfidenceThreshold,allowOpenAI:risk>=openAIThreshold&&(context.hardConstraintRisk===true||context.contradictorySignals===true)};
 }
 export function routedModelsV16(context:RoutingContextV16,preference:CouncilModelPreference="critical"):RoutedModelV16[]{
  const decision=routingDecisionV16(context);if(!decision.useAnyModel)return[];
  const freeMax=envNumber("FREE_LLM_MAX_OUTPUT_TOKENS",220,64,600),deepMax=envNumber("DEEPSEEK_MAX_OUTPUT_TOKENS",320,64,800),openMax=envNumber("OPENAI_MAX_OUTPUT_TOKENS",180,64,600);
  const free=[selfHostedModel(),huggingFaceModel()].filter((model):model is LanguageModel=>Boolean(model)).map((model,index)=>({tier:"free" as const,model,maxOutputTokens:freeMax,timeoutMs:envNumber("FREE_LLM_TIMEOUT_MS",6500,1000,20000),label:index===0?"self-hosted":"huggingface-open-model"}));
  const deep=decision.allowDeepSeek?deepSeekModel():null,open=decision.allowOpenAI?openAIModel():null;
- const deepRoute=deep?[{tier:"deepseek" as const,model:deep,maxOutputTokens:deepMax,timeoutMs:envNumber("DEEPSEEK_TIMEOUT_MS",9000,1000,25000),label:"deepseek"}]:[];
- const openRoute=open?[{tier:"openai" as const,model:open,maxOutputTokens:openMax,timeoutMs:envNumber("OPENAI_TIMEOUT_MS",6000,1000,15000),label:"openai"}]:[];
- void preference;return[...free,...deepRoute,...openRoute];
+ const deepRoute=deep?[{tier:"deepseek" as const,model:deep,maxOutputTokens:deepMax,timeoutMs:envNumber("DEEPSEEK_TIMEOUT_MS",9000,1000,25000),label:`deepseek:${process.env.DEEPSEEK_PRIMARY_MODEL||process.env.DEEPSEEK_COUNCIL_MODEL||"deepseek-v4-pro"}`}]:[];
+ const openRoute=open?[{tier:"openai" as const,model:open,maxOutputTokens:openMax,timeoutMs:envNumber("OPENAI_TIMEOUT_MS",6000,1000,15000),label:`openai:${process.env.OPENAI_COUNCIL_MODEL||process.env.OPENAI_VERIFY_MODEL||"gpt-5-nano"}`}]:[];
+ void preference;return context.preferReasoner?[...deepRoute,...openRoute,...free]:[...free,...deepRoute,...openRoute];
 }
 export function createLLMRequestBudgetV16():LLMRequestBudgetV16{const maxFree=envNumber("LLM_MAX_FREE_CALLS_PER_REQUEST",4,0,12),maxPaid=envNumber("LLM_MAX_PAID_CALLS_PER_REQUEST",2,0,6),maxOpenAI=envNumber("LLM_MAX_OPENAI_CALLS_PER_REQUEST",1,0,2),maxOutput=envNumber("LLM_MAX_RESERVED_OUTPUT_TOKENS_PER_REQUEST",1200,128,4000);let freeCalls=0,paidCalls=0,openAICalls=0,reservedOutputTokens=0;return{reserve(route,steps=1){const calls=Math.max(1,Math.min(3,steps)),tokens=route.maxOutputTokens*calls;if(reservedOutputTokens+tokens>maxOutput)return false;if(route.tier==="free"){if(freeCalls+calls>maxFree)return false;freeCalls+=calls;}else{if(paidCalls+calls>maxPaid)return false;if(route.tier==="openai"&&openAICalls+calls>maxOpenAI)return false;paidCalls+=calls;if(route.tier==="openai")openAICalls+=calls;}reservedOutputTokens+=tokens;return true;},snapshot:()=>({freeCalls,paidCalls,openAICalls,reservedOutputTokens})};}
 function jsonObject(raw:string){const cleaned=raw.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/i,"").trim(),start=cleaned.indexOf("{"),end=cleaned.lastIndexOf("}");if(start<0||end<=start)return null;try{return JSON.parse(cleaned.slice(start,end+1)) as Record<string,unknown>}catch{return null}}
