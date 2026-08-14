@@ -1,20 +1,18 @@
 import type { StayConstraintKind, StayConstraintSpec, V8StayOffer } from "@/lib/decision/v8-types";
-import { createLLMRequestBudgetV16,generateJsonWithRoutingV16,type LLMRequestBudgetV16,type ModelTierV16 } from "@/lib/ai/model-router-v9";
 
 const norm=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim();
 const cleanHtml=(value:string)=>value.replace(/<[^>]*>/g," ").replace(/&[a-z]+;/gi," ").replace(/\s+/g," ").trim();
 const unique=<T,>(values:T[])=>[...new Set(values)];
-
-const exclusive=/(?:\bμονο\b|\bαποκλειστικ|\bοπωσδηποτε\b|\bmust\b|\bonly\b|\bstrictly\b|\bmono\b|\bapokleistik)/i;
-const stayNoun=/(?:καταλυμ|ξενοδοχει|δωματι|διαμον|hotel|stay|room|katalym|xenodox|diamoni)/i;
-const KINDS:StayConstraintKind[]=["BEACHFRONT","NEAR_BEACH","SEA_VIEW","POOL","PARKING","EV_CHARGING","BREAKFAST","PET_FRIENDLY","FAMILY_ROOM","ADULTS_ONLY"];
+export const STAY_CONSTRAINT_KINDS_V16:StayConstraintKind[]=["BEACHFRONT","NEAR_BEACH","SEA_VIEW","POOL","PARKING","EV_CHARGING","BREAKFAST","PET_FRIENDLY","FAMILY_ROOM","ADULTS_ONLY"];
+export const STAY_EXCLUSIVE_V16=/(?:\bμονο\b|\bαποκλειστικ|\bοπωσδηποτε\b|\bmust\b|\bonly\b|\bstrictly\b|\bmono\b|\bapokleistik)/i;
+export const STAY_NOUN_V16=/(?:καταλυμ|ξενοδοχει|δωματι|διαμον|hotel|stay|room|katalym|xenodox|diamoni)/i;
 
 const patterns:Record<StayConstraintKind,RegExp[]>={
  BEACHFRONT:[/beachfront/i,/sea[ -]?front/i,/on the beach/i,/directly on the beach/i,/μπροστα.{0,30}(?:θαλασσ|παραλι)/i,/πανω.{0,30}(?:θαλασσ|παραλι)/i,/ακριβως.{0,30}παραλι/i,/παραθαλασσι(?:ο|α|ες)/i,/mprosta.{0,30}(?:thalass|parali)/i,/pano.{0,30}(?:thalass|parali)/i,/parathalassi/i],
  NEAR_BEACH:[/διπλα.{0,30}(?:θαλασσ|παραλι)/i,/κοντα.{0,30}παραλι/i,/walking distance.{0,30}(?:beach|sea)/i,/near (?:the )?beach/i,/close to (?:the )?beach/i,/dipla.{0,30}(?:thalass|parali)/i,/konta.{0,30}parali/i],
  SEA_VIEW:[/sea view/i,/ocean view/i,/θεα.{0,20}θαλασσ/i,/θαλασσ.{0,20}θεα/i,/thea.{0,20}thalass/i],
  POOL:[/\bpool\b/i,/πισιν/i,/pisin/i],
- PARKING:[/\bparking\b/i,/παρκιν/i,/parking/i],
+ PARKING:[/\bparking\b/i,/παρκιν/i],
  EV_CHARGING:[/(?:ev|electric).{0,20}(?:charg|φορτι)/i,/φορτιστ.{0,20}(?:ηλεκτρ|ev)/i,/fortist.{0,20}(?:ilektr|ev)/i],
  BREAKFAST:[/breakfast/i,/πρωιν/i,/proin/i],
  PET_FRIENDLY:[/pet[ -]?friendly/i,/κατοικιδ/i,/pet allowed/i,/katoikid/i],
@@ -24,8 +22,8 @@ const patterns:Record<StayConstraintKind,RegExp[]>={
 
 function mentions(kind:StayConstraintKind,text:string){return patterns[kind].some(pattern=>pattern.test(text));}
 function hasScopedExclusivity(text:string,kind:StayConstraintKind){
- if(!exclusive.test(text))return false;
- if(stayNoun.test(text)&&mentions(kind,text))return true;
+ if(!STAY_EXCLUSIVE_V16.test(text))return false;
+ if(STAY_NOUN_V16.test(text)&&mentions(kind,text))return true;
  const n=norm(text),terms:Record<StayConstraintKind,string[]>={
   BEACHFRONT:["beachfront","sea front","θαλασσ","παραλι","thalass","parali"],NEAR_BEACH:["παραλι","θαλασσ","beach","parali","thalass"],SEA_VIEW:["sea view","θεα","thea"],POOL:["pool","πισιν","pisin"],PARKING:["parking","παρκιν"],EV_CHARGING:["φορτι","charg","forti"],BREAKFAST:["breakfast","πρωιν","proin"],PET_FRIENDLY:["pet","κατοικιδ","katoikid"],FAMILY_ROOM:["family room","οικογενειακ","oikogeneiak"],ADULTS_ONLY:["adults only","ενηλικ","enilik"]};
  const ex=[...n.matchAll(/\b(?:μονο|only|mono|αποκλειστικ\w*|apokleistik\w*|οπωσδηποτε|must)\b/g)].map(match=>match.index??0);
@@ -37,40 +35,11 @@ export function parseStayConstraintsV16(raw:string|undefined|null):StayConstrain
  const text=norm(raw??"");
  if(!text)return{hard:[],soft:[],confidence:"HIGH",source:"deterministic",needsSemanticAssist:false};
  const hard:StayConstraintKind[]=[],soft:StayConstraintKind[]=[];
- for(const kind of KINDS){
-  if(!mentions(kind,text))continue;
-  if(hasScopedExclusivity(text,kind))hard.push(kind);else soft.push(kind);
- }
+ for(const kind of STAY_CONSTRAINT_KINDS_V16){if(!mentions(kind,text))continue;if(hasScopedExclusivity(text,kind))hard.push(kind);else soft.push(kind);}
  if(mentions("BEACHFRONT",text)&&!hard.includes("BEACHFRONT")&&!soft.includes("BEACHFRONT"))soft.push("BEACHFRONT");
- const ambiguousStayLanguage=stayNoun.test(text)&&/(θελω|want|χρειαζ|prepei|πρεπει|na einai|να ειναι)/i.test(text)&&hard.length===0&&soft.length===0;
+ const ambiguousStayLanguage=STAY_NOUN_V16.test(text)&&/(θελω|want|χρειαζ|prepei|πρεπει|na einai|να ειναι)/i.test(text)&&hard.length===0&&soft.length===0;
  const multipleClauses=(text.match(/(?:,| και | αλλα | χωρις | με | but | and | without )/g)??[]).length>=3;
  return{hard:unique(hard),soft:unique(soft.filter(kind=>!hard.includes(kind))),confidence:(ambiguousStayLanguage||multipleClauses)?"MEDIUM":"HIGH",source:"deterministic",needsSemanticAssist:ambiguousStayLanguage||multipleClauses};
-}
-
-const tierSource=(tier:ModelTierV16):StayConstraintSpec["source"]=>tier==="free"?"deterministic+free":tier==="openai"?"deterministic+openai":"deterministic+deepseek";
-export async function interpretStayConstraintsV16(raw:string|undefined|null,budget:LLMRequestBudgetV16=createLLMRequestBudgetV16()):Promise<StayConstraintSpec>{
- const base=parseStayConstraintsV16(raw),text=(raw??"").trim();
- if(!text||(!base.needsSemanticAssist&&base.confidence==="HIGH"))return base;
- const hasExclusive=exclusive.test(norm(text)),hardRisk=hasExclusive&&stayNoun.test(norm(text));
- const routed=await generateJsonWithRoutingV16<{hard:StayConstraintKind[];soft:StayConstraintKind[];confidence:"HIGH"|"MEDIUM"}>({
-  context:{task:"stay-constraints",text,deterministicConfidence:base.confidence==="HIGH"?.96:.62,hardConstraintRisk:hardRisk,contradictorySignals:base.needsSemanticAssist&&base.hard.length>0&&base.soft.length>0},budget,
-  system:`Classify only accommodation/stay requirements explicitly present in the user's text. Allowed kinds: ${KINDS.join(", ")}. HARD means the user explicitly requires it with words such as only, must, without exception, μόνο, οπωσδήποτε. SOFT means a preference. Do not infer hotel facts and do not name destinations. Return JSON only: {"hard":[],"soft":[],"confidence":"HIGH|MEDIUM"}.`,
-  prompt:text,
-  validate(value){
-   const hard=Array.isArray(value.hard)?value.hard.filter((x):x is StayConstraintKind=>typeof x==="string"&&KINDS.includes(x as StayConstraintKind)):[];
-   const soft=Array.isArray(value.soft)?value.soft.filter((x):x is StayConstraintKind=>typeof x==="string"&&KINDS.includes(x as StayConstraintKind)):[];
-   const confidence=value.confidence==="HIGH"?"HIGH":value.confidence==="MEDIUM"?"MEDIUM":null;
-   if(!confidence||(!hard.length&&!soft.length))return null;
-   return{hard,soft,confidence};
-  }
- });
- if(!routed)return base;
- // Semantic models may clarify classification, but never downgrade a deterministic hard constraint.
- // A model-added hard requirement is accepted only when the original text contains explicit exclusivity.
- const semanticHard=hasExclusive?routed.value.hard:[];
- const hard=unique([...base.hard,...semanticHard]);
- const soft=unique([...base.soft,...routed.value.soft].filter(kind=>!hard.includes(kind)));
- return{hard,soft,confidence:routed.value.confidence,source:tierSource(routed.tier),needsSemanticAssist:false};
 }
 
 function rawText(offer:V8StayOffer){
@@ -80,18 +49,15 @@ function rawText(offer:V8StayOffer){
 }
 
 function explicitBeachDistanceMeters(text:string){
- const patterns=[/(\d{1,4})\s*(?:m|meters?|metres?|μετρ(?:α|ων)?)\s*(?:from|απο)?\s*(?:the )?(?:beach|παραλι)/i,/(?:beach|παραλι).{0,25}?(\d{1,4})\s*(?:m|meters?|metres?|μετρ(?:α|ων)?)/i];
- for(const pattern of patterns){const match=text.match(pattern);if(match){const n=Number(match[1]);if(Number.isFinite(n))return n;}}
+ const distancePatterns=[/(\d{1,4})\s*(?:m|meters?|metres?|μετρ(?:α|ων)?)\s*(?:from|απο)?\s*(?:the )?(?:beach|παραλι)/i,/(?:beach|παραλι).{0,25}?(\d{1,4})\s*(?:m|meters?|metres?|μετρ(?:α|ων)?)/i];
+ for(const pattern of distancePatterns){const match=text.match(pattern);if(match){const n=Number(match[1]);if(Number.isFinite(n))return n;}}
  return null;
 }
 
-function evidenceFor(kind:StayConstraintKind,offer:V8StayOffer){
+export function stayEvidenceForV16(kind:StayConstraintKind,offer:V8StayOffer){
  const text=rawText(offer),distance=explicitBeachDistanceMeters(text);
  switch(kind){
-  case"BEACHFRONT":{
-   const strong=/(?:\bbeachfront\b|\bsea[ -]?front\b|\bon the beach\b|\bdirectly on the beach\b|μπροστα.{0,35}(?:θαλασσ|παραλι)|πανω.{0,35}(?:θαλασσ|παραλι)|ακριβως.{0,35}παραλι|παραθαλασσι(?:ο|α|ες))/i.test(text);
-   return strong?"explicit beachfront/seafront wording":null;
-  }
+  case"BEACHFRONT":return /(?:\bbeachfront\b|\bsea[ -]?front\b|\bon the beach\b|\bdirectly on the beach\b|μπροστα.{0,35}(?:θαλασσ|παραλι)|πανω.{0,35}(?:θαλασσ|παραλι)|ακριβως.{0,35}παραλι|παραθαλασσι(?:ο|α|ες))/i.test(text)?"explicit beachfront/seafront wording":null;
   case"NEAR_BEACH":return distance!=null&&distance<=500?`${distance}m stated beach distance`:/(?:walking distance.{0,30}(?:beach|sea)|near (?:the )?beach|close to (?:the )?beach|διπλα.{0,30}(?:θαλασσ|παραλι)|κοντα.{0,30}παραλι)/i.test(text)?"explicit near-beach wording":null;
   case"SEA_VIEW":return /(?:sea view|ocean view|θεα.{0,20}θαλασσ|θαλασσ.{0,20}θεα)/i.test(text)?"explicit sea-view wording":null;
   case"POOL":return /(?:\bpool\b|πισιν)/i.test(text)?"pool stated":null;
@@ -105,14 +71,10 @@ function evidenceFor(kind:StayConstraintKind,offer:V8StayOffer){
 }
 
 export function evaluateStayOfferV16(offer:V8StayOffer,spec:StayConstraintSpec){
- const evidence=Object.fromEntries([...spec.hard,...spec.soft].map(kind=>[kind,evidenceFor(kind,offer)])) as Partial<Record<StayConstraintKind,string|null>>;
- const hardFailures=spec.hard.filter(kind=>!evidence[kind]);
- const softMatches=spec.soft.filter(kind=>Boolean(evidence[kind]));
+ const evidence=Object.fromEntries([...spec.hard,...spec.soft].map(kind=>[kind,stayEvidenceForV16(kind,offer)])) as Partial<Record<StayConstraintKind,string|null>>;
+ const hardFailures=spec.hard.filter(kind=>!evidence[kind]),softMatches=spec.soft.filter(kind=>Boolean(evidence[kind]));
  return{passed:hardFailures.length===0,hardFailures,evidence,softMatches};
 }
 
-export function filterStayOffersV16(offers:readonly V8StayOffer[],spec:StayConstraintSpec){
- return offers.map(offer=>({offer,evaluation:evaluateStayOfferV16(offer,spec)})).filter(row=>row.evaluation.passed);
-}
-
+export function filterStayOffersV16(offers:readonly V8StayOffer[],spec:StayConstraintSpec){return offers.map(offer=>({offer,evaluation:evaluateStayOfferV16(offer,spec)})).filter(row=>row.evaluation.passed);}
 export function hasHardStayConstraintsV16(spec:StayConstraintSpec){return spec.hard.length>0;}
