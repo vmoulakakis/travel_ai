@@ -1,5 +1,6 @@
 -- V23 — Locality-First Fuzzy Retrieval
--- Candidate discovery starts from dated, active accommodation localities and their 24D semantic profiles.
+-- Candidate discovery starts from dated, active accommodation LOCALITIES and their 24D semantic profiles.
+-- Multiple properties in the same locality are collapsed before ranking.
 -- Inventory COUNT is returned for observability only and MUST NOT be used as a ranking bonus.
 
 create or replace function public.get_locality_profiles_v23(
@@ -22,12 +23,11 @@ stable
 security definer
 set search_path to 'public','extensions','pg_temp'
 as $$
-with eligible_places as (
+with eligible_localities as (
   select
-    p.id as locality_id,
-    p.location_label,
-    p.latitude,
-    p.longitude,
+    lower(trim(p.location_label)) as locality_key,
+    avg(p.latitude)::double precision as latitude,
+    avg(p.longitude)::double precision as longitude,
     count(distinct o.source_product_id)::bigint as eligible_offer_count
   from public.stay_places p
   join public.stay_offers o on o.place_id=p.id
@@ -37,17 +37,23 @@ with eligible_places as (
     and o.valid_from <= p_start_date::timestamptz
     and o.valid_to is not null
     and o.valid_to >= p_end_date::timestamptz
+    and p.location_label is not null
+    and trim(p.location_label)<>''
     and p.latitude is not null
     and p.longitude is not null
-  group by p.id,p.location_label,p.latitude,p.longitude
+  group by lower(trim(p.location_label))
 ), profiled as (
   select
-    ep.*,
+    dsp.destination_id as locality_id,
+    dsp.location_label,
+    el.latitude,
+    el.longitude,
     dsp.semantic_vector::text as semantic_vector,
-    dsp.profile_confidence
-  from eligible_places ep
+    dsp.profile_confidence,
+    el.eligible_offer_count
+  from eligible_localities el
   join public.destination_semantic_profiles dsp
-    on lower(trim(dsp.location_label))=lower(trim(ep.location_label))
+    on lower(trim(dsp.location_label))=el.locality_key
   where dsp.semantic_vector is not null
 ), mapped as (
   select
@@ -68,8 +74,7 @@ with eligible_places as (
       order by m.exact_alias desc,m.canonical_distance_km,m.canonical_slug
     ) as assignment_rank
   from mapped m
-  where m.exact_alias=1
-     or m.canonical_distance_km<=greatest(35.0,least(65.0,m.canonical_distance_km+0.0))
+  where m.exact_alias=1 or m.canonical_distance_km<=65.0
 )
 select
   a.locality_id,
