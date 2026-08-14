@@ -1,10 +1,8 @@
 {
   "name": "travel-ai-decision-engine",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
-  "engines": {
-    "node": ">=22.0.0"
-  },
+  "engines": {"node": ">=22.0.0"},
   "scripts": {
     "dev": "node scripts/next-dev.mjs",
     "build": "next build",
@@ -24,7 +22,9 @@
     "test:v15:architecture": "node --import tsx scripts/v15-agent-architecture-smoke.ts",
     "test:v15:greeklish": "node --import tsx scripts/v15-greeklish-intent-smoke.ts",
     "test:v15:1000": "node --import tsx scripts/v15-1000-search-audit.ts",
-    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:audit:10000 && npm run test:availability && npm run test:charging && npm run test:result-auditor && npm run test:geo-composition && npm run test:research-scout && npm run test:stay-cities && npm run test:v15:architecture && npm run test:v15:greeklish && npm run test:v15:1000"
+    "test:v16:stay": "node --import tsx scripts/v16-stay-constraints-smoke.ts",
+    "test:v16:router": "node --import tsx scripts/v16-model-router-smoke.ts",
+    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:audit:10000 && npm run test:availability && npm run test:charging && npm run test:result-auditor && npm run test:geo-composition && npm run test:research-scout && npm run test:stay-cities && npm run test:v15:architecture && npm run test:v15:greeklish && npm run test:v15:1000 && npm run test:v16:stay && npm run test:v16:router"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.36",
