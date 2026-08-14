@@ -2,7 +2,7 @@ import type { V8Destination } from "@/lib/decision/v8-types";
 import type { TripRequest } from "@/lib/validation/trip";
 
 const norm=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
-const hardWords=new Set(["μονο","αποκλειστικα","οπωσδηποτε","απαραιτητα","only","exclusively","must"]);
+const hardWords=new Set(["μονο","αποκλειστικα","οπωσδηποτε","απαραιτητα","only","exclusively","must","mono"]);
 export const GREEK_ISLAND_SLUGS=new Set(["aegina","agios-nikolaos","alonissos","amorgos","chania","corfu","evia","hydra","karpathos","kefalonia","kos","lefkada","milos","naxos","paros","paxos","rethymno","rhodes","samothrace","santorini","skiathos","skopelos","symi","syros","tinos","zakynthos"]);
 export const GREEK_MOUNTAIN_SLUGS=new Set(["arachova","karpenisi","zagori","meteora","pelion"]);
 const westernSlugs=new Set(["corfu","paxos","lefkada","kefalonia","zakynthos","ioannina","zagori","parga","nafpaktos","patras","olympia"]);
@@ -24,12 +24,12 @@ export type GeographyConstraint={
 type Rule={id:string;el:string;en:string;phrases:string[];regions?:string[];slugs?:ReadonlySet<string>};
 
 const rules:Rule[]=[
- {id:"western-greece",el:"Δυτική Ελλάδα",en:"Western Greece",phrases:["δυτικη ελλαδα","δυτικα της ελλαδας","western greece","west greece"],regions:["ionian","epirus"],slugs:westernSlugs},
- {id:"crete",el:"Κρήτη",en:"Crete",phrases:["κρητη","crete"],regions:["crete"]},
+ {id:"western-greece",el:"Δυτική Ελλάδα",en:"Western Greece",phrases:["δυτικη ελλαδα","δυτικα της ελλαδας","western greece","west greece","dytiki ellada","ditiki ellada"],regions:["ionian","epirus"],slugs:westernSlugs},
+ {id:"crete",el:"Κρήτη",en:"Crete",phrases:["κρητη","crete","kriti","krhth"],regions:["crete"]},
  {id:"peloponnese",el:"Πελοπόννησος",en:"Peloponnese",phrases:["πελοποννησο","πελοποννησος","peloponnese"],regions:["peloponnese"]},
  {id:"ionian",el:"Ιόνιο",en:"Ionian",phrases:["ιονιο","ιονια νησια","ionian"],regions:["ionian"]},
  {id:"epirus",el:"Ήπειρος",en:"Epirus",phrases:["ηπειρο","ηπειρος","epirus"],regions:["epirus"]},
- {id:"cyclades",el:"Κυκλάδες",en:"Cyclades",phrases:["κυκλαδες","cyclades"],regions:["cyclades"]},
+ {id:"cyclades",el:"Κυκλάδες",en:"Cyclades",phrases:["κυκλαδες","cyclades","kyklades","kiklades"],regions:["cyclades"]},
  {id:"dodecanese",el:"Δωδεκάνησα",en:"Dodecanese",phrases:["δωδεκανησα","dodecanese"],regions:["dodecanese"]},
  {id:"sporades",el:"Σποράδες",en:"Sporades",phrases:["σποραδες","sporades"],regions:["sporades"]},
  {id:"northern-greece",el:"Βόρεια Ελλάδα",en:"Northern Greece",phrases:["βορεια ελλαδα","βορεια της ελλαδας","northern greece","north greece"],regions:["macedonia","epirus","thessaly","north-aegean"]},
@@ -54,11 +54,11 @@ export function geographyConstraint(request:TripRequest,catalog:readonly V8Desti
  const text=norm(request.tripText??"");
  if(!text)return null;
  const tokens=new Set(text.split(" ").filter(Boolean));
- const negatedExclusivity=includesAny(text,["δεν θελω μονο","δεν ζηταω μονο","δεν επιμενω μονο","not only"]);
- const notOnlyIslands=includesAny(text,["οχι μονο νησι","οχι μονο νησια","δεν θελω μονο νησι","δεν θελω μονο νησια","δεν ζηταω μονο νησι","δεν ζηταω μονο νησια","not only island","not only islands"]);
+ const negatedExclusivity=includesAny(text,["δεν θελω μονο","δεν ζηταω μονο","δεν επιμενω μονο","not only","den thelo mono","den zitao mono"]);
+ const notOnlyIslands=includesAny(text,["οχι μονο νησι","οχι μονο νησια","δεν θελω μονο νησι","δεν θελω μονο νησια","δεν ζηταω μονο νησι","δεν ζηταω μονο νησια","not only island","not only islands","oxi mono nisi","den thelo mono nisi"]);
  const hard=!negatedExclusivity&&!notOnlyIslands&&[...hardWords].some(marker=>tokens.has(marker));
- const mainland=!notOnlyIslands&&includesAny(text,["οχι νησι","οχι νησια","χωρις νησι","χωρις νησια","δεν θελω νησι","δεν θελω νησια","αποφυγη νησι","αποφυγη νησιων","mainland only","no island","no islands","avoid island","avoid islands","not an island"]);
- const island=!notOnlyIslands&&includesAny(text,["μονο νησι","μονο νησια","θελω νησι","θελω νησια","island only","islands only","only island","only islands","want an island"]);
+ const mainland=!notOnlyIslands&&includesAny(text,["οχι νησι","οχι νησια","χωρις νησι","χωρις νησια","δεν θελω νησι","δεν θελω νησια","αποφυγη νησι","αποφυγη νησιων","mainland only","no island","no islands","avoid island","avoid islands","not an island","xoris nisi","xwris nisi","oxi nisi","den thelo nisi"]);
+ const island=!notOnlyIslands&&includesAny(text,["μονο νησι","μονο νησια","θελω νησι","θελω νησια","island only","islands only","only island","only islands","want an island","mono nisi","thelo nisi mono","thelo nisi"]);
  const near=includesAny(text,["κοντα","γυρω απο","near "])||text.startsWith("near");
  const centers=near?anchors.filter(anchor=>anchor.aliases.some(alias=>text.includes(alias))):[];
  const coastal=includesAny(text,["παραθαλασ","διπλα στη θαλασσα","κοντα στη θαλασσα","seaside","coastal"]);
