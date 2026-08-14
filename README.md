@@ -70,13 +70,17 @@ The production V8 score is explainable. Depending on intent, the normalized blen
 
 Explicit requirements can become feasibility guards. For example, a user explicitly asking for warmth cannot receive an off-season/cold beach destination merely because diversity would otherwise promote it.
 
-`npm run test:v8` contains mandatory regression scenarios for romantic/food, November warmth, low-budget city/culture and winter nature/relax matching. CI fails if these invariants regress.
+`npm run test:strict` runs the V8/V9 regression checks plus 100 strict traveler scenarios. It verifies hard constraints, stable evidence-based output, catalog coverage and concentration limits so the same destinations do not dominate unrelated profiles.
 
 ## AI roles
 
 ### DeepSeek V4 Pro
 
 Optional. Structured answers require no LLM. DeepSeek is used only when the traveler adds natural-language intent such as “quiet, great food, not too touristy, easy to reach.” It converts that text to semantic preference weights. It does not name destinations or invent facts.
+
+### Independent result audit
+
+Every recommendation now passes a deterministic audit of explicit free-text constraints, must-haves, season and route evidence. Failed candidates are removed and the shortlist is regenerated, with a maximum of three evidence-changing attempts. Configure `AUDIT_AI_BASE_URL`, `AUDIT_AI_MODEL` and `AUDIT_AI_API_KEY` to add a second independent OpenAI-compatible audit call through a self-hosted runtime such as LocalAI or vLLM. The local model may reject an evidence inconsistency but cannot introduce a destination or override deterministic constraints. If high confidence cannot be reached, the API returns no recommendation instead of unrelated results.
 
 ### OpenAI
 
@@ -149,7 +153,7 @@ Every pull request runs:
 ```bash
 npm install
 npm run typecheck
-npm run test:v8
+npm run test:strict
 npm run build
 ```
 

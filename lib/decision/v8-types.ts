@@ -85,6 +85,7 @@ export interface V8Recommendation {
   seasonNote:string;
   effortLabel:string;
   budgetLabel:string;
+  localAdvice?:string[];
   tags:string[];
   latitude:number;
   longitude:number;

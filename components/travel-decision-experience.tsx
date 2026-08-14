@@ -5,6 +5,8 @@ import {
   AirplaneTilt,
   ArrowRight,
   Buildings,
+  Bell,
+  Calculator,
   CalendarBlank,
   CaretDown,
   Check,
@@ -14,6 +16,7 @@ import {
   ForkKnife,
   Heart,
   Leaf,
+  Lightning,
   MapPin,
   Mountains,
   Path,
@@ -23,10 +26,12 @@ import {
   SunHorizon,
   UsersThree,
   Waves,
+  X,
 } from "@phosphor-icons/react";
 import { StayChoiceMap } from "@/components/stay-choice-map";
 import type { TripRequest, Month, EntryMode } from "@/lib/validation/trip";
 import type { V8Recommendation, V8RecommendationResponse, V8StayOffer, V8StayResponse } from "@/lib/decision/v8-types";
+import { scoreStayOffer } from "@/lib/decision/stay-offer-score";
 import type { DestinationInsightsResponse } from "@/lib/decision/types";
 import type { ContinuityEnvelope } from "@/lib/continuity";
 import type { SmartDateWindow } from "@/lib/decision/date-windows-v9";
@@ -37,6 +42,7 @@ type StreamEvent = { type: string; message?: string; result?: V8RecommendationRe
 
 const say = (lang: Lang, el: string, en: string) => (lang === "el" ? el : en);
 const addDays = (iso: string, days: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+const DEFAULT_VISIBLE_ALTERNATIVES = 6;
 const nightsBetween = (start: string, end: string) => Math.max(2, Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000));
 const monthFromDate = (iso: string): Month => Number(iso.slice(5, 7)) === 9 ? "september" : Number(iso.slice(5, 7)) === 10 ? "october" : Number(iso.slice(5, 7)) === 11 ? "november" : "flexible";
 const prettyDate = (iso: string, lang: Lang) => new Intl.DateTimeFormat(lang === "el" ? "el-GR" : "en-GB", { day: "numeric", month: "short" }).format(new Date(`${iso}T12:00:00Z`));
@@ -62,6 +68,8 @@ const defaultTrip: TripRequest = {
   noveltyPreference: "balanced",
   mustHave: "none",
   dateFlexibility: "fixed",
+  transportMode: "any",
+  stayLocationPreference: "balanced",
 };
 
 const moodOptions = [
@@ -110,9 +118,9 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
   const stayOffers = useMemo(() => {
     return [...(stayData?.offers ?? [])]
       .filter(offer => (!offer.validFrom || Date.parse(offer.validFrom) <= Date.parse(`${trip.startDate}T23:59:59Z`)) && Boolean(offer.validTo) && Date.parse(offer.validTo as string) >= Date.parse(`${trip.endDate}T00:00:00Z`) && offer.trackingUrl.startsWith("https://go.linkwi.se/") && offer.trackingUrl.includes("/CD104/"))
-      .sort((a, b) => offerScore(b, trip.hotelStyle) - offerScore(a, trip.hotelStyle))
+      .sort((a, b) => scoreStayOffer(b, trip.hotelStyle, trip.stayLocationPreference) - scoreStayOffer(a, trip.hotelStyle, trip.stayLocationPreference))
       .slice(0, 3);
-  }, [stayData, trip.startDate, trip.endDate, trip.hotelStyle]);
+  }, [stayData, trip.startDate, trip.endDate, trip.hotelStyle, trip.stayLocationPreference]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -152,8 +160,8 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
 
   function beginWeekly(){if(!weeklyPick)return;const moods:TripRequest["moods"]=weeklyPick.tags.includes("beach")?["relax","warmth"]:weeklyPick.tags.includes("nature")?["relax","nature"]:["food","culture"];setTrip(current=>({...current,entryMode:"idea",consideredDestination:weeklyPick.destination,startDate:weeklyPick.startDate,endDate:weeklyPick.endDate,nights:weeklyPick.nights,month:monthFromDate(weeklyPick.startDate),moods}));setEntryMode("idea");setStep(0);setResult(null);setSelected(null);setVisibleAlternativeCount(0);setCompareSlugs([]);setTimeout(()=>document.getElementById("discovery")?.scrollIntoView({behavior:"smooth",block:"start"}),40)}
 
-  async function run() {
-    if (running.current) return;
+  async function run(attempt=0) {
+    if (running.current&&attempt===0) return;
     running.current = true;
     setLoading(true);
     setError(null);
@@ -185,6 +193,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
           if (event.type === "final" && event.result) {
             final = true;
             setResult(event.result);
+            setVisibleAlternativeCount(Math.min(DEFAULT_VISIBLE_ALTERNATIVES, Math.max(0, event.result.recommendations.length - 3)));
             setTrip(event.result.request);
             await reader.cancel();
             setTimeout(() => document.getElementById("results")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
@@ -195,8 +204,9 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
         if (final) break;
       }
       if (!final) throw new Error(say(lang, "Η σύγκριση σταμάτησε πριν από την απόφαση.", "The comparison stopped before the decision."));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : say(lang, "Κάτι δεν πήγε σωστά.", "Something went wrong."));
+    } catch {
+      if(attempt<1)return await run(attempt+1);
+      setError(null);
     } finally {
       running.current = false;
       setLoading(false);
@@ -276,7 +286,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
           <DbPhoto slug={weeklyPick?.slug??"corfu"} className="gallery-main" label={weeklyPick?.destination??"Κέρκυρα"} startDate={trip.startDate} endDate={trip.endDate}/>
           <DbPhoto slug="chania" className="gallery-top" label="Χανιά" startDate={trip.startDate} endDate={trip.endDate}/>
           <DbPhoto slug="santorini" className="gallery-bottom" label="Σαντορίνη" startDate={trip.startDate} endDate={trip.endDate}/>
-          <div className="gallery-stamp"><strong>21</strong><span>{say(lang, "προορισμοί σε μία απόφαση", "destinations in one decision")}</span></div>
+          <div className="gallery-stamp"><strong>41</strong><span>{say(lang, "ελεγμένοι ελληνικοί προορισμοί", "curated Greek destinations")}</span></div>
         </div>
       </section>
 
@@ -317,13 +327,15 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
           <Question title={say(lang,"Τι πρέπει οπωσδήποτε να υπάρχει;","What must be there?")} hint={say(lang,"Αυτό είναι σκληρό κριτήριο — οι επιλογές που δεν το έχουν απορρίπτονται.","This is a hard constraint — options without it are removed.")}><div className="choice-row">{([['sea',say(lang,'Θάλασσα','Sea')],['nature',say(lang,'Φύση','Nature')],['culture',say(lang,'Χαρακτήρας & πολιτισμός','Culture')],['nightlife',say(lang,'Βραδινή ζωή','Nightlife')],['none',say(lang,'Κανένα must','No must-have')]] as const).map(([value,label])=><Choice key={value} active={trip.mustHave===value} onClick={()=>patch("mustHave",value)}>{label}</Choice>)}</div></Question>
           <Question title={say(lang, "Τι θα σου χαλούσε σίγουρα το ταξίδι;", "What would definitely spoil the trip?")}><div className="choice-row">{([['long-travel',say(lang,'Πολλή ταλαιπωρία','Too much travel')],['high-cost',say(lang,'Να ξεφύγει το κόστος','Cost running away')],['crowds',say(lang,'Υπερβολικός κόσμος','Too many crowds')],['none',say(lang,'Δεν έχω κόκκινη γραμμή','No red line')]] as const).map(([value, label]) => <Choice key={value} active={trip.avoid === value} onClick={() => patch("avoid", value)}>{label}</Choice>)}</div></Question>
           <Question title={say(lang, "Πόση μετακίνηση αντέχεις;", "How much travel effort feels okay?")}><div className="choice-row compact">{([['nearby',say(lang,'Κοντά','Nearby')],['easy-hop',say(lang,'Εύκολη μετάβαση','Easy hop')],['any',say(lang,'Όπου αξίζει','Wherever fits')],['island',say(lang,'Μόνο νησί','Island only')]] as const).map(([value, label]) => <Choice key={value} active={trip.distancePreference === value} onClick={() => patch("distancePreference", value)}>{label}</Choice>)}</div></Question>
+          <Question title={say(lang,"Πώς θα μετακινείσαι;","How will you get around?")} hint={say(lang,"Για ηλεκτρικό αυτοκίνητο ελέγχουμε ξεχωριστά αν δηλώνεται φόρτιση στο stay ή αν υπάρχει καταγεγραμμένος φορτιστής κοντά.","For an electric car, we separately verify whether the stay claims charging or a mapped charger exists nearby.")}><div className="choice-row">{([['no-car',say(lang,'Χωρίς αυτοκίνητο','No car')],['car',say(lang,'Αυτοκίνητο','Car')],['electric-car',say(lang,'Ηλεκτρικό','Electric car')],['any',say(lang,'Δεν με περιορίζει','No constraint')]] as const).map(([value,label])=><Choice key={value} active={trip.transportMode===value} onClick={()=>patch("transportMode",value)}>{label}</Choice>)}</div></Question>
         </div>}
 
         {entryMode && step === 4 && <div className="question-stage">
           <Question title={say(lang, "Ποιο είναι το συνολικό budget για όλους;", "What is the total budget for everyone?")} hint={say(lang, `Υπολογίζεται για ${trip.groupSize??1} ταξιδιώτες και ${trip.nights} νύχτες — όχι ανά άτομο.`, `Calculated for ${trip.groupSize??1} travellers and ${trip.nights} nights — not per person.`)}><div className="budget-row">{[300, 500, 800, 1200, 1800, 2500].map(value => <Choice key={value} active={trip.budget === value} onClick={() => patch("budget", value)}>€{value}</Choice>)}</div></Question>
           <div className="question-pair"><Question title={say(lang, "Πώς θέλεις να μένεις;", "How do you like to stay?")}><div className="choice-row compact">{([['boutique','Boutique'],['luxury','Luxury'],['value',say(lang,'Καλή αξία','Good value')],['resort','Resort'],['any',say(lang,'Ανοιχτός','Open')]] as const).map(([value, label]) => <Choice key={value} active={trip.hotelStyle === value} onClick={() => patch("hotelStyle", value)}>{label}</Choice>)}</div></Question><Question title={say(lang,"Μπορούν να μετακινηθούν λίγο οι ημερομηνίες;","Can the dates move a little?")}><div className="choice-row">{([['fixed',say(lang,'Είναι σταθερές','Fixed')],['few-days',say(lang,'± λίγες ημέρες','A few days')],['open',say(lang,'Είμαι ανοιχτός','Open')]] as const).map(([value,label])=><Choice key={value} active={trip.dateFlexibility===value} onClick={()=>patch("dateFlexibility",value)}>{label}</Choice>)}</div></Question></div>
+          <Question title={say(lang,"Πού θέλεις να είναι η βάση σου;","Where should your base be?")} hint={say(lang,"Χρησιμοποιείται όταν ταξινομούμε τα πραγματικά καταλύματα του προορισμού.","Used when ranking the destination's real stays.")}><div className="choice-row">{([['central',say(lang,'Στο κέντρο / με τα πόδια','Central / walkable')],['balanced',say(lang,'Ισορροπία','Balanced')],['outside',say(lang,'Πιο έξω και ήσυχα','Outside and quieter')]] as const).map(([value,label])=><Choice key={value} active={trip.stayLocationPreference===value} onClick={()=>patch("stayLocationPreference",value)}>{label}</Choice>)}</div></Question>
           {entryMode === "idea" && <Question title={say(lang,"Ποιο μέρος έχεις στο μυαλό σου;","Which place do you have in mind?")} hint={say(lang,"Θα το εξετάσουμε, αλλά δεν θα το προωθήσουμε αν δεν περνά τα κριτήριά σου.","We will consider it, but not force it past your criteria.")}><input aria-label={say(lang,"Προορισμός που σκέφτεσαι","Destination you are considering")} className="destination-input" value={trip.consideredDestination??""} placeholder={say(lang,"π.χ. Κέρκυρα","e.g. Corfu")} onChange={event=>patch("consideredDestination",event.target.value)}/></Question>}
-          <Question title={say(lang, "Πες κάτι που δεν χώρεσε στις επιλογές.", "Tell us what the choices missed.")} hint={say(lang, "Προαιρετικό — μίλα φυσικά.", "Optional — speak naturally.")}><textarea maxLength={320} value={trip.tripText ?? ""} placeholder={say(lang, "π.χ. θέλω ήσυχα πρωινά, ωραίο φαγητό και λίγη ζωή το βράδυ, χωρίς να τρέχω", "e.g. quiet mornings, great food and a little evening energy, without rushing")} onChange={event => patch("tripText", event.target.value)} /></Question>
+          <Question title={say(lang, "Πες κάτι που δεν χώρεσε στις επιλογές.", "Tell us what the choices missed.")} hint={say(lang, "Προαιρετικό — μίλα φυσικά. Μόνο οι ρητά αποκλειστικές λέξεις περιορίζουν τις τελικές επιλογές.", "Optional — speak naturally. Only explicit exclusive wording limits final choices.")}><textarea maxLength={320} value={trip.tripText ?? ""} placeholder={say(lang, "π.χ. θέλω ήσυχα πρωινά, ωραίο φαγητό και λίγη ζωή το βράδυ, χωρίς να τρέχω", "e.g. quiet mornings, great food and a little evening energy, without rushing")} onChange={event => patch("tripText", event.target.value)} /></Question>
         </div>}
 
         {entryMode && <div className="discovery-actions">{step > 0 ? <button className="back" onClick={() => setStep(current => current - 1)}>{say(lang, "Πίσω", "Back")}</button> : <span />}{step < 4 ? <button className="next" onClick={() => setStep(current => current + 1)}>{say(lang, "Συνέχισε", "Continue")} <ArrowRight size={18} weight="bold" /></button> : <button className="next final" disabled={loading} onClick={() => void run()}>{say(lang, "Σύγκρινε την Ελλάδα για εμένα", "Compare Greece for me")} <Sparkle size={18} weight="fill" /></button>}</div>}
@@ -336,8 +348,8 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
         <div className="results-head"><div><span className="eyebrow">{say(lang, "Η ΑΠΟΦΑΣΗ ΤΗΣ ΟΜΑΔΑΣ", "THE TEAM DECISION")}</span><h2>{say(lang, `Τρεις finalists. ${Math.max(0,result.recommendations.length-3)} ακόμη διαφορετικοί δρόμοι για βαθύτερη εξερεύνηση.`, `Three finalists. ${Math.max(0,result.recommendations.length-3)} more distinct paths for deeper exploration.`)}</h2><p className="profile-summary"><Heart size={18} weight="duotone" /> {result.profileSummary}</p></div><div className="results-proof"><ShieldCheck size={23} weight="duotone" /><span><strong>{result.eligibleCount??result.catalogSize}</strong>{say(lang, " βιώσιμες επιλογές πέρασαν σταθμισμένο έλεγχο", " viable choices passed weighted checks")}</span></div></div>
         {result.feasibility==="COMPROMISE"&&<div className="feasibility-note"><ShieldCheck size={24} weight="duotone"/><div><strong>{say(lang,"Τα κριτήρια συγκρούονται μεταξύ τους.","Your criteria conflict with each other.")}</strong><p>{say(lang,"Δεν θα βαφτίσουμε έναν συμβιβασμό τέλειο. Οι παρακάτω είναι οι πιο τίμιες επιλογές και δείχνουν καθαρά πού υποχωρείς.","We will not label a compromise perfect. These are the most honest options, with the trade-offs made explicit.")}</p></div></div>}
         <div className="results-grid">{result.recommendations.slice(0, 3).map((recommendation, index) => <ResultCard key={recommendation.slug} recommendation={recommendation} index={index} trip={trip} lang={lang} compared={compareSlugs.includes(recommendation.slug)} onToggleCompare={()=>toggleCompare(recommendation.slug)} onChoose={() => void choose(recommendation)} />)}</div>
-        {result.recommendations.length>3&&<div className="more-results-control"><button onClick={()=>setVisibleAlternativeCount(current=>current>=result.recommendations.length-3?0:Math.min(result.recommendations.length-3,current+3))}>{visibleAlternativeCount>=result.recommendations.length-3?say(lang,"Κρύψε τις διαδρομές εξερεύνησης","Hide exploration paths"):say(lang,`Δείξε ${Math.min(3,result.recommendations.length-3-visibleAlternativeCount)} ακόμη · ${result.recommendations.length-3-visibleAlternativeCount} απομένουν`,`Show ${Math.min(3,result.recommendations.length-3-visibleAlternativeCount)} more · ${result.recommendations.length-3-visibleAlternativeCount} remaining`)} <CaretDown size={18} className={visibleAlternativeCount>=result.recommendations.length-3?"turned":""}/></button></div>}
         {visibleAlternativeCount>0&&<div className="alternatives-grid">{result.recommendations.slice(3,3+visibleAlternativeCount).map((recommendation,index)=><ResultCard key={recommendation.slug} recommendation={recommendation} index={index+3} compact trip={trip} lang={lang} compared={compareSlugs.includes(recommendation.slug)} onToggleCompare={()=>toggleCompare(recommendation.slug)} onChoose={()=>void choose(recommendation)}/>)}</div>}
+        {result.recommendations.length>3&&<div className="more-results-control"><button aria-expanded={visibleAlternativeCount>0} onClick={()=>setVisibleAlternativeCount(current=>current>=result.recommendations.length-3?0:current===0?Math.min(DEFAULT_VISIBLE_ALTERNATIVES,result.recommendations.length-3):Math.min(result.recommendations.length-3,current+3))}>{visibleAlternativeCount>=result.recommendations.length-3?say(lang,"Κρύψε τις διαδρομές εξερεύνησης","Hide exploration paths"):visibleAlternativeCount===0?say(lang,`Δείξε ${Math.min(DEFAULT_VISIBLE_ALTERNATIVES,result.recommendations.length-3)} ακριβείς εναλλακτικές`,`Show ${Math.min(DEFAULT_VISIBLE_ALTERNATIVES,result.recommendations.length-3)} accurate alternatives`):say(lang,`Δείξε ${Math.min(3,result.recommendations.length-3-visibleAlternativeCount)} ακόμη · ${result.recommendations.length-3-visibleAlternativeCount} απομένουν`,`Show ${Math.min(3,result.recommendations.length-3-visibleAlternativeCount)} more · ${result.recommendations.length-3-visibleAlternativeCount} remaining`)} <CaretDown size={18} className={visibleAlternativeCount>=result.recommendations.length-3?"turned":""}/></button></div>}
         {compareSlugs.length>0&&<ComparisonPanel recommendations={result.recommendations.filter(item=>compareSlugs.includes(item.slug))} trip={trip} lang={lang} onChoose={item=>void choose(item)} onRemove={toggleCompare}/>}
       </section>}
 
@@ -345,7 +357,18 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
     </main>
 
     <footer className="guru-footer"><span>ΕΛΛΗΝΙΚΟΣ AI TRAVEL GURU</span><span>{say(lang, "Πραγματικά δεδομένα · καθαρές επιλογές · καμία ψεύτικη πίεση", "Real data · clear choices · no fake pressure")}</span></footer>
+    <TravelDesktop trip={trip} lang={lang} constraintLabel={null} result={result}/>
   </div>;
+}
+
+function TravelDesktop({trip,lang,constraintLabel,result}:{trip:TripRequest;lang:Lang;constraintLabel:string|null;result:V8RecommendationResponse|null}){
+ const[panel,setPanel]=useState<"closed"|"notifications"|"calculator">("closed"),[distance,setDistance]=useState(300),[fuelPrice,setFuelPrice]=useState(1.85),[consumption,setConsumption]=useState(7),[tolls,setTolls]=useState(25),[dailyExtras,setDailyExtras]=useState(35),[evPrice,setEvPrice]=useState(.45),[evConsumption,setEvConsumption]=useState(18);
+ const people=Math.max(1,trip.groupSize??1),days=Math.max(1,trip.nights+1),roundTripKm=Math.max(0,distance*2),electric=trip.transportMode==="electric-car",transport=electric?roundTripKm/100*evConsumption*evPrice:trip.transportMode==="no-car"?0:roundTripKm/100*consumption*fuelPrice,extras=dailyExtras*people*days,totalTravel=transport+tolls+extras,stayBudget=Math.max(0,trip.budget-totalTravel),perPerson=trip.budget/people,perDay=trip.budget/people/days;
+ const notifications=[constraintLabel?{title:say(lang,"Ο περιορισμός σου κλειδώθηκε","Your constraint is locked"),body:constraintLabel}:null,result?{title:say(lang,"Η σύγκριση είναι έτοιμη","Your comparison is ready"),body:say(lang,`${result.recommendations.length} διαφορετικές επιλογές πέρασαν τον έλεγχο.`,`${result.recommendations.length} distinct choices passed the checks.`)}:{title:say(lang,"Υπολόγισε το πραγματικό κόστος","Calculate the real cost"),body:say(lang,"Δες τι μένει για διαμονή αφού αφαιρεθούν μετακίνηση, διόδια και καθημερινά έξοδα.","See what remains for stays after transport, tolls and daily extras.")}].filter((item):item is {title:string;body:string}=>Boolean(item));
+ return <aside className={`travel-desktop ${panel!=="closed"?"open":""}`} aria-label={say(lang,"Εργαλεία ταξιδιού","Travel tools")}>
+   {panel!=="closed"&&<div className="desktop-window" role="dialog" aria-modal="false" aria-label={panel==="calculator"?say(lang,"Travel calculator","Travel calculator"):say(lang,"Ειδοποιήσεις","Notifications")}><div className="window-bar"><span>{panel==="calculator"?<Calculator size={17}/>:<Bell size={17}/>} {panel==="calculator"?say(lang,"TRAVEL CALCULATOR","TRAVEL CALCULATOR"):say(lang,"TRAVEL NOTIFICATIONS","TRAVEL NOTIFICATIONS")}</span><button onClick={()=>setPanel("closed")} aria-label={say(lang,"Κλείσιμο","Close")}><X size={17}/></button></div>{panel==="notifications"?<div className="notification-list">{notifications.map((item,index)=><article key={`${item.title}-${index}`}><span>{index+1}</span><div><strong>{item.title}</strong><p>{item.body}</p></div></article>)}</div>:<div className="travel-calculator"><div className="calc-summary"><span>{say(lang,"Συνολικό budget","Total budget")}<strong>€{trip.budget.toFixed(0)}</strong></span><span>{say(lang,"Ανά άτομο / ημέρα","Per person / day")}<strong>€{perDay.toFixed(0)}</strong></span><span className="highlight">{say(lang,"Μένουν για διαμονή","Left for stays")}<strong>€{stayBudget.toFixed(0)}</strong></span></div><div className="calc-grid"><label>{say(lang,"Απόσταση μονής διαδρομής (km)","One-way distance (km)")}<input type="number" min="0" value={distance} onChange={event=>setDistance(Number(event.target.value)||0)}/></label>{electric?<><label>kWh / 100 km<input type="number" min="0" step=".1" value={evConsumption} onChange={event=>setEvConsumption(Number(event.target.value)||0)}/></label><label>€ / kWh<input type="number" min="0" step=".01" value={evPrice} onChange={event=>setEvPrice(Number(event.target.value)||0)}/></label></>:trip.transportMode!=="no-car"?<><label>{say(lang,"Κατανάλωση L/100 km","Consumption L/100 km")}<input type="number" min="0" step=".1" value={consumption} onChange={event=>setConsumption(Number(event.target.value)||0)}/></label><label>{say(lang,"Τιμή καυσίμου €/L","Fuel price €/L")}<input type="number" min="0" step=".01" value={fuelPrice} onChange={event=>setFuelPrice(Number(event.target.value)||0)}/></label></>:null}<label>{say(lang,"Διόδια / εισιτήρια €","Tolls / tickets €")}<input type="number" min="0" value={tolls} onChange={event=>setTolls(Number(event.target.value)||0)}/></label><label>{say(lang,"Έξοδα ανά άτομο / ημέρα €","Extras per person / day €")}<input type="number" min="0" value={dailyExtras} onChange={event=>setDailyExtras(Number(event.target.value)||0)}/></label></div><dl><div><dt>{electric?say(lang,"Εκτίμηση φόρτισης","Charging estimate"):say(lang,"Εκτίμηση μετακίνησης","Transport estimate")}</dt><dd>€{transport.toFixed(0)}</dd></div><div><dt>{say(lang,"Καθημερινά έξοδα","Daily extras")}</dt><dd>€{extras.toFixed(0)}</dd></div><div><dt>{say(lang,"Budget ανά άτομο","Budget per person")}</dt><dd>€{perPerson.toFixed(0)}</dd></div></dl><small>{say(lang,"Εκτίμηση προγραμματισμού, όχι τελική τιμή. Άλλαξε τα πεδία με τα πραγματικά στοιχεία σου.","Planning estimate, not a final price. Replace the defaults with your real figures.")}</small></div>}</div>}
+   <div className="desktop-launcher"><button className={panel==="calculator"?"active":""} onClick={()=>setPanel(current=>current==="calculator"?"closed":"calculator")}><Calculator size={20}/><span>{say(lang,"Calculator","Calculator")}</span></button><button className={panel==="notifications"?"active":""} onClick={()=>setPanel(current=>current==="notifications"?"closed":"notifications")}><Bell size={20}/><i>{notifications.length}</i><span>{say(lang,"Ειδοποιήσεις","Notifications")}</span></button></div>
+ </aside>
 }
 
 function DbPhoto({ slug, className, label, startDate = "2026-09-18", endDate = "2026-09-22" }: { slug: string; className?: string; label: string; startDate?: string; endDate?: string }) {
@@ -421,7 +444,7 @@ function DestinationStory({ recommendation, result, insights, trip, lang, offers
       {loading ? <div className="stay-loading"><Compass size={24} weight="duotone" /> {say(lang, "Ελέγχω ποια stays καλύπτουν όλες τις ημερομηνίες…", "Checking which stays cover every date…")}</div> : offers.length ? <>
         <StayChoiceMap destination={recommendation.destination} latitude={recommendation.latitude} longitude={recommendation.longitude} offers={offers} selectedOfferId={selectedOfferId} onSelect={selectOffer} lang={lang}/>
         <div className="stay-grid">{offers.map((offer, index) => <StayCard key={offer.sourceProductId} offer={offer} index={index} trip={trip} lang={lang} bookingEvidence={insights?.evidence?.booking.filter(item=>item.sourceProductId===offer.sourceProductId)??[]} selected={offer.sourceProductId===selectedOfferId} onSelect={()=>selectOffer(offer)} />)}</div>
-        <FinalDecisionFunnel offer={selectedOffer} recommendation={recommendation} trip={trip} lang={lang}/>
+        <FinalDecisionFunnel offer={selectedOffer} recommendation={recommendation} trip={trip} lang={lang} onSelectWindow={onSelectWindow}/>
       </> : <div className="no-stays"><ShieldCheck size={25} weight="duotone" /><div><strong>{say(lang, "Δεν θα σου δείξω μια αμφίβολη επιλογή μόνο και μόνο για να υπάρχει κουμπί.", "I will not show a doubtful option just to have a button.")}</strong><p>{say(lang, "Η πρόταση προορισμού παραμένει, αλλά αυτή τη στιγμή δεν υπάρχει stay που να περνά τον πλήρη έλεγχο ημερομηνιών.", "The destination recommendation stands, but there is currently no stay that passes the full date check.")}</p></div></div>}
     </div>
   </section>;
@@ -446,17 +469,28 @@ function EvidencePanel({ insights, trip, lang }: { insights: DestinationInsights
 
 function StayCard({ offer, index, trip, lang, bookingEvidence, selected, onSelect }: { offer: V8StayOffer; index: number; trip: TripRequest; lang: Lang; bookingEvidence: NonNullable<DestinationInsightsResponse["evidence"]>["booking"]; selected:boolean; onSelect:()=>void }) {
   const image = offer.imageUrl || offer.thumbUrl;
+  const[charging,setCharging]=useState<ChargingCheck|null>(null),needsCharging=trip.transportMode==="electric-car",chargingVerified=charging?.status==="AT_PROPERTY"||charging?.status==="NEARBY";
+  useEffect(()=>{if(!needsCharging)return;const controller=new AbortController();setCharging(null);void fetch("/api/ev-charging",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({description:offer.description??"",latitude:offer.latitude,longitude:offer.longitude}),signal:controller.signal}).then(async response=>setCharging(await response.json() as ChargingCheck)).catch(error=>{if((error as Error).name!=="AbortError")setCharging({status:"UNAVAILABLE"})});return()=>controller.abort()},[needsCharging,offer.sourceProductId,offer.description,offer.latitude,offer.longitude]);
   return <article className={`stay-card ${index === 0 ? "best" : ""} ${selected?"selected":""}`}>
     <div className="stay-photo" style={image ? { backgroundImage: `url('${image}')` } : undefined}><span>{index+1} · {index === 0 ? say(lang, "Η επιλογή μας", "Our pick") : index === 1 ? say(lang, "Πιο ήσυχο", "Calmer") : say(lang, "Διαφορετικό mood", "Different mood")}</span></div>
-    <div className="stay-copy"><small>{offer.city || say(lang, "Περιοχή προορισμού", "Destination area")}</small><h4>{offer.propertyName}</h4><p>{stayDescription(offer, index, trip, lang)}</p><div className="stay-trust"><span><CalendarBlank size={16} /> {say(lang, "Καλύπτει όλες τις ημερομηνίες", "Covers every trip date")}</span>{offer.distanceKm != null && <span><MapPin size={16} /> {offer.distanceKm.toFixed(1)} km</span>}{bookingEvidence.length>0&&<span><ShieldCheck size={16}/>{say(lang,"Επαληθεύτηκε παρουσία στο Booking","Booking presence verified")}</span>}</div>{bookingEvidence[0]?.rating!=null&&<div className="property-proof"><strong>{bookingEvidence[0].rating}/{bookingEvidence[0].ratingScale??10}</strong><span>{bookingEvidence[0].reviewCount?`${bookingEvidence[0].reviewCount} ${say(lang,"κριτικές","reviews")}`:say(lang,"επαληθευμένο snapshot","verified snapshot")}</span></div>}<button type="button" className="stay-select" onClick={onSelect}>{selected?<><Check size={18} weight="bold"/>{say(lang,"Αυτή είναι η βάση μου","This is my base")}</>:<>{say(lang,"Διάλεξε αυτή τη βάση","Choose this base")}<ArrowRight size={18} weight="bold"/></>}</button><small className="stay-fineprint">{say(lang, "Δεν φεύγεις ακόμη — πρώτα παίρνεις όλο το travel guide.", "You are not leaving yet — first you get the complete travel guide.")}</small></div>
+    <div className="stay-copy"><small>{offer.city || say(lang, "Περιοχή προορισμού", "Destination area")}</small><h4>{offer.propertyName}</h4><p>{stayDescription(offer, index, trip, lang)}</p><div className="stay-trust"><span><CalendarBlank size={16} /> {say(lang, "Καλύπτει όλες τις ημερομηνίες", "Covers every trip date")}</span>{offer.distanceKm != null && <span><MapPin size={16} /> {offer.distanceKm.toFixed(1)} km</span>}{bookingEvidence.length>0&&<span><ShieldCheck size={16}/>{say(lang,"Επαληθεύτηκε παρουσία στο Booking","Booking presence verified")}</span>}</div>{needsCharging&&<ChargingProof check={charging} lang={lang}/>} {bookingEvidence[0]?.rating!=null&&<div className="property-proof"><strong>{bookingEvidence[0].rating}/{bookingEvidence[0].ratingScale??10}</strong><span>{bookingEvidence[0].reviewCount?`${bookingEvidence[0].reviewCount} ${say(lang,"κριτικές","reviews")}`:say(lang,"επαληθευμένο snapshot","verified snapshot")}</span></div>}<button type="button" className="stay-select" onClick={onSelect} disabled={needsCharging&&!chargingVerified}>{needsCharging&&!chargingVerified?<>{say(lang,"Χρειάζεται επαληθευμένη φόρτιση","Verified charging required")}<Lightning size={18}/></>:selected?<><Check size={18} weight="bold"/>{say(lang,"Αυτή είναι η βάση μου","This is my base")}</>:<>{say(lang,"Διάλεξε αυτή τη βάση","Choose this base")}<ArrowRight size={18} weight="bold"/></>}</button><small className="stay-fineprint">{say(lang, "Δεν φεύγεις ακόμη — πρώτα παίρνεις όλο το travel guide.", "You are not leaving yet — first you get the complete travel guide.")}</small></div>
   </article>;
 }
 
-function FinalDecisionFunnel({offer,recommendation,trip,lang}:{offer:V8StayOffer|null;recommendation:V8Recommendation;trip:TripRequest;lang:Lang}){
+type ChargingCheck={status:"AT_PROPERTY"|"NEARBY"|"UNVERIFIED"|"UNAVAILABLE";nearest?:{name:string;distanceKm:number;operator?:string|null}};
+function ChargingProof({check,lang}:{check:ChargingCheck|null;lang:Lang}){
+ return <div className={`charging-proof ${check?.status?.toLowerCase()??"checking"}`}><Lightning size={18} weight="fill"/><span>{!check?say(lang,"Ελέγχω φόρτιση…","Checking EV charging…"):check.status==="AT_PROPERTY"?say(lang,"Το feed του καταλύματος δηλώνει φόρτιση EV","The stay feed claims EV charging"):check.status==="NEARBY"&&check.nearest?say(lang,`Φορτιστής ${check.nearest.distanceKm.toFixed(1)} km · ${check.nearest.name}`,`Charger ${check.nearest.distanceKm.toFixed(1)} km · ${check.nearest.name}`):check.status==="UNVERIFIED"?say(lang,"Δεν βρέθηκε επαληθεύσιμη φόρτιση σε 5 km","No verifiable charging found within 5 km"):say(lang,"Ο έλεγχος φόρτισης δεν είναι διαθέσιμος τώρα","Charging check is unavailable")}</span></div>
+}
+
+type AvailabilityCheck={status:"FEED_CONFIRMED"|"UNCONFIRMED"|"UNAVAILABLE";checkedAt?:string;alternatives?:V8StayOffer[];windows?:Array<{startDate:string;endDate:string;reason:"same-weekend"|"same-holiday"|"same-weekdays";offers:V8StayOffer[]}>};
+function FinalDecisionFunnel({offer,recommendation,trip,lang,onSelectWindow}:{offer:V8StayOffer|null;recommendation:V8Recommendation;trip:TripRequest;lang:Lang;onSelectWindow:(window:SmartDateWindow)=>Promise<void>}){
   const[email,setEmail]=useState("");const[consent,setConsent]=useState(false);const[emailState,setEmailState]=useState<"idle"|"sending"|"sent"|"download">("idle");
+  const[availability,setAvailability]=useState<AvailabilityCheck|null>(null);const[checking,setChecking]=useState(false);
   const theme=themeForTrip(trip),personalUrl=offer?`/api/guide?slug=${encodeURIComponent(recommendation.slug)}&start=${trip.startDate}&end=${trip.endDate}&offer=${encodeURIComponent(offer.sourceProductId)}`:"#",thematicUrl=`/api/thematic-guide?start=${trip.startDate}&end=${trip.endDate}&theme=${theme}`;
   async function sendGuide(event:React.FormEvent){event.preventDefault();if(!offer||!consent||!/^\S+@\S+\.\S+$/.test(email))return;setEmailState("sending");try{const response=await fetch("/api/guide/email",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,slug:recommendation.slug,start:trip.startDate,end:trip.endDate,offer:offer.sourceProductId,language:lang})});if(response.ok){setEmailState("sent");void trackGrowth("guide_email_sent",recommendation.slug,offer.sourceProductId,"email")}else setEmailState("download")}catch{setEmailState("download")}}
   function finalExit(){if(!offer)return;const body=JSON.stringify({eventName:"outbound_click",destinationId:recommendation.slug,sourceProductId:offer.sourceProductId});if(navigator.sendBeacon)navigator.sendBeacon("/api/track",new Blob([body],{type:"application/json"}));else void fetch("/api/track",{method:"POST",headers:{"content-type":"application/json"},body,keepalive:true});void trackGrowth("final_exit",recommendation.slug,offer.sourceProductId,"tracking")}
+  async function checkAvailability(){if(!offer||checking)return;setChecking(true);setAvailability(null);try{const response=await fetch("/api/stay-availability",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({slug:recommendation.slug,offerId:offer.sourceProductId,startDate:trip.startDate,endDate:trip.endDate})});setAvailability(await response.json() as AvailabilityCheck)}catch{setAvailability({status:"UNAVAILABLE"})}finally{setChecking(false)}}
+  useEffect(()=>{setAvailability(null)},[offer?.sourceProductId,trip.startDate,trip.endDate]);
   return <section id="final-travel-step" className={`final-travel-step ${offer?"ready":"locked"}`} aria-labelledby="final-step-title">
     {!offer?<div className="final-step-lock"><MapPin size={28} weight="duotone"/><div><span>03 · {say(lang,"ΚΛΕΙΔΩΣΕ ΤΗ ΒΑΣΗ ΣΟΥ","LOCK IN YOUR BASE")}</span><h4 id="final-step-title">{say(lang,"Διάλεξε πρώτα ένα σημείο στον χάρτη.","Choose a marker on the map first.")}</h4><p>{say(lang,"Μετά θα δημιουργηθούν τα δύο σωστά PDF και το ένα, καθαρό τελικό βήμα.","Then the two correct PDFs and one clear final handoff will appear.")}</p></div></div>:<>
       <div className="final-step-head"><div><span>03 · {say(lang,"ΤΟ ΤΑΞΙΔΙ ΣΟΥ ΕΓΙΝΕ ΣΧΕΔΙΟ","YOUR TRIP IS NOW A PLAN")}</span><h4 id="final-step-title">{say(lang,`Η βάση σου: ${offer.propertyName}`,`Your base: ${offer.propertyName}`)}</h4><p>{say(lang,`${prettyDate(trip.startDate,lang)}–${prettyDate(trip.endDate,lang)} · ${trip.nights} νύχτες · η επιλογή καλύπτει όλο το διάστημα.`,` ${prettyDate(trip.startDate,lang)}–${prettyDate(trip.endDate,lang)} · ${trip.nights} nights · the offer covers the full period.`)}</p></div><ShieldCheck size={44} weight="duotone"/></div>
@@ -465,7 +499,9 @@ function FinalDecisionFunnel({offer,recommendation,trip,lang}:{offer:V8StayOffer
         <article className="personal-guide"><span>{say(lang,"ΠΡΟΣΩΠΙΚΟ TRAVEL DOSSIER","PERSONAL TRAVEL DOSSIER")}</span><h5>{recommendation.destination} + {offer.propertyName}</h5><p>{say(lang,"10 σελίδες με ημερομηνίες, ρυθμό, budget, εικόνες της βάσης, evidence, checklist και μεγάλο QR του ακριβούς tracking URL.","10 pages with dates, pace, budget, stay imagery, evidence, checklist and a large QR for the exact tracking URL.")}</p><a href={personalUrl} onClick={()=>void trackGrowth("guide_download",recommendation.slug,offer.sourceProductId,"pdf")}><DownloadSimple size={18}/>{say(lang,"Κατέβασε το προσωπικό PDF","Download the personal PDF")}</a></article>
       </div>
       <form className="guide-email" onSubmit={sendGuide}><div><span>04 · {say(lang,"ΠΑΡΕ ΤΟ ΜΑΖΙ ΣΟΥ","TAKE IT WITH YOU")}</span><h5>{say(lang,"Στείλε το προσωπικό guide στο email σου.","Send the personal guide to your email.")}</h5><p>{say(lang,"Μόνο αυτό το μήνυμα. Δεν αποθηκεύουμε το email για newsletter.","This message only. We do not keep the email for a newsletter.")}</p></div><div className="email-controls"><label><EnvelopeSimple size={19}/><input type="email" value={email} onChange={event=>{setEmail(event.target.value);setEmailState("idle")}} placeholder="name@email.com" aria-label={say(lang,"Email για αποστολή του travel guide","Email for the travel guide")}/></label><label className="email-consent"><input type="checkbox" checked={consent} onChange={event=>setConsent(event.target.checked)}/><span>{say(lang,"Συμφωνώ να σταλεί μόνο το guide αυτής της επιλογής.","I agree to receive only this guide.")}</span></label><button type="submit" disabled={!consent||!email||emailState==="sending"}>{emailState==="sending"?say(lang,"Ετοιμάζεται…","Preparing…"):emailState==="sent"?say(lang,"Στάλθηκε ✓","Sent ✓"):say(lang,"Στείλε το guide","Send the guide")}</button>{emailState==="download"&&<p className="email-note">{say(lang,"Το guide είναι έτοιμο για άμεση λήψη από το κουμπί παραπάνω.","Your guide is ready to download from the button above.")}</p>}</div></form>
-      <div className="final-handoff"><div><span>05 · {say(lang,"ΤΕΛΙΚΟΣ ΕΛΕΓΧΟΣ","FINAL CHECK")}</span><h5>{say(lang,"Έχεις όλη την εικόνα. Τώρα έλεγξε τη ζωντανή τιμή.","You have the full picture. Now check the live price.")}</h5><p>{say(lang,"Η επόμενη είναι η μόνη εξωτερική έξοδος: το ακριβές CD104 tracking URL. Εκεί επιβεβαιώνεις δωμάτιο, τελική τιμή, παροχές και ακυρωτικά πριν προχωρήσεις.","The next action is the only external handoff: the exact CD104 tracking URL. Confirm room, final price, amenities and cancellation terms before continuing.")}</p></div><a href={offer.trackingUrl} target="_blank" rel="sponsored nofollow noopener" onClick={finalExit}>{say(lang,"Έλεγξε τη διαθεσιμότητα","Check live availability")}<ArrowRight size={20} weight="bold"/></a></div>
+      <div className="final-handoff"><div><span>05 · {say(lang,"ΔΙΠΛΟΣ ΕΛΕΓΧΟΣ ΔΙΑΘΕΣΙΜΟΤΗΤΑΣ","DOUBLE AVAILABILITY CHECK")}</span><h5>{say(lang,"Πρώτα επανέλεγχος εδώ. Μετά η τελική επιβεβαίωση στον πάροχο.","Recheck here first. Then confirm with the provider.")}</h5><p>{say(lang,"Ο έλεγχος του feed δεν αποτελεί κράτηση. Αν η επιλογή δεν επιβεβαιώνεται πλέον, θα κρατήσουμε τις ίδιες ημερομηνίες ή τον ίδιο τύπο αργίας/Σαββατοκύριακου.","The feed check is not a booking. If the stay is no longer confirmed, we preserve the same dates or the same holiday/weekend pattern.")}</p></div>{availability?.status==="FEED_CONFIRMED"?<a href={offer.trackingUrl} target="_blank" rel="sponsored nofollow noopener" onClick={finalExit}>{say(lang,"Επιβεβαιώθηκε · έλεγξε στον πάροχο","Confirmed · check provider")}<ArrowRight size={20} weight="bold"/></a>:<button type="button" onClick={()=>void checkAvailability()} disabled={checking}>{checking?say(lang,"Επανελέγχω…","Rechecking…"):say(lang,"Επανέλεγξε πριν φύγω","Recheck before leaving")}<ShieldCheck size={20} weight="duotone"/></button>}</div>
+      {availability?.status==="UNCONFIRMED"&&<div className="availability-recovery" role="status"><h5>{say(lang,"Δεν μπορώ πλέον να επιβεβαιώσω αυτό το stay.","I can no longer confirm this stay.")}</h5><p>{say(lang,"Δεν το χαρακτηρίζουμε «booked» χωρίς άμεση απόδειξη. Δες πρώτα άλλες βάσεις στις ίδιες ημερομηνίες και μετά ισοδύναμες ημερομηνίες.","We do not call it booked without direct proof. Try other stays on the same dates first, then equivalent dates.")}</p>{(availability.alternatives?.length??0)>0&&<div className="recovery-options">{availability.alternatives?.map(item=><a key={item.sourceProductId} href={item.trackingUrl} target="_blank" rel="sponsored nofollow noopener">{item.propertyName}<ArrowRight size={16}/></a>)}</div>}{(availability.windows?.length??0)>0&&<div className="recovery-options">{availability.windows?.map((window,index)=><button type="button" key={window.startDate} onClick={()=>void onSelectWindow({id:index===0?"original":index===1?"quieter":"weekend",startDate:window.startDate,endDate:window.endDate,titleEl:"Ισοδύναμες ημερομηνίες",titleEn:"Equivalent dates",tradeoffEl:window.reason==="same-holiday"?"Διατηρεί την ίδια αργία.":"Διατηρεί τον ίδιο τύπο Σαββατοκύριακου/ημερών.",tradeoffEn:window.reason==="same-holiday"?"Preserves the same holiday.":"Preserves the same weekend/weekday pattern.",confidence:"MEDIUM"})}>{prettyDate(window.startDate,lang)}–{prettyDate(window.endDate,lang)} · {window.offers.length} stays</button>)}</div>}</div>}
+      {availability?.status==="UNAVAILABLE"&&<div className="availability-recovery" role="status"><p>{say(lang,"Ο live επανέλεγχος δεν είναι διαθέσιμος τώρα. Συνέχισε μόνο αν επιβεβαιώσεις δωμάτιο και τελική τιμή στον πάροχο.","The live recheck is unavailable. Continue only after confirming the room and final price with the provider.")}</p></div>}
     </>}
   </section>
 }
@@ -533,15 +569,6 @@ function polishVerdict(value: string, lang: Lang, recommendation: V8Recommendati
     .trim();
 }
 
-function offerScore(offer: V8StayOffer, style: TripRequest["hotelStyle"]) {
-  let score = 100 - (offer.distanceKm ?? 20);
-  if (style === "luxury") score += (offer.starLevel ?? 0) * 12;
-  if (style === "value" && offer.price != null) score += Math.max(0, 80 - offer.price) / 3;
-  if (style === "boutique" && /boutique|design/i.test(`${offer.propertyName} ${offer.description ?? ""}`)) score += 25;
-  if (style === "resort" && /resort|spa|all inclusive/i.test(`${offer.propertyName} ${offer.description ?? ""}`)) score += 25;
-  return score;
-}
-
 function cleanDescription(value?: string | null) {
   const text = (value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   return text ? `${text.slice(0, 120)}${text.length > 120 ? "…" : ""}` : "Επιλογή από την πραγματική βάση καταλυμάτων για την περιοχή.";
@@ -550,7 +577,8 @@ function cleanDescription(value?: string | null) {
 function cardNarrative(recommendation: V8Recommendation, trip: TripRequest, lang: Lang) {
   const opening = recommendation.why.replace(/\s+/g, " ").trim();
   const pace = trip.pace === "slow" ? say(lang,"Εδώ δεν χρειάζεται να κυνηγάς το πρόγραμμα: ο τόπος αποδίδει όταν αφήνεις χώρο ανάμεσα στις εμπειρίες.","You do not need to chase an itinerary here: the place works when you leave breathing room between experiences.") : trip.pace === "full" ? say(lang,"Έχει αρκετές διαφορετικές υφές για γεμάτες ημέρες, χωρίς να βασίζεται σε μία μόνο εικόνα.","It has enough different textures for full days without relying on a single postcard moment.") : say(lang,"Σου επιτρέπει να εναλλάξεις εμπειρία και παύση χωρίς να νιώθεις ότι χάνεις κάτι.","It lets you alternate experience and pause without feeling that you are missing out.");
-  return `${opening} ${pace}`;
+  const advice=recommendation.localAdvice?.[0],local=advice?say(lang,`Ένας ντόπιος θα σου έλεγε: ${advice}`,`A local would tell you: ${advice}`):"";
+  return `${opening} ${pace} ${local}`.trim();
 }
 
 function psychologyHook(trip: TripRequest, recommendation: V8Recommendation, lang: Lang) {
