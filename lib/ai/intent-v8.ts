@@ -26,6 +26,12 @@ function applyFreeTextSignals(w:Record<V8Dimension,number>,raw:string){
  if(has(free,/παιδι|οικογεν|with kids|children|family|paidia|paidi|oikogene/))w.family=Math.max(w.family,.9);
  if(has(free,/τοπικ.{0,10}χαρακτηρ|local character|authentic|αυθεντικ|topik.{0,10}xarakt|authent/)){w.culture=Math.max(w.culture,.72);w.value=Math.max(w.value,.2)}
  if(has(free,/χωρις πολ.{0,12}οδηγ|λιγη οδηγ|not much driv|less driv|xwris pol.{0,12}odig|lig.{0,8}odig/)){w.short_break=Math.max(w.short_break,.65);w.relax=Math.max(w.relax,.55)}
+ if(has(free,/tourist trap|τουριστοπαγ|no party crowds|not chaos|χωρις πολυ κοσμο|oxi poly kosmo/)){w.relax=Math.max(w.relax,.9);w.nature=Math.max(w.nature,.42);w.culture=Math.max(w.culture,.5)}
+ if(has(free,/easy rhythm|slow morning|μαραθωνιο|marathon|χωρις πολυ αγχος|xwris poly agxos/)){w.relax=Math.max(w.relax,.92);w.wellness=Math.max(w.wellness,.5);w.short_break=Math.max(w.short_break,.55)}
+ if(has(free,/walkable|βολτα|volta/)){w.city=Math.max(w.city,.55);w.culture=Math.max(w.culture,.45);w.short_break=Math.max(w.short_break,.4)}
+ if(has(free,/local tavern|ταβερν|taverna/)){w.food=Math.max(w.food,.9);w.culture=Math.max(w.culture,.65)}
+ if(has(free,/not a generic resort|generic resort|οχι resort/))w.culture=Math.max(w.culture,.82);
+ if(has(free,/κατι διαφορετικ|kati diaforetik|something different|different from the usual/)){w.adventure=Math.max(w.adventure,.58);w.culture=Math.max(w.culture,.38)}
 }
 
 export function structuredIntent(request:TripRequest):V8IntentProfile{

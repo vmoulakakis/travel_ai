@@ -27,7 +27,7 @@ export class TravelDecisionError extends Error{
 }
 
 const noop:TravelOrchestratorEmitter=()=>{};
-function repair(selected:V8Ranked[],pool:V8Ranked[],reject:string[]){if(!reject.length)return selected;const bad=new Set(reject);return diversifyV8(pool.filter(item=>!bad.has(item.destination.slug)),12)}
+function repair(request:TripRequest,selected:V8Ranked[],pool:V8Ranked[],reject:string[]){if(!reject.length)return selected;const bad=new Set(reject);return diversifyV8(pool.filter(item=>!bad.has(item.destination.slug)),12,request)}
 function profileSummary(trip:TripRequest){if(trip.language==="en"){const energy=trip.desiredEnergy==="restore"?"restoration":trip.desiredEnergy==="stimulating"?"energy and discovery":"balance";const social=trip.socialPreference==="quiet"?"a quiet rhythm":trip.socialPreference==="lively"?"lively energy":"a flexible social rhythm";return `${energy}, ${social}, ${trip.nights} nights, ${trip.groupSize} travellers`;}const energy=trip.desiredEnergy==="restore"?"αποφόρτιση":trip.desiredEnergy==="stimulating"?"ένταση και ανακάλυψη":"ισορροπία";const social=trip.socialPreference==="quiet"?"ήσυχο ρυθμό":trip.socialPreference==="lively"?"ζωντανή ενέργεια":"ευέλικτο κοινωνικό ρυθμό";return `${energy}, ${social}, ${trip.nights} νύχτες, ${trip.groupSize} ταξιδιώτες`;}
 function stayRequirementAudit(spec:{hard:string[];soft:string[];source:string},extra:Record<string,unknown>={}){return{hard:spec.hard,soft:spec.soft,source:spec.source,...extra}}
 function stayNoResultMessage(trip:TripRequest,hard:string[]){const beachfront=hard.includes("BEACHFRONT");if(trip.language==="en")return beachfront?"I could not verify a beachfront stay for every selected date. I will not substitute a merely coastal destination.":"I could not verify a stay that satisfies every mandatory accommodation requirement for those dates.";return beachfront?"Δεν βρήκα κατάλυμα με επαληθευμένο «μπροστά στη θάλασσα» για όλες τις ημερομηνίες σου. Δεν θα το αντικαταστήσω με απλώς παραθαλάσσιο προορισμό.":"Δεν βρήκα κατάλυμα που να καλύπτει όλα τα υποχρεωτικά κριτήρια διαμονής για αυτές τις ημερομηνίες."}
@@ -70,9 +70,9 @@ export async function runTravelOrchestratorV15(trip:TripRequest,sessionId:string
   const researchScout=await runRecommendationResearchAgent(trip,research.ranked,llmBudget),ranked=applyResearchScoutRanking(research.ranked,researchScout);mark("research-scout");
   signal("research:ready",84,{webBacked:researchScout.ran,checked:researchScout.inspectedSlugs.length,confidence:researchScout.confidence,agent:"research-scout"});
 
-  const selected=diversifyV8(ranked,12),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,18);
+  const selected=diversifyV8(ranked,12,trip),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,18);
   signal("verify:start",87,{conditional:true,agent:"skeptical-auditor"});stage="verifier";
-  const verification=await verifyV8(trip,verifyPool,llmBudget),fixed=verification.checked&&!verification.passed?repair(selected,ranked,verification.rejectSlugs):selected;mark("verifier");
+  const verification=await verifyV8(trip,verifyPool,llmBudget),fixed=verification.checked&&!verification.passed?repair(trip,selected,ranked,verification.rejectSlugs):selected;mark("verifier");
   stage="auditor";const audited=await auditAndRepairV10(trip,fixed,ranked,12,research.evidence,llmBudget);mark("auditor");
   signal("verify:ready",91,{checked:true,corrected:audited.audit.attempts>1,confidence:audited.audit.confidence,agent:"skeptical-auditor"});
   if(!audited.audit.passed||!audited.items.length){

@@ -28,7 +28,7 @@ export async function auditAndRepairV10(request:TripRequest,initial:V8Ranked[],p
   const deterministic=deterministicAudit(request,items,catalog,evidence),localReject=deterministic.length?new Set<string>():await localAudit(request,items,budget);if(localReject.size)usedLLM=true;
   const localIssues=[...localReject].map(slug=>({slug,code:"LOW_EVIDENCE" as const,detail:"Independent audit rejected an evidence inconsistency"})),issues=[...deterministic,...localIssues];
   if(!issues.length)return{items,audit:{passed:true,confidence:"HIGH",issues:[],attempts:attempt,checkedBy:usedLLM?"deterministic+local-llm":"deterministic"}};
-  lastIssues=issues;const rejected=new Set(issues.map(issue=>issue.slug)),survivors=pool.filter(item=>!rejected.has(item.destination.slug)&&!deterministicAudit(request,[item],catalog,evidence).length);items=diversifyV8(survivors,limit);if(!items.length)break;
+  lastIssues=issues;const rejected=new Set(issues.map(issue=>issue.slug)),survivors=pool.filter(item=>!rejected.has(item.destination.slug)&&!deterministicAudit(request,[item],catalog,evidence).length);items=diversifyV8(survivors,limit,request);if(!items.length)break;
  }
  return{items:[],audit:{passed:false,confidence:"LOW",issues:lastIssues,attempts:3,checkedBy:usedLLM?"deterministic+local-llm":"deterministic"}};
 }
