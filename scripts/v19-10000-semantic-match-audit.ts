@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { deterministicSemanticIntentV18,structuredIntent } from "../lib/ai/intent-v8";
+import { semanticNeedsClarificationV19 } from "../lib/ai/semantic-policy-v19";
 import { canonicalRankingInputsV19 } from "../lib/decision/canonical-ranking-v19";
 import { applySemanticIntentRankingV18 } from "../lib/decision/semantic-intent-ranking-v18";
 import { preRankV8 } from "../lib/decision/v8-matcher";
@@ -82,6 +83,11 @@ function rank(request:TripRequest,catalog:Awaited<ReturnType<typeof loadV8Destin
 
 async function main(){
  const catalog=(await loadV8DestinationCatalog()).filter(x=>x.countryCode==="GR");
+ const vague=structuredIntent(profile("κάτι καλό")),bania=structuredIntent(profile("θελω μπασια"));
+ assert.equal(semanticNeedsClarificationV19(vague,"κάτι καλό",false),true,"vague free text must ask for clarification instead of being ignored");
+ assert.equal(semanticNeedsClarificationV19(bania,"θελω μπασια",false),false,"recoverable swimming typo must not trigger clarification");
+ assert.ok((bania.semantic?.positive.beach??0)>=.62,"μπασια must recover toward μπάνια / beach intent");
+ assert.equal(semanticNeedsClarificationV19(vague,"μόνο Κρήτη",true),false,"understood hard geography must not ask an unrelated clarification");
  let parseOk=0,parseTotal=0,directionPass=0,directionTotal=0,geoLeaks=0,empty=0,ambiguousOk=0,ambiguousTotal=0;
  const byCategory=new Map<string,{ok:number;total:number}>(),byTemplate=new Map<string,{ok:number;total:number}>(),errors:Array<Record<string,unknown>>=[];
  for(let i=0;i<CASES;i++){

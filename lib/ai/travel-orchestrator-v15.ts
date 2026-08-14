@@ -13,6 +13,7 @@ import { enrichV8Weather } from "@/lib/data/weather-v8";
 import { screenResearchEvidence } from "@/lib/decision/research-intent-v13";
 import { buildSmartDateWindows } from "@/lib/decision/date-windows-v9";
 import { canonicalRankingInputsV19 } from "@/lib/decision/canonical-ranking-v19";
+import { semanticNeedsClarificationV19 } from "@/lib/ai/semantic-policy-v19";
 import { diversifyV8,finalRankV8,preRankV8,responseFeasibility,toRecommendationsV8,type V8Ranked } from "@/lib/decision/v8-matcher";
 import { applySemanticIntentRankingV18 } from "@/lib/decision/semantic-intent-ranking-v18";
 import { interpretStayConstraintsV16 } from "@/lib/ai/stay-constraint-interpreter-v16";
@@ -42,6 +43,12 @@ export async function runTravelOrchestratorV15(trip:TripRequest,sessionId:string
   stage="intent+catalog";
   const[intent,stayRequirements,allDestinations]=await Promise.all([interpretIntentV8(trip,llmBudget),interpretStayConstraintsV16(trip.tripText,llmBudget),loadV8DestinationCatalog()]);mark("intent+catalog");
   const catalog=allDestinations.filter(destination=>destination.countryCode==="GR"),{hardConstraint,constrainedCatalog,rankingTrip}=canonicalRankingInputsV19(trip,catalog);
+  const hasHardSemanticContext=Boolean(hardConstraint||stayRequirements.hard.length||stayRequirements.soft.length);
+  if(semanticNeedsClarificationV19(intent,trip.tripText,hasHardSemanticContext)){
+   signal("understand:clarify",24,{agent:"intent-constraint",confidence:intent.semantic?.confidence??0});
+   writeRecommendationAudit({sessionId,status:"no-result",stage:"intent-clarification",timingsMs:{...timings,total:Date.now()-started},intentSource:intent.source,hardConstraint:hardConstraint?.id??null,stayRequirements:stayRequirementAudit(stayRequirements),llmBudget:llmBudget.snapshot(),catalogSize:catalog.length,auditor:{roles}});
+   throw new TravelDecisionError(422,trip.language==="en"?"I could not understand the free-text note with enough confidence. Add one concrete thing you want or want to avoid, for example: beach/swimming, quiet, good food, or no nightlife.":"Δεν κατάλαβα το ελεύθερο κείμενο με αρκετή βεβαιότητα. Γράψε ένα συγκεκριμένο πράγμα που θέλεις ή δεν θέλεις, π.χ. «μπάνια», «ήσυχα», «καλό φαγητό» ή «όχι nightlife».","intent-clarification");
+  }
   signal("understand:ready",24,{summary:intent.summary,semanticSource:intent.source,semanticPriorities:intent.semantic?.priorities??[],hardStayRequirements:stayRequirements.hard,agent:"intent-constraint"});signal("catalog:ready",36,{catalogSize:catalog.length,agent:"orchestrator"});
 
   // V18: the raw free text is interpreted once into a canonical semantic contract. The legacy matcher receives a sanitized request so it cannot independently reinterpret the same text with regexes.
