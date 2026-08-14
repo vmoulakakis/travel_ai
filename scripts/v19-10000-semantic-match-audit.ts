@@ -49,7 +49,7 @@ const templates:readonly Template[]=[
  {id:"mixed-food-no-party",category:"mixed",variants:["φαγητό πρώτα, όχι nightlife και όχι πολύ κόσμο","food first, no clubs and no crowds","kalo fagito prota, oxi party kai polykosmia"],positive:["food",.75],negative:["nightlife",.8],priority:"food",qualifier:["avoidCrowds",.8]},
  {id:"mixed-culture-sea-bonus",category:"mixed",variants:["πολιτισμός πρώτα, θάλασσα bonus αλλά όχι διακοπές παραλίας","culture first, sea nearby but not a beach holiday","politismos prota, thalassa bonus oxi beach trip"],positive:["culture",.78],negative:["beach",.65],priority:"culture"},
  {id:"mixed-slow-easy",category:"mixed",variants:["θέλω ηρεμία, εύκολη μετάβαση και όλα με τα πόδια","slow rhythm, easy access and walkable","xalara, eukoli metavasi kai volta me ta podia"],positive:["relax",.72],qualifier:["easyAccess",.7]},
- {id:"ambiguous-basia",category:"ambiguous",variants:["θελω μπασια","θέλω μπασια","thelo basia"],ambiguous:true},
+ {id:"beach-basia-typo",category:"positive",variants:["θελω μπασια","θέλω μπασια","θελο μπασια","thelo mpasia"],positive:["beach",.62]},
  {id:"ambiguous-good",category:"ambiguous",variants:["κάτι καλό","να περάσουμε ωραία","something nice","kati oraio"],ambiguous:true},
  {id:"ambiguous-different",category:"ambiguous",variants:["όχι τα ίδια","κάτι αλλιώτικο","not the usual","kati allo"],ambiguous:true},
  {id:"geo-mainland",category:"geography",variants:["χωρίς νησί","δεν θέλω νησί","mainland only","xoris nisi"]},

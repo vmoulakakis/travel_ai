@@ -1,6 +1,7 @@
 import type { TripRequest } from "@/lib/validation/trip";
 import { V8_DIMENSIONS,type V8Dimension,type V8IntentProfile,type V8SemanticIntent } from "@/lib/decision/v8-types";
 import { createLLMRequestBudgetV16,generateJsonWithRoutingV16,type LLMRequestBudgetV16,type ModelTierV16 } from "@/lib/ai/model-router-v9";
+import { deterministicSemanticIntentV19 } from "@/lib/ai/semantic-fallback-v19";
 
 type Parsed={positive?:Partial<Record<V8Dimension,number>>;negative?:Partial<Record<V8Dimension,number>>;priorities?:V8Dimension[];qualifiers?:Partial<V8SemanticIntent["qualifiers"]>;confidence?:number;summary?:string;rationale?:string[]};
 const clamp=(v:number)=>Math.max(0,Math.min(1,v));
@@ -34,49 +35,7 @@ function baseStructuredWeights(request:TripRequest){
  return w;
 }
 
-export function deterministicSemanticIntentV18(raw:string):V8SemanticIntent{
- const text=normalizedFreeText(raw),positive:Partial<Record<V8Dimension,number>>={},negative:Partial<Record<V8Dimension,number>>={},qualifiers=emptyQualifiers(),priorities:V8Dimension[]=[];
- const pos=(d:V8Dimension,v:number)=>positive[d]=Math.max(positive[d]??0,v),neg=(d:V8Dimension,v:number)=>negative[d]=Math.max(negative[d]??0,v),priority=(d:V8Dimension)=>{if(!priorities.includes(d))priorities.push(d)};
- if(!text)return{positive,negative,priorities,qualifiers,confidence:1,source:"structured",rationale:[]};
-
- if(has(text,/φαγητ|γαστρονομ|food|restaurant|tavern|ταβερν|fagit|fagito|estiatori/))pos("food",.86);
- if(has(text,/πολιτισ|παλια πολη|ιστορ|αρχαι|culture|heritage|historic|politism|palia poli|arxai|archaia/))pos("culture",.98);
- if(has(text,/φυση|nature|fusi|fysi|fysh/))pos("nature",.9);
- if(has(text,/βουνο|ορειν|mountain|vouno|bouno|orein|orino/)){pos("nature",.9);pos("adventure",.42);}
- if(has(text,/θαλασσ|παραλι|beach|sea |seaside|coast|paralia|thalass|thalasa/))pos("beach",.92);
- if(has(text,/πολη|city|urban|\bpoli\b|astik/))pos("city",.88);
- if(has(text,/ησυχ|ηρεμι|χαλαρ|quiet|calm|relax|xalar|chalar|isixi|irem/))pos("relax",.84);
- if(has(text,/ρομαντ|ζευγαρ|romantic|couple|zeygar|zeugar/))pos("romantic",.82);
- if(has(text,/nightlife|βραδιν|νυχτεριν|bars|club|party|vradin|nyxt/))pos("nightlife",.72);
- if(has(text,/πεζοπορ|hiking|adventure|δραστηριοτ|pezopor|peripet/))pos("adventure",.78);
- if(has(text,/ζεστ|ηλιο|warm|sunny|ilios|zesti|zesto/))pos("warmth",.78);
- if(has(text,/παιδι|οικογεν|family|children|kids|paidia|paidi|oikogene/))pos("family",.9);
-
- if(has(text,/(?:οχι|χωρις|δεν θελω|not|no|without).{0,24}(?:nightlife|βραδιν|νυχτεριν|club|party)/))neg("nightlife",.95);
- if(has(text,/(?:οχι|δεν θελω|not).{0,24}(?:beach holiday|παραλια|παραλι|beach)/))neg("beach",.82);
- if(has(text,/(?:οχι|δεν θελω|not).{0,20}(?:city|πολη|αστικ)/))neg("city",.9);
- if(has(text,/(?:οχι|δεν θελω|not).{0,20}(?:βουνο|mountain|hiking|πεζοπορ)/))neg("adventure",.88);
- if(has(text,/(?:οχι|δεν θελω|not).{0,20}(?:luxury|πολυτελ)/))neg("luxury",.9);
-
- qualifiers.avoidCrowds=has(text,/tourist trap|τουριστοπαγ|πολυ κοσμο|crowd|not chaos|no party crowds|ησυχα χωρις κοσμο|oxi poly kosmo/)?1:0;
- qualifiers.easyAccess=has(text,/ευκολ.{0,12}προσβ|χωρις.{0,20}δυσκολ.{0,20}μεταβ|λιγη οδηγ|not much driv|easy access|easy transfer|xwris.{0,20}dyskol.{0,20}metav|xwris.{0,18}odig|lig.{0,8}odig/)?1:0;
- qualifiers.slowRhythm=has(text,/slow morning|easy rhythm|χαλαρ.{0,12}ρυθμ|οχι.{0,15}μαραθων|χωρις.{0,15}τρεξ|not rush|marathon|xalara/)?1:0;
- qualifiers.walkable=has(text,/walkable|με τα ποδια|πεζ.{0,8}βολτ|βολτα|volta/)?1:0;
- qualifiers.localCharacter=has(text,/local character|τοπικ.{0,12}χαρακτηρ|αυθεντικ|authentic|not a generic resort|local tavern|topik.{0,12}xarakt/)?1:0;
-
- if(qualifiers.avoidCrowds){pos("relax",.78);neg("nightlife",Math.max(negative.nightlife??0,.5));}
- if(qualifiers.slowRhythm)pos("relax",.9);
- if(qualifiers.walkable){pos("city",Math.max(positive.city??0,.5));pos("culture",Math.max(positive.culture??0,.42));}
- if(qualifiers.localCharacter)pos("culture",Math.max(positive.culture??0,.75));
- if(qualifiers.easyAccess){pos("short_break",.65);pos("relax",Math.max(positive.relax??0,.55));}
-
- if(has(text,/food first|φαγητο πρωτ|πρωτα.{0,10}φαγητ/))priority("food");
- if(has(text,/culture first|πολιτισμ.{0,12}πρωτ|πρωτα.{0,12}πολιτισ/))priority("culture");
- if(has(text,/nature first|φυση.{0,12}πρωτ|πρωτα.{0,12}φυση/))priority("nature");
- if(has(text,/relax first|ηρεμι.{0,12}πρωτ|ξεκουρασ.{0,12}πρωτ/))priority("relax");
- for(const d of V8_DIMENSIONS){if((negative[d]??0)>=.75&&(positive[d]??0)>.2)positive[d]=.2;}
- return{positive,negative,priorities,qualifiers,confidence:.72,source:"structured",rationale:["deterministic semantic fallback"]};
-}
+export function deterministicSemanticIntentV18(raw:string):V8SemanticIntent{return deterministicSemanticIntentV19(raw);}
 
 function semanticFromParsed(parsed:Parsed,fallback:V8SemanticIntent,source:V8SemanticIntent["source"]):V8SemanticIntent{
  const positive={...fallback.positive,...parsed.positive},negative={...fallback.negative,...parsed.negative},qualifiers={...fallback.qualifiers,...parsed.qualifiers};
@@ -108,7 +67,7 @@ export function structuredIntent(request:TripRequest):V8IntentProfile{
 const tierSource=(tier:ModelTierV16):V8IntentProfile["source"]=>tier==="free"?"structured+free":tier==="openai"?"structured+openai":"structured+deepseek";
 
 export async function interpretIntentV8(request:TripRequest,budget:LLMRequestBudgetV16=createLLMRequestBudgetV16()):Promise<V8IntentProfile>{
- const base=structuredIntent(request),text=request.tripText?.trim();if(!text||text.length<8)return base;const fallback=base.semantic??deterministicSemanticIntentV18(text);
+ const base=structuredIntent(request),text=request.tripText?.trim();if(!text||text.length<3)return base;const fallback=base.semantic??deterministicSemanticIntentV18(text);
  const system=`You are the canonical semantic parser for a travel decision engine. Parse EVERY clause of the traveller's free text. Do not recommend destinations and do not invent facts. Separate desires from dislikes and exclusions. Preserve priority and trade-offs. "not X" must never become a positive X preference. Hard geography and accommodation constraints are enforced elsewhere. Dimensions: ${V8_DIMENSIONS.join(", ")}. Return JSON only with this schema: {"positive":{"dimension":0..1},"negative":{"dimension":0..1},"priorities":["dimension"],"qualifiers":{"avoidCrowds":0..1,"easyAccess":0..1,"slowRhythm":0..1,"walkable":0..1,"localCharacter":0..1},"confidence":0..1,"summary":"max 120 chars","rationale":["short clause interpretations"]}. Use a dimension only when supported by the user's words. If the user says sea nearby but not a beach holiday, keep beach positive low and beach negative meaningful. If the user says food first but no nightlife, food is a priority and nightlife is negative.`;
  const routed=await generateJsonWithRoutingV16<Parsed>({context:{task:"intent",text,deterministicConfidence:.55,hardConstraintRisk:false,contradictorySignals:true,forceSemantic:true},budget,system,prompt:text,preference:"critical",validate(raw){
   const readMap=(input:unknown)=>{const out:Partial<Record<V8Dimension,number>>={};if(!input||typeof input!=="object"||Array.isArray(input))return out;for(const [k,v] of Object.entries(input as Record<string,unknown>)){const d=mapDimension(k),n=Number(v);if(d&&Number.isFinite(n))out[d]=clamp(n);}return out;};
