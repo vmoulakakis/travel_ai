@@ -16,7 +16,7 @@ import { canonicalRankingInputsV19 } from "@/lib/decision/canonical-ranking-v19"
 import { semanticNeedsClarificationV19 } from "@/lib/ai/semantic-policy-v19";
 import { diversifyV8,finalRankV8,preRankV8,responseFeasibility,toRecommendationsV8,type V8Ranked } from "@/lib/decision/v8-matcher";
 import { applySemanticIntentRankingV18 } from "@/lib/decision/semantic-intent-ranking-v18";
-import { applyChoiceCorrectnessV21 } from "@/lib/decision/choice-correctness-v21";
+import { applyChoiceCorrectnessV21,filterPortfolioV21 } from "@/lib/decision/choice-correctness-v21";
 import { interpretStayConstraintsV16 } from "@/lib/ai/stay-constraint-interpreter-v16";
 import { gateRankedByStayRequirementsV16 } from "@/lib/decision/stay-eligibility-v16";
 import type { V8RecommendationResponse } from "@/lib/decision/v8-types";
@@ -96,8 +96,8 @@ export async function runTravelOrchestratorV15(trip:TripRequest,sessionId:string
   }
 
   signal("council:start",93,{agent:"traveler-advocate"});stage="council";
-  const council=await runTravelCouncilV9(trip,audited.items,llmBudget),ordered=council.agreement==="STRONG"?[...audited.items].sort((a,b)=>a.destination.slug===council.finalSlug?-1:b.destination.slug===council.finalSlug?1:0):audited.items;mark("council");
-  signal("council:ready",97,{agreement:council.agreement,agent:"traveler-advocate"});
+  const councilPool=filterPortfolioV21(audited.items),council=await runTravelCouncilV9(trip,councilPool,llmBudget),ordered=council.agreement==="STRONG"?[...councilPool].sort((a,b)=>a.destination.slug===council.finalSlug?-1:b.destination.slug===council.finalSlug?1:0):councilPool;mark("council");
+  signal("council:ready",97,{agreement:council.agreement,agent:"traveler-advocate",publicCandidates:councilPool.length});
 
   const recommendations=toRecommendationsV8(trip,ordered).map(x=>({...x,dateWindows:buildSmartDateWindows(trip,x)})),publicIntent={...intent,interpretedText:undefined},publicStayRequirements={...stayRequirements,source:"deterministic" as const,needsSemanticAssist:false};
   const result:V8RecommendationResponse={version:9,experienceVersion:16,request:trip,generatedAt:new Date().toISOString(),source:"verified-travel-knowledge",intent:publicIntent,stayRequirements:publicStayRequirements,catalogSize:catalog.length,eligibleCount:ranked.length,explorationCount:Math.max(0,recommendations.length-3),mode:"guided",resultCount:recommendations.length,profileSummary:profileSummary(trip),feasibility:responseFeasibility(ordered),council,continuity:fullContinuity(),recommendations};
