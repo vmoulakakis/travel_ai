@@ -4,7 +4,7 @@ const norm=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300
 const cleanHtml=(value:string)=>value.replace(/<[^>]*>/g," ").replace(/&[a-z]+;/gi," ").replace(/\s+/g," ").trim();
 const unique=<T,>(values:T[])=>[...new Set(values)];
 export const STAY_CONSTRAINT_KINDS_V16:StayConstraintKind[]=["BEACHFRONT","NEAR_BEACH","SEA_VIEW","POOL","PARKING","EV_CHARGING","BREAKFAST","PET_FRIENDLY","FAMILY_ROOM","ADULTS_ONLY"];
-export const STAY_EXCLUSIVE_V16=/(?:\bμονο\b|\bαποκλειστικ|\bοπωσδηποτε\b|\bmust\b|\bonly\b|\bstrictly\b|\bmono\b|\bapokleistik)/i;
+export const STAY_EXCLUSIVE_V16=/(?:μονο|αποκλειστικ|οπωσδηποτε|\bmust\b|\bonly\b|\bstrictly\b|\bmono\b|\bapokleistik)/i;
 export const STAY_NOUN_V16=/(?:καταλυμ|ξενοδοχει|δωματι|διαμον|hotel|stay|room|katalym|xenodox|diamoni)/i;
 
 const patterns:Record<StayConstraintKind,RegExp[]>={
@@ -22,13 +22,10 @@ const patterns:Record<StayConstraintKind,RegExp[]>={
 
 function mentions(kind:StayConstraintKind,text:string){return patterns[kind].some(pattern=>pattern.test(text));}
 function hasScopedExclusivity(text:string,kind:StayConstraintKind){
- if(!STAY_EXCLUSIVE_V16.test(text))return false;
- if(STAY_NOUN_V16.test(text)&&mentions(kind,text))return true;
  const n=norm(text),terms:Record<StayConstraintKind,string[]>={
   BEACHFRONT:["beachfront","sea front","θαλασσ","παραλι","thalass","parali"],NEAR_BEACH:["παραλι","θαλασσ","beach","parali","thalass"],SEA_VIEW:["sea view","θεα","thea"],POOL:["pool","πισιν","pisin"],PARKING:["parking","παρκιν"],EV_CHARGING:["φορτι","charg","forti"],BREAKFAST:["breakfast","πρωιν","proin"],PET_FRIENDLY:["pet","κατοικιδ","katoikid"],FAMILY_ROOM:["family room","οικογενειακ","oikogeneiak"],ADULTS_ONLY:["adults only","ενηλικ","enilik"]};
- const ex=[...n.matchAll(/\b(?:μονο|only|mono|αποκλειστικ\w*|apokleistik\w*|οπωσδηποτε|must)\b/g)].map(match=>match.index??0);
- const hits=terms[kind].flatMap(term=>{const rows:number[]=[];let from=0;for(;;){const at=n.indexOf(term,from);if(at<0)break;rows.push(at);from=at+term.length;}return rows;});
- return ex.some(a=>hits.some(b=>Math.abs(a-b)<=90));
+ const clauses=n.split(/\s+(?:και|and|αλλα|but)\s+|[,;]/).map(value=>value.trim()).filter(Boolean);
+ return clauses.some(clause=>STAY_EXCLUSIVE_V16.test(clause)&&terms[kind].some(term=>clause.includes(term)));
 }
 
 export function parseStayConstraintsV16(raw:string|undefined|null):StayConstraintSpec{
