@@ -1,0 +1,28 @@
+import type { LocalityProfileV23 } from "@/lib/data/locality-profiles-v23";
+import { buildFuzzyContractV23,fuzzyVectorFitV23 } from "@/lib/decision/fuzzy-semantic-v23";
+import type { V8IntentProfile } from "@/lib/decision/v8-types";
+import type { V8Ranked } from "@/lib/decision/v8-matcher";
+import type { TripRequest } from "@/lib/validation/trip";
+
+const clamp=(value:number,min=0,max=100)=>Math.max(min,Math.min(max,value));
+export interface LocalityFuzzyAuditV23{
+ localityCount:number;
+ mappedDestinations:number;
+ freeTextWeight:number;
+ contractConfidence:number;
+ destinationFit:Record<string,number>;
+ scoreDelta:Record<string,number>;
+ topLocalities:Array<{slug:string;label:string;fit:number;confidence:number;distanceKm:number}>;
+}
+function calibratedFit(locality:LocalityProfileV23,raw:number){const strength=.38+.62*Math.max(0,Math.min(1,locality.profileConfidence));return .5+(raw-.5)*strength;}
+export function applyLocalityFuzzyRankingV23(request:TripRequest,intent:V8IntentProfile,items:V8Ranked[],localities:LocalityProfileV23[]):{ranked:V8Ranked[];audit:LocalityFuzzyAuditV23}{
+ const contract=intent.semantic24??buildFuzzyContractV23(request,intent.semantic),bySlug=new Map<string,Array<{locality:LocalityProfileV23;fit:number;conflict:number}>>(),topLocalities:LocalityFuzzyAuditV23["topLocalities"]=[];
+ for(const locality of localities){const result=fuzzyVectorFitV23(locality.semanticVector,contract),fit=calibratedFit(locality,result.fit),list=bySlug.get(locality.canonicalSlug)??[];list.push({locality,fit,conflict:result.negativeConflict});bySlug.set(locality.canonicalSlug,list);topLocalities.push({slug:locality.canonicalSlug,label:locality.locationLabel,fit:Number((fit*100).toFixed(1)),confidence:Number(locality.profileConfidence.toFixed(2)),distanceKm:Number(locality.canonicalDistanceKm.toFixed(1))});}
+ for(const list of bySlug.values())list.sort((a,b)=>b.fit-a.fit||a.locality.canonicalDistanceKm-b.locality.canonicalDistanceKm);
+ const hasFreeText=Boolean(request.tripText&&request.tripText.trim().length>=3),freeTextWeight=hasFreeText?.46:.28,destinationFit:Record<string,number>={},scoreDelta:Record<string,number>={};
+ const ranked=items.map(item=>{const list=bySlug.get(item.destination.slug)??[];let localityFit=.5,conflict=0;if(list.length){const top=list.slice(0,3),weights=[.55,.30,.15].slice(0,top.length),den=weights.reduce((a,b)=>a+b,0);localityFit=top.reduce((sum,row,i)=>sum+row.fit*weights[i],0)/den;conflict=top.reduce((sum,row,i)=>sum+row.conflict*weights[i],0)/den;}
+  destinationFit[item.destination.slug]=Number((localityFit*100).toFixed(1));
+  const blended=item.score*(1-freeTextWeight)+localityFit*100*freeTextWeight,coveragePenalty=hasFreeText&&!list.length?-8:0,crowdPenalty=contract.qualifiers.avoidCrowds>0?Math.max(0,item.destination.crowdLevel-2)*contract.qualifiers.avoidCrowds*2.3:0,accessBonus=contract.qualifiers.easyAccess>0?(item.breakdown.effort-65)*contract.qualifiers.easyAccess*.08:0,negativePenalty=conflict*8,score=clamp(blended+coveragePenalty-crowdPenalty+accessBonus-negativePenalty),delta=score-item.score;scoreDelta[item.destination.slug]=Number(delta.toFixed(2));return{...item,score,preScore:clamp(item.preScore+delta)};
+ }).sort((a,b)=>b.score-a.score);
+ return{ranked,audit:{localityCount:localities.length,mappedDestinations:bySlug.size,freeTextWeight,contractConfidence:Number(contract.confidence.toFixed(3)),destinationFit,scoreDelta,topLocalities:topLocalities.sort((a,b)=>b.fit-a.fit).slice(0,12)}};
+}
