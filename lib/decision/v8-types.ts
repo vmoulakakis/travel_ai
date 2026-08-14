@@ -7,6 +7,15 @@ import type { ContinuityEnvelope } from "@/lib/continuity";
 export const V8_DIMENSIONS=["romantic","relax","food","culture","city","nature","beach","adventure","nightlife","family","luxury","value","warmth","wellness","short_break","shoulder_season"] as const;
 export type V8Dimension=typeof V8_DIMENSIONS[number];
 
+export type StayConstraintKind="BEACHFRONT"|"NEAR_BEACH"|"SEA_VIEW"|"POOL"|"PARKING"|"EV_CHARGING"|"BREAKFAST"|"PET_FRIENDLY"|"FAMILY_ROOM"|"ADULTS_ONLY";
+export interface StayConstraintSpec{
+  hard:StayConstraintKind[];
+  soft:StayConstraintKind[];
+  confidence:"HIGH"|"MEDIUM";
+  source:"deterministic"|"deterministic+free"|"deterministic+deepseek"|"deterministic+openai";
+  needsSemanticAssist:boolean;
+}
+
 export interface V8Destination {
   slug:string;
   nameEl:string;
@@ -37,7 +46,7 @@ export interface V8Destination {
 
 export interface V8IntentProfile {
   weights:Record<V8Dimension,number>;
-  source:"structured"|"structured+deepseek";
+  source:"structured"|"structured+free"|"structured+deepseek"|"structured+openai";
   summary:string;
   interpretedText?:string|null;
 }
@@ -98,11 +107,12 @@ export interface V8Recommendation {
 
 export interface V8RecommendationResponse {
   version:8|9;
-  experienceVersion?:9;
+  experienceVersion?:9|16;
   request:TripRequest;
   generatedAt:string;
   source:"verified-travel-knowledge";
   intent:V8IntentProfile;
+  stayRequirements?:StayConstraintSpec;
   catalogSize:number;
   eligibleCount?:number;
   explorationCount?:number;
@@ -121,6 +131,7 @@ export interface V8StayOffer extends AffiliateOffer {
   distanceKm?:number|null;
   latitude?:number|null;
   longitude?:number|null;
+  raw?:Record<string,unknown>;
 }
 
 export interface V8StayResponse {
