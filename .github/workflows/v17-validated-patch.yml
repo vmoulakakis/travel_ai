@@ -21,6 +21,8 @@ jobs:
           node-version: 22
       - name: Apply V17 source patch
         run: python scripts/v17-apply-patch.py
+      - name: Remove unsupported generated taxonomy assumption
+        run: python scripts/v17-generated-hotfix.py
       - run: npm install
       - run: npm run typecheck
       - run: npm run test:v17:choice1000
