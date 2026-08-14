@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message == 'Retry V15 inventory UI patch'
+    if: github.event.head_commit.message == 'Run V15 inventory UI patch after type fix'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
