@@ -21,7 +21,7 @@ export interface InventoryDestinationOptionV15{
  sourceCities:string[];
 }
 
-type DestinationIdentity=Pick<V8Destination,"slug"|"nameEl"|"nameEn"|"aliases">;
+type DestinationIdentity={slug:string;nameEl:string;nameEn:string;aliases:readonly string[]};
 type EdgePayload={cities?:Array<Record<string,unknown>>};
 const norm=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").replace(/\s+/g," ").trim();
 const text=(value:unknown)=>typeof value==="string"?value.trim():"";
