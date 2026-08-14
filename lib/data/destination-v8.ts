@@ -5,7 +5,7 @@ const CATALOG_URL=process.env.SUPABASE_DESTINATION_CATALOG_V8_URL??"https://bgvg
 const STAYS_URL=process.env.SUPABASE_DESTINATION_STAYS_V8_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/destination-stays-v8";
 const text=(v:unknown)=>typeof v==="string"&&v.trim()?v.trim():null;
 const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
-function vector(v:unknown){if(Array.isArray(v))return v.map(Number).filter(Number.isFinite).slice(0,16);if(typeof v!=="string")return[];return v.replace(/^\[/,"").replace(/\]$/,"").split(",").map(Number).filter(Number.isFinite).slice(0,16)}
+function readVector(v:unknown,limit:number){if(Array.isArray(v))return v.map(Number).filter(Number.isFinite).slice(0,limit);if(typeof v!=="string")return[];return v.replace(/^\[/,"").replace(/\]$/,"").split(",").map(Number).filter(Number.isFinite).slice(0,limit)}
 function cleanHtml(v:string|null){return v?v.replace(/<[^>]*>/g," ").replace(/&nbsp;/gi," ").replace(/\s+/g," ").trim():null}
 function readHeaders():Record<string,string>{const headers:Record<string,string>={"user-agent":"travel-guru/1.0"},secret=process.env.SUPABASE_INGEST_SECRET;if(secret)headers["x-app-secret"]=secret;return headers}
 
@@ -23,7 +23,7 @@ async function fetchJson<T>(url:string,timeoutMs:number):Promise<T>{
 }
 
 function mapDestination(row:Record<string,unknown>):V8Destination|null{
- const slug=text(row.slug),nameEl=text(row.name_el),nameEn=text(row.name_en),countryCode=text(row.country_code),countryEl=text(row.country_el),countryEn=text(row.country_en),lat=num(row.latitude),lon=num(row.longitude),vec=vector(row.semantic_vector);
+ const slug=text(row.slug),nameEl=text(row.name_el),nameEn=text(row.name_en),countryCode=text(row.country_code),countryEl=text(row.country_el),countryEn=text(row.country_en),lat=num(row.latitude),lon=num(row.longitude),vec=readVector(row.semantic_vector,16);
  if(!slug||!nameEl||!nameEn||!countryCode||!countryEl||!countryEn||lat==null||lon==null||vec.length!==16)return null;
  const tags=Array.isArray(row.tags)?row.tags.filter((x):x is typeof V8_DIMENSIONS[number]=>typeof x==="string"&&(V8_DIMENSIONS as readonly string[]).includes(x)):[];
  const monthFit=Array.isArray(row.month_fit)?row.month_fit.map(Number).filter(Number.isFinite).slice(0,12):[];
@@ -45,8 +45,8 @@ function mapOffer(row:Record<string,unknown>):V8StayOffer|null{
  if(!trackingUrl||!sourceProductId||!propertyName||!trackingUrl.startsWith("https://go.linkwi.se/")||!trackingUrl.includes("/CD104/"))return null;
  const base:AffiliateOffer={sourceProductId,propertyName,description:cleanHtml(text(row.description)),category:text(row.source_category),programId:text(row.program_id),trackingUrl,imageUrl:text(row.image_url),thumbUrl:text(row.thumb_url),availability:text(row.availability),validFrom:text(row.valid_from),validTo:text(row.valid_to),currency:text(row.currency),price:num(row.price),fullPrice:num(row.full_price),discount:num(row.discount),demandSignal:num(row.demand_proxy),starLevel:null};
  const starMatch=propertyName.match(/(?:^|\s)([1-5])\s*\*/);if(starMatch)base.starLevel=Number(starMatch[1]);
- const raw=row.raw&&typeof row.raw==="object"&&!Array.isArray(row.raw)?row.raw as Record<string,unknown>:{};
- return{...base,inStock:typeof row.in_stock==="boolean"?row.in_stock:null,city:text(row.city),address:text(row.address),distanceKm:num(row.distance_km),latitude:num(row.latitude)??num(raw.latitude),longitude:num(row.longitude)??num(raw.longitude),raw};
+ const raw=row.raw&&typeof row.raw==="object"&&!Array.isArray(row.raw)?row.raw as Record<string,unknown>:{},semanticVector=readVector(row.semantic_vector,24),semanticConfidence=num(row.semantic_confidence);
+ return{...base,inStock:typeof row.in_stock==="boolean"?row.in_stock:null,city:text(row.city),address:text(row.address),distanceKm:num(row.distance_km),latitude:num(row.latitude)??num(raw.latitude),longitude:num(row.longitude)??num(raw.longitude),semanticVector:semanticVector.length===24?semanticVector:undefined,semanticConfidence,raw};
 }
 
 export async function loadV8StayOffers(slug:string,startDate:string,endDate:string,limit=18):Promise<V8StayOffer[]>{
