@@ -60,3 +60,10 @@
 .inventory-city-proof span{display:flex;align-items:center;gap:.4rem}
 .inventory-city-error{color:#ffb7c4}
 @media(max-width:640px){.inventory-city-control select{min-height:50px;border-radius:14px;font-size:16px}}
+
+
+/* V16 hard stay evidence */
+.hard-stay-requirement{display:flex;gap:.8rem;align-items:flex-start;margin:1rem 0 1.35rem;padding:1rem 1.1rem;border:1px solid rgba(20,95,74,.2);border-radius:18px;background:rgba(235,247,241,.78)}
+.hard-stay-requirement>div{display:grid;gap:.2rem}.hard-stay-requirement strong{font-size:.94rem}.hard-stay-requirement span{font-weight:700}.hard-stay-requirement small{opacity:.75;line-height:1.45}
+.hard-stay-evidence{font-weight:700!important;border-color:rgba(35,125,92,.22)!important;background:rgba(228,247,238,.75)!important}
+@media(max-width:640px){.hard-stay-requirement{border-radius:15px;padding:.85rem}.hard-stay-requirement small{font-size:.78rem}}

@@ -1,15 +1,16 @@
 import type { TripRequest } from "@/lib/validation/trip";
 import { V8_DIMENSIONS,type V8Dimension,type V8IntentProfile } from "@/lib/decision/v8-types";
+import { createLLMRequestBudgetV16,generateJsonWithRoutingV16,type LLMRequestBudgetV16,type ModelTierV16 } from "@/lib/ai/model-router-v9";
 
 type Parsed={weights?:Partial<Record<V8Dimension,number>>;summary?:string};
 const clamp=(v:number)=>Math.max(0,Math.min(1,v));
 const blank=()=>Object.fromEntries(V8_DIMENSIONS.map(k=>[k,0])) as Record<V8Dimension,number>;
 const normalizedFreeText=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").replace(/\s+/g," ").trim();
 const has=(text:string,pattern:RegExp)=>pattern.test(text);
+const knownIntentPattern=/βουνο|ορειν|mountain|vouno|bouno|παραθαλασ|θαλασσ|παραλι|seaside|coast|beach|paralia|thalass|πολη|city|urban|ησυχ|ηρεμι|χαλαρ|quiet|calm|relax|φαγητ|γαστρονομ|food|restaurant|fagit|φυση|nature|fusi|αρχαι|archaeolog|culture|πολιτισ|event|festival|εκδηλω|ρομαντ|romantic|nightlife|βραδιν|adventure|πεζοπορ|ηλιο|warm|παιδι|family|local character|αυθεντικ/i;
 
 function applyFreeTextSignals(w:Record<V8Dimension,number>,raw:string){
  const free=normalizedFreeText(raw);if(!free)return;
- // Greek + English + common Greeklish forms are deterministic so ordinary users do not need an LLM call for basic meaning.
  if(has(free,/βουνο|ορειν|mountain|vouno|bouno|orein|orino/)){w.nature=Math.max(w.nature,.92);w.adventure=Math.max(w.adventure,.55);w.wellness=Math.max(w.wellness,.35)}
  if(has(free,/παραθαλασ|θαλασσ|παραλι|seaside|coast|beach|paralia|thalass|thalasa|parathalass|parathalas/))w.beach=Math.max(w.beach,.92);
  if(has(free,/πολη|αστικ|city|urban|\bpoli\b|astik/)){w.city=Math.max(w.city,.88);w.culture=Math.max(w.culture,.4)}
@@ -32,7 +33,6 @@ export function structuredIntent(request:TripRequest):V8IntentProfile{
  for(const mood of request.moods){const map:Record<string,V8Dimension>={romantic:"romantic",relax:"relax",food:"food",culture:"culture",city:"city",nature:"nature",adventure:"adventure",warmth:"warmth"};const d=map[mood];if(d)w[d]=1;}
  if(request.travelerType==="family")w.family=Math.max(w.family,.75);
  if(request.travelerType==="friends")w.nightlife=Math.max(w.nightlife,.35);
- // Stay style is intentionally absent here. Boutique/luxury/resort/value only ranks stays after destination selection.
  if(request.avoid==="high-cost")w.value=Math.max(w.value,.4);
  if(request.distancePreference==="island")w.beach=Math.max(w.beach,.5);
  if(request.pace==="slow"){w.relax=Math.max(w.relax,.35);w.wellness=Math.max(w.wellness,.2);}
@@ -53,18 +53,21 @@ export function structuredIntent(request:TripRequest):V8IntentProfile{
  return{weights:w,source:"structured",summary:request.moods.join(" + ")};
 }
 
-export async function interpretIntentV8(request:TripRequest):Promise<V8IntentProfile>{
+const tierSource=(tier:ModelTierV16):V8IntentProfile["source"]=>tier==="free"?"structured+free":tier==="openai"?"structured+openai":"structured+deepseek";
+
+export async function interpretIntentV8(request:TripRequest,budget:LLMRequestBudgetV16=createLLMRequestBudgetV16()):Promise<V8IntentProfile>{
  const base=structuredIntent(request),text=request.tripText?.trim();if(!text||text.length<8)return base;
- const deepSeekKey=process.env.DEEPSEEK_API_KEY,selfHostedBase=process.env.SELF_HOSTED_AI_BASE_URL,selfHostedModel=process.env.SELF_HOSTED_AI_MODEL;
- if(!deepSeekKey&&(!selfHostedBase||!selfHostedModel))return base;
- const selfHosted=!deepSeekKey, key=deepSeekKey||process.env.SELF_HOSTED_AI_API_KEY||"local",model=selfHosted?selfHostedModel as string:process.env.DEEPSEEK_INTENT_MODEL||"deepseek-v4-flash",url=`${selfHosted?selfHostedBase:process.env.DEEPSEEK_BASE_URL||"https://api.deepseek.com"}`.replace(/\/$/,"")+"/chat/completions";
- const system=`You are a semantic travel-intent parser, not a destination recommender. Convert the user's free text into preference weights only. Never name destinations, hotels, flights, prices, routes or weather. Dimensions: ${V8_DIMENSIONS.join(", ")}. Return JSON only: {"weights":{"dimension":0..1},"summary":"max 90 chars"}. Use only dimensions clearly supported by the text.`;
- try{
-  const body:Record<string,unknown>={model,messages:[{role:"system",content:system},{role:"user",content:text}],response_format:{type:"json_object"},max_tokens:260};if(!selfHosted){body.thinking={type:"enabled"};body.reasoning_effort="high";}
-  const response=await fetch(url,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify(body),signal:AbortSignal.timeout(5000)});
-  if(!response.ok)return base;const payload=await response.json() as {choices?:Array<{message?:{content?:string|null}}>},raw=payload.choices?.[0]?.message?.content;if(!raw)return base;const parsed=JSON.parse(raw) as Parsed,weights={...base.weights};
-  if(parsed.weights&&typeof parsed.weights==="object")for(const d of V8_DIMENSIONS){const v=Number(parsed.weights[d]);if(Number.isFinite(v)&&v>0)weights[d]=Math.max(weights[d],clamp(v)*.72);}
-  for(const mood of request.moods){const m:Record<string,V8Dimension>={romantic:"romantic",relax:"relax",food:"food",culture:"culture",city:"city",nature:"nature",adventure:"adventure",warmth:"warmth"};const d=m[mood];if(d)weights[d]=Math.max(weights[d],.9);}
-  return{weights,source:"structured+deepseek",summary:typeof parsed.summary==="string"?parsed.summary.slice(0,100):base.summary,interpretedText:text};
- }catch{return base}
+ const normalized=normalizedFreeText(text),known=knownIntentPattern.test(normalized),clauses=(normalized.match(/(?: και | αλλα | χωρις | and | but | without |,)/g)??[]).length;
+ const deterministicConfidence=known?(clauses>=3?.82:.95):.58;
+ const hardRisk=/(?:μονο|χωρις|οπωσδηποτε|\b(?:only|mono|without|must)\b)/i.test(normalized);
+ const system=`You are a semantic travel-intent parser, not a destination recommender. Convert free text into preference weights only. Never name destinations, hotels, flights, prices, routes, weather or availability. Dimensions: ${V8_DIMENSIONS.join(", ")}. Return JSON only: {"weights":{"dimension":0..1},"summary":"max 90 chars"}. Use only dimensions clearly supported by the text. Hard exclusions and stay-specific requirements are handled elsewhere; do not convert them into invented destination facts.`;
+ const routed=await generateJsonWithRoutingV16<Parsed>({
+  context:{task:"intent",text,deterministicConfidence,hardConstraintRisk:hardRisk,contradictorySignals:clauses>=4},budget,system,prompt:text,preference:"critical",
+  validate(raw){const weights=raw.weights&&typeof raw.weights==="object"&&!Array.isArray(raw.weights)?raw.weights as Record<string,unknown>:null;if(!weights)return null;const parsed:Parsed={weights:{},summary:typeof raw.summary==="string"?raw.summary.slice(0,100):undefined};for(const d of V8_DIMENSIONS){const value=Number(weights[d]);if(Number.isFinite(value)&&value>=0&&value<=1)(parsed.weights as Partial<Record<V8Dimension,number>>)[d]=value;}return Object.keys(parsed.weights??{}).length?parsed:null;}
+ });
+ if(!routed)return base;
+ const weights={...base.weights};
+ if(routed.value.weights)for(const d of V8_DIMENSIONS){const v=Number(routed.value.weights[d]);if(Number.isFinite(v)&&v>0)weights[d]=Math.max(weights[d],clamp(v)*.72);}
+ for(const mood of request.moods){const m:Record<string,V8Dimension>={romantic:"romantic",relax:"relax",food:"food",culture:"culture",city:"city",nature:"nature",adventure:"adventure",warmth:"warmth"};const d=m[mood];if(d)weights[d]=Math.max(weights[d],.9);}
+ return{weights,source:tierSource(routed.tier),summary:routed.value.summary??base.summary,interpretedText:text};
 }
