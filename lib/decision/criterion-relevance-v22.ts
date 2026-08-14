@@ -36,10 +36,10 @@ function positiveWeight(request:TripRequest,intent:V8IntentProfile,dimension:V8D
  if(request.mustHave==="culture"&&dimension==="culture")weight=Math.max(weight,1.25);
  if(request.mustHave==="nightlife"&&dimension==="nightlife")weight=Math.max(weight,1.25);
  if(request.socialPreference==="quiet"&&dimension==="relax")weight=Math.max(weight,.75);
- if(request.socialPreference==="lively"&&(dimension==="city"||dimension==="nightlife"))weight=Math.max(weight,dimension==="nightlife"?.85:.65);
+ if(request.socialPreference==="lively"&&(dimension==="city"||dimension==="nightlife"))weight=Math.max(weight,dimension==="nightlife" ? .85 : .65);
  if(request.desiredEnergy==="restore"&&dimension==="relax")weight=Math.max(weight,.85);
- if(request.desiredEnergy==="stimulating"&&(dimension==="adventure"||dimension==="culture"||dimension==="city"))weight=Math.max(weight,dimension==="adventure"?.75:.55);
- const priorityIndex=semantic?.priorities.indexOf(dimension)??-1;if(priorityIndex>=0)weight*=priorityIndex===0?1.65:priorityIndex===1?1.35:1.18;
+ if(request.desiredEnergy==="stimulating"&&(dimension==="adventure"||dimension==="culture"||dimension==="city"))weight=Math.max(weight,dimension==="adventure" ? .75 : .55);
+ const priorityIndex=semantic?.priorities.indexOf(dimension)??-1;if(priorityIndex>=0)weight*=priorityIndex===0 ? 1.65 : priorityIndex===1 ? 1.35 : 1.18;
  return Math.min(2.4,weight);
 }
 
@@ -52,7 +52,7 @@ export function applyCriterionRelevanceV22(request:TripRequest,intent:V8IntentPr
  const scoreDelta:Record<string,number>={},ranked=items.map(item=>{
   let positiveSum=0,weightSum=0;
   for(const [dimension,weight] of weights){const bySlug=values.get(dimension),raw=bySlug?.get(item.destination.slug)??.5,all=[...(bySlug?.values()??[])],min=all.length?Math.min(...all):0,max=all.length?Math.max(...all):1,range=Math.max(0,max-min),relative=range>=.06?(raw-min)/range:.5,information=range>=.10?Math.min(1,.25+range*1.6):.14,fit=.58*raw+.42*relative;positiveSum+=fit*weight*information;weightSum+=weight*information;}
-  const criterionFit=weightSum>0?positiveSum/weightSum:.5,priorityStrength=primaryPriority&&weights.has(primaryPriority)?.40:.30;
+  const criterionFit=weightSum>0?positiveSum/weightSum:.5,priorityStrength=primaryPriority&&weights.has(primaryPriority) ? .40 : .30;
   let delta=(criterionFit-.5)*100*priorityStrength;
   const semantic=intent.semantic;if(semantic){for(const dimension of choiceDimensions){const negative=clamp01(semantic.negative[dimension]??0);if(negative<.2)continue;const raw=profileAffinity(item,profiles.get(item.destination.slug),dimension);delta-=negative*raw*(negative>=.85?15:10);}}
   delta=clamp(delta,-22,20);scoreDelta[item.destination.slug]=Number(delta.toFixed(2));return{...item,score:clamp(item.score+delta),preScore:clamp(item.preScore+delta)};
