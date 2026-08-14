@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import type { LanguageModel } from "ai";
+import { generateText, type LanguageModel } from "ai";
 
 export type CouncilModelPreference = "creative" | "critical";
 export type ModelTierV16="free"|"deepseek"|"openai";
@@ -95,9 +95,7 @@ export function routedModelsV16(context:RoutingContextV16,preference:CouncilMode
  const paid:RoutedModelV16[]=[];
  if(decision.allowDeepSeek){const model=deepSeekModel();if(model)paid.push({tier:"deepseek",model,maxOutputTokens:deepMax,timeoutMs:envNumber("DEEPSEEK_TIMEOUT_MS",6500,1000,20000),label:"deepseek"});}
  if(decision.allowOpenAI){const model=openAIModel();if(model)paid.push({tier:"openai",model,maxOutputTokens:openMax,timeoutMs:envNumber("OPENAI_TIMEOUT_MS",5000,1000,15000),label:"openai"});}
- // Free/open models are always attempted before paid providers. Preference only
- // changes the paid verifier ordering when both are permitted.
- return preference==="creative"?[...free,...paid]:[...free,...paid];
+ return [...free,...paid];
 }
 
 export function createLLMRequestBudgetV16():LLMRequestBudgetV16{
@@ -115,8 +113,30 @@ export function createLLMRequestBudgetV16():LLMRequestBudgetV16{
  };
 }
 
+function jsonObject(raw:string){
+ const cleaned=raw.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/i,"").trim(),start=cleaned.indexOf("{"),end=cleaned.lastIndexOf("}");
+ if(start<0||end<=start)return null;
+ try{return JSON.parse(cleaned.slice(start,end+1)) as Record<string,unknown>}catch{return null}
+}
+
+export async function generateJsonWithRoutingV16<T>(args:{context:RoutingContextV16;budget:LLMRequestBudgetV16;system:string;prompt:string;preference?:CouncilModelPreference;validate:(value:Record<string,unknown>)=>T|null}){
+ const routes=routedModelsV16(args.context,args.preference??"critical");
+ for(const route of routes){
+  if(!args.budget.reserve(route,1))continue;
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),route.timeoutMs);
+  try{
+   const result=await generateText({model:route.model,system:args.system,prompt:args.prompt,maxOutputTokens:route.maxOutputTokens,temperature:0,maxRetries:0,abortSignal:controller.signal});
+   const parsed=jsonObject(result.text),value=parsed?args.validate(parsed):null;
+   if(value)return{value,tier:route.tier,label:route.label};
+  }catch{
+   // Escalation is bounded by the shared request budget and threshold policy.
+  }finally{clearTimeout(timer)}
+ }
+ return null;
+}
+
 /** Legacy compatibility: free models now lead; paid models are only included when requested. */
 export function councilModels(preference: CouncilModelPreference, includeDeepSeek = true): LanguageModel[] {
- const context:RoutingContextV16={task:"council",deterministicConfidence:includeDeepSeek?.7:.88,hardConstraintRisk:includeDeepSeek};
+ const context:RoutingContextV16={task:"council",deterministicConfidence:includeDeepSeek ? .7 : .88,hardConstraintRisk:includeDeepSeek};
  return routedModelsV16(context,preference).filter(route=>includeDeepSeek||route.tier==="free").map(route=>route.model);
 }
