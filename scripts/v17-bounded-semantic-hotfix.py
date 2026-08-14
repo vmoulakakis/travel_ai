@@ -5,5 +5,5 @@ start=s.index('function freeTextPreferenceAdjustment(')
 end=s.index('\n}',start)+2
 block=s[start:end]
 assert ' return delta;' in block, 'semantic adjustment return not found'
-block=block.replace(' return delta;',' return clamp(delta,-5,5);',1)
+block=block.replace(' return delta;',' return clamp(delta,-3,3);',1)
 p.write_text(s[:start]+block+s[end:])
