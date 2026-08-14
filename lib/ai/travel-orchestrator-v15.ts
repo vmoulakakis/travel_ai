@@ -14,7 +14,7 @@ import { screenResearchEvidence } from "@/lib/decision/research-intent-v13";
 import { buildSmartDateWindows } from "@/lib/decision/date-windows-v9";
 import { geographyConstraint } from "@/lib/decision/geography-constraint";
 import { diversifyV8,finalRankV8,preRankV8,responseFeasibility,toRecommendationsV8,type V8Ranked } from "@/lib/decision/v8-matcher";
-import { interpretStayConstraintsV16 } from "@/lib/decision/stay-constraints-v16";
+import { interpretStayConstraintsV16 } from "@/lib/ai/stay-constraint-interpreter-v16";
 import { gateRankedByStayRequirementsV16 } from "@/lib/decision/stay-eligibility-v16";
 import type { V8RecommendationResponse } from "@/lib/decision/v8-types";
 import type { TripRequest } from "@/lib/validation/trip";
