@@ -39,6 +39,7 @@ import type { WeeklyPick } from "@/lib/decision/weekly-pick";
 
 type Lang = "el" | "en";
 type StreamEvent = { type: string; message?: string; result?: V8RecommendationResponse; continuity?: ContinuityEnvelope };
+type InventoryCityOption = { slug:string; value:string; label:string; propertyCount:number; offerCount:number; sourceCities:string[] };
 
 const say = (lang: Lang, el: string, en: string) => (lang === "el" ? el : en);
 const addDays = (iso: string, days: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
@@ -84,14 +85,16 @@ const moodOptions = [
 ] as const;
 
 const stageLabels: Record<string, [string, string]> = {
-  "understand:start": ["Η Ψυχολόγος του ταξιδιού διαβάζει πίσω από τις απαντήσεις", "Your travel psychologist reads between the answers"],
+  "understand:start": ["Ο Intent Agent μεταφράζει τι πραγματικά ζητάς", "The Intent Agent translates what you really need"],
   "understand:ready": ["Το πραγματικό σου ζητούμενο έγινε ξεκάθαρο", "Your real need is now clear"],
-  "catalog:start": ["Ο Explorer ανοίγει όλη την Ελλάδα", "The Explorer opens up all of Greece"],
+  "catalog:start": ["Ο Orchestrator ανοίγει τον επαληθευμένο ελληνικό κατάλογο", "The Orchestrator opens the verified Greek catalog"],
   "catalog:ready": ["Ολόκληρος ο ελληνικός κατάλογος μπήκε στη σύγκριση", "The full Greek catalog entered the comparison"],
-  "shortlist:ready": ["Ο Matchmaker κράτησε μόνο όσα έχουν προσωπικό λόγο", "The Matchmaker kept only meaningful fits"],
-  "weather:start": ["Ο Season Keeper ελέγχει αν οι ημερομηνίες στέκουν", "The Season Keeper checks whether the dates work"],
+  "shortlist:ready": ["Το Decision Engine κράτησε μόνο τα πραγματικά βιώσιμα matches", "The Decision Engine kept only viable matches"],
+  "weather:start": ["Ο Season & Route Analyst ελέγχει εποχή και μετάβαση", "The Season & Route Analyst checks season and travel effort"],
   "weather:ready": ["Καιρός και εποχή πέρασαν τον έλεγχο", "Weather and season passed the check"],
-  "verify:start": ["Ο Skeptic ψάχνει λόγο να απορρίψει τις επιλογές", "The Skeptic looks for reasons to reject the choices"],
+  "research:start": ["Ο Research Scout ψάχνει πραγματικές πηγές για τους finalists", "The Research Scout checks real sources for the finalists"],
+  "research:ready": ["Η έρευνα επέστρεψε grounded evidence — όχι μνήμη μοντέλου", "Research returned grounded evidence — not model memory"],
+  "verify:start": ["Ο Skeptical Auditor προσπαθεί να απορρίψει αδύναμες επιλογές", "The Skeptical Auditor tries to reject weak choices"],
   "verify:ready": ["Οι αδύναμες επιλογές αποκλείστηκαν", "Weak choices were removed"],
   "council:start": ["Δύο ανεξάρτητες φωνές υπερασπίζονται την τελική επιλογή", "Two independent voices defend the final choice"],
   "council:ready": ["Η ομάδα έχτισε ένα χαρτοφυλάκιο πραγματικά διαφορετικών επιλογών", "The team built a portfolio of genuinely distinct options"],
@@ -105,6 +108,9 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<StreamEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [cityOptions, setCityOptions] = useState<InventoryCityOption[]>([]);
+  const [cityLoading, setCityLoading] = useState(false);
+  const [cityError, setCityError] = useState<string | null>(null);
   const [result, setResult] = useState<V8RecommendationResponse | null>(null);
   const [selected, setSelected] = useState<V8Recommendation | null>(null);
   const [stayData, setStayData] = useState<V8StayResponse | null>(null);
@@ -132,6 +138,29 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
     const timer = window.setTimeout(() => document.getElementById("discovery")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    setCityLoading(true);
+    setCityError(null);
+    fetch(`/api/stay-cities?lang=${lang}`, { signal: controller.signal, headers: { accept: "application/json" } })
+      .then(async response => { if (!response.ok) throw new Error(`city inventory ${response.status}`); return await response.json() as { cities?: InventoryCityOption[] }; })
+      .then(payload => {
+        if (!active) return;
+        const options = Array.isArray(payload.cities) ? payload.cities.filter(option => option.propertyCount > 0 && option.offerCount > 0) : [];
+        setCityOptions(options);
+        setTrip(current => {
+          if (current.entryMode !== "idea" || !current.consideredDestination) return current;
+          const raw = current.consideredDestination.toLocaleLowerCase("el");
+          const matched = options.find(option => option.value === current.consideredDestination || option.label.toLocaleLowerCase("el") === raw);
+          return matched ? { ...current, consideredDestination: matched.value } : { ...current, consideredDestination: undefined };
+        });
+      })
+      .catch(error => { if (active && error?.name !== "AbortError") { setCityOptions([]); setCityError(say(lang, "Δεν μπορώ να επιβεβαιώσω τις πόλεις με καταλύματα αυτή τη στιγμή.", "I cannot verify accommodation-backed cities right now.")); } })
+      .finally(() => { if (active) setCityLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [lang]);
 
   const patch = <K extends keyof TripRequest>(key: K, value: TripRequest[K]) => setTrip(current => ({ ...current, [key]: value }));
   const setDates = (start: string, end: string) => {
@@ -334,7 +363,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
           <Question title={say(lang, "Ποιο είναι το συνολικό budget για όλους;", "What is the total budget for everyone?")} hint={say(lang, `Υπολογίζεται για ${trip.groupSize??1} ταξιδιώτες και ${trip.nights} νύχτες — όχι ανά άτομο.`, `Calculated for ${trip.groupSize??1} travellers and ${trip.nights} nights — not per person.`)}><div className="budget-row">{[300, 500, 800, 1200, 1800, 2500].map(value => <Choice key={value} active={trip.budget === value} onClick={() => patch("budget", value)}>€{value}</Choice>)}</div></Question>
           <div className="question-pair"><Question title={say(lang, "Πώς θέλεις να μένεις;", "How do you like to stay?")}><div className="choice-row compact">{([['boutique','Boutique'],['luxury','Luxury'],['value',say(lang,'Καλή αξία','Good value')],['resort','Resort'],['any',say(lang,'Ανοιχτός','Open')]] as const).map(([value, label]) => <Choice key={value} active={trip.hotelStyle === value} onClick={() => patch("hotelStyle", value)}>{label}</Choice>)}</div></Question><Question title={say(lang,"Μπορούν να μετακινηθούν λίγο οι ημερομηνίες;","Can the dates move a little?")}><div className="choice-row">{([['fixed',say(lang,'Είναι σταθερές','Fixed')],['few-days',say(lang,'± λίγες ημέρες','A few days')],['open',say(lang,'Είμαι ανοιχτός','Open')]] as const).map(([value,label])=><Choice key={value} active={trip.dateFlexibility===value} onClick={()=>patch("dateFlexibility",value)}>{label}</Choice>)}</div></Question></div>
           <Question title={say(lang,"Πού θέλεις να είναι η βάση σου;","Where should your base be?")} hint={say(lang,"Χρησιμοποιείται όταν ταξινομούμε τα πραγματικά καταλύματα του προορισμού.","Used when ranking the destination's real stays.")}><div className="choice-row">{([['central',say(lang,'Στο κέντρο / με τα πόδια','Central / walkable')],['balanced',say(lang,'Ισορροπία','Balanced')],['outside',say(lang,'Πιο έξω και ήσυχα','Outside and quieter')]] as const).map(([value,label])=><Choice key={value} active={trip.stayLocationPreference===value} onClick={()=>patch("stayLocationPreference",value)}>{label}</Choice>)}</div></Question>
-          {entryMode === "idea" && <Question title={say(lang,"Ποιο μέρος έχεις στο μυαλό σου;","Which place do you have in mind?")} hint={say(lang,"Θα το εξετάσουμε, αλλά δεν θα το προωθήσουμε αν δεν περνά τα κριτήριά σου.","We will consider it, but not force it past your criteria.")}><input aria-label={say(lang,"Προορισμός που σκέφτεσαι","Destination you are considering")} className="destination-input" value={trip.consideredDestination??""} placeholder={say(lang,"π.χ. Κέρκυρα","e.g. Corfu")} onChange={event=>patch("consideredDestination",event.target.value)}/></Question>}
+          {entryMode === "idea" && <Question title={say(lang,"Ποια πόλη έχεις στο μυαλό σου;","Which city do you have in mind?")} hint={say(lang,"Εμφανίζονται μόνο προορισμοί που έχουν τώρα πραγματικά καταλύματα στο ενεργό inventory. Η επιλογή εξετάζεται — δεν εξαναγκάζεται να κερδίσει.","Only destinations with real accommodation in the active inventory are shown. Your idea is considered, never forced to win.")}><div className="inventory-city-control"><select aria-label={say(lang,"Πόλη με ενεργά καταλύματα","City with active accommodation")} value={trip.consideredDestination??""} disabled={cityLoading||cityOptions.length===0} onChange={event=>patch("consideredDestination",event.target.value||undefined)}><option value="">{cityLoading?say(lang,"Ελέγχω το ενεργό inventory…","Checking active inventory…"):say(lang,"Διάλεξε πόλη / προορισμό","Choose a city / destination")}</option>{cityOptions.map(option=><option key={option.slug} value={option.value}>{option.label} · {option.propertyCount} {say(lang,"καταλύματα","stays")}</option>)}</select><div className="inventory-city-proof" aria-live="polite">{cityError?<span className="inventory-city-error">{cityError}</span>:cityOptions.length>0?<span><ShieldCheck size={17} weight="duotone" /> {say(lang,`${cityOptions.length} προορισμοί επιβεβαιώθηκαν από ενεργά καταλύματα`,`${cityOptions.length} destinations verified from active accommodation`)}</span>:null}</div></div></Question>}
           <Question title={say(lang, "Πες κάτι που δεν χώρεσε στις επιλογές.", "Tell us what the choices missed.")} hint={say(lang, "Προαιρετικό — μίλα φυσικά. Μόνο οι ρητά αποκλειστικές λέξεις περιορίζουν τις τελικές επιλογές.", "Optional — speak naturally. Only explicit exclusive wording limits final choices.")}><textarea maxLength={320} value={trip.tripText ?? ""} placeholder={say(lang, "π.χ. θέλω ήσυχα πρωινά, ωραίο φαγητό και λίγη ζωή το βράδυ, χωρίς να τρέχω", "e.g. quiet mornings, great food and a little evening energy, without rushing")} onChange={event => patch("tripText", event.target.value)} /></Question>
         </div>}
 

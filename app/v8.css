@@ -49,3 +49,14 @@
 .guru-map-marker b{display:block;transform:rotate(45deg)}
 @media(max-width:1000px){.stay-map-shell,.guide-email{grid-template-columns:1fr}.stay-map-copy{padding:26px}.stay-map-frame{min-height:460px}.final-handoff{grid-template-columns:1fr}.final-handoff a,.final-handoff>button{min-width:0;width:100%}}
 @media(max-width:700px){.stay-map-frame{min-height:390px}.guide-choice-grid{grid-template-columns:1fr}.final-step-head,.final-handoff{padding:26px 21px}.guide-email{padding:28px 21px}.email-controls{grid-template-columns:1fr}.email-controls>button{width:100%}.final-step-head>svg{display:none}.guide-choice-grid article{min-height:255px;padding:23px}.map-attribution{max-width:80%;line-height:1.25}.final-step-lock{padding:28px 22px}.availability-recovery{padding:24px 21px}.recovery-options{display:grid}.recovery-options a,.recovery-options button{width:100%;justify-content:center}}
+
+
+/* V15 inventory-grounded city selector */
+.inventory-city-control{display:grid;gap:.65rem;max-width:780px}
+.inventory-city-control select{width:100%;min-height:52px;border:1px solid rgba(120,215,255,.28);border-radius:16px;background:rgba(7,20,40,.92);color:#f7fbff;padding:.82rem 2.8rem .82rem 1rem;font:inherit;line-height:1.25;box-shadow:inset 0 1px 0 rgba(255,255,255,.04);outline:none}
+.inventory-city-control select:focus-visible{border-color:#7bdcff;box-shadow:0 0 0 3px rgba(123,220,255,.18)}
+.inventory-city-control select:disabled{opacity:.62;cursor:progress}
+.inventory-city-proof{min-height:24px;font-size:.84rem;color:rgba(226,241,255,.75)}
+.inventory-city-proof span{display:flex;align-items:center;gap:.4rem}
+.inventory-city-error{color:#ffb7c4}
+@media(max-width:640px){.inventory-city-control select{min-height:50px;border-radius:14px;font-size:16px}}
