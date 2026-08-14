@@ -1,0 +1,8 @@
+export const V23_AGENT_SKILLS=[
+ {id:"semantic-formulation",owner:"intent-constraint",input:"structured fields + free text",output:"canonical 24D fuzzy contract",tools:["DeepSeek reasoner preferred","deterministic semantic fallback"],rule:"never name or rank destinations"},
+ {id:"locality-retrieval",owner:"inventory-grounder",input:"dates + 24D contract",output:"dated eligible locality profiles",tools:["Supabase locality profiles","geographic canonical mapping"],rule:"inventory count is observability only"},
+ {id:"fuzzy-matching",owner:"orchestrator",input:"locality profiles + 24D contract",output:"criterion-sensitive candidate order",tools:["weighted fuzzy membership","priority floor","negative membership"],rule:"hard constraints stay deterministic"},
+ {id:"hotel-reranking",owner:"inventory-grounder",input:"hotel semantic profiles + stay requirements + 24D contract",output:"personalized offer order",tools:["stay semantic profiles","explicit amenity evidence"],rule:"missing hard evidence fails closed"},
+ {id:"evidence-research",owner:"research-scout",input:"retrieved finalists",output:"bounded evidence adjustments",tools:["public travel evidence"],rule:"research verifies candidates; it does not invent the candidate universe"},
+ {id:"learning-observer",owner:"orchestrator",input:"impressions/selections/clicks",output:"training outcomes",tools:["match_sessions","match_outcomes"],rule:"no learned reranker until positive-signal volume passes validation gate"},
+] as const;
