@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { applyCriterionRelevanceV22 } from "../lib/decision/criterion-relevance-v22";
 import { scoreStayOffer,stayOfferCriterionDeltaV22 } from "../lib/decision/stay-offer-score";
 import type { DestinationChoiceProfileV22 } from "../lib/data/destination-choice-profiles-v22";
@@ -32,4 +33,7 @@ const spec:StayConstraintSpec={hard:[],soft:["BREAKFAST"],confidence:"HIGH",sour
 function stay(id:string,description:string):V8StayOffer{return{sourceProductId:id,propertyName:id,description,trackingUrl:"https://go.linkwi.se/z/CD104/x",distanceKm:2,raw:{}};}
 const withBreakfast=stay("with-breakfast","Boutique hotel with breakfast included"),withoutBreakfast=stay("without-breakfast","Boutique hotel near the centre");withBreakfast.semanticScore=stayOfferCriterionDeltaV22(withBreakfast,spec);withoutBreakfast.semanticScore=stayOfferCriterionDeltaV22(withoutBreakfast,spec);
 assert.ok((withBreakfast.semanticScore??0)>(withoutBreakfast.semanticScore??0)+20,"soft stay evidence must materially affect relevance");assert.ok(scoreStayOffer(withBreakfast,"boutique","balanced")>scoreStayOffer(withoutBreakfast,"boutique","balanced"),"UI stay sorter must preserve backend criterion relevance");
+
+const health=readFileSync("app/api/health/route.ts","utf8");
+assert.match(health,/release:\"V22\"/);assert.match(health,/choiceProfilesReady/);assert.match(health,/criterionSensitivityGate:true/);assert.match(health,/negationSafeStayEvidence:true/);
 console.log("V22 criterion relevance and choice sensitivity: PASS");
