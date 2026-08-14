@@ -51,7 +51,9 @@ function reconcileWeights(request:TripRequest,semantic:V8SemanticIntent){
  if(semantic.qualifiers.walkable>0){weights.city=Math.max(weights.city,.5*semantic.qualifiers.walkable);weights.culture=Math.max(weights.culture,.4*semantic.qualifiers.walkable);}
  if(semantic.qualifiers.localCharacter>0)weights.culture=Math.max(weights.culture,.72*semantic.qualifiers.localCharacter);
  if(semantic.qualifiers.easyAccess>0)weights.short_break=Math.max(weights.short_break,.65*semantic.qualifiers.easyAccess);
- semantic.priorities.slice(0,3).forEach((d,i)=>weights[d]=Math.max(weights[d],[.98,.9,.84][i]));
+ // V21: priority must be stronger than a normal selected mood. V18/V19 used <=1 targets,
+ // so a structured mood already at weight=1 made "food first" or "culture first" a no-op.
+ semantic.priorities.slice(0,3).forEach((d,i)=>{if((semantic.positive[d]??0)>=.35)weights[d]=Math.max(weights[d],[1.75,1.4,1.2][i]);});
  if(request.mustHave==="sea")weights.beach=Math.max(weights.beach,.98);
  if(request.mustHave==="nature")weights.nature=Math.max(weights.nature,.98);
  if(request.mustHave==="culture")weights.culture=Math.max(weights.culture,.98);
