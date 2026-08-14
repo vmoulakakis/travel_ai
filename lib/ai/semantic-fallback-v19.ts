@@ -23,29 +23,29 @@ export function deterministicSemanticIntentV19(raw:string):V8SemanticIntent{
  const relax=any(text,[/ησυχ|ηρεμ|χαλαρ|ξεκουρα|quiet|calm|relax|xalar|chalar|isixi|hsyx|irem/])||fuzzyToken(tokens,["ησυχια","χαλαρωση","xalarosi","isixia"]);
  const nature=any(text,[/φυση|φυσικ|nature|fusi|fysi|fysh|prasino/]);
  const culture=any(text,[/πολιτισ|παλια πολη|ιστορ|αρχαι|αρχεα|μνημ|culture|heritage|historic|politism|politiz|palia poli|arxai|arxea|archaia|mnimei/]);
- const family=any(text,[/παιδ|οικογεν|family|children|kids|paidi|paidak|oikogene/])||fuzzyToken(tokens,["παιδια","παιδακια","paidia","paidakia"]);
- const romantic=any(text,[/ρομαντ|ζευγαρ|romantic|romance|couple|zeygar|zeugar/]);
+ const family=any(text,[/παιδ|οικογεν|family|children|kids|paidi|paidak|oikogene|oikogeniak|pedia/])||fuzzyToken(tokens,["παιδια","παιδακια","paidia","paidakia"]);
+ const romantic=any(text,[/ρομαντ|ζευγαρ|romantic|romance|romantik|couple|zeygar|zeugar/]);
  const adventure=any(text,[/πεζοπορ|δραστηριοτ|περιπετει|hiking|adventure|pezopor|peripet/]);
  const warmth=any(text,[/ζεστ|ηλιο|warm|sunny|ilios|zesti|zesto/]);
  const explicitCity=any(text,[/πολη|αστικ|city|urban|city break|palia poli|astik|kent(?:r|)o/]);
  const nightlifeWord=any(text,[/nightlife|βραδιν|νυχτεριν|κλαμπ|μπαρ|παρτι|bars?\b|clubs?\b|party|vradin|nyxt|clubak/]);
  const negativeNightlife=any(text,[/(?:οχι|χωρις|δεν θελω|να μην|να μη|μακρια απο).{0,36}(?:nightlife|βραδιν|νυχτεριν|κλαμπ|μπαρ|παρτι|φασαρι)/,/(?:no|not|without|away from|xoris|xwris|oxi|den thelo|na min|makria apo).{0,36}(?:nightlife|club|bar|party|nyxter|fasaria)/]);
  const negativeBeach=any(text,[/(?:οχι|δεν θελω|δεν ειναι|να μην).{0,35}(?:beach holiday|διακοπ.{0,10}παραλι|παραλι)/,/(?:not|no|oxi|den thelo).{0,35}(?:beach holiday|beach trip|paralia diakop|paralia)/]);
- const negativeCity=any(text,[/(?:οχι|δεν θελω|χωρις).{0,20}(?:πολη|αστικ)/,/(?:not|no|without|oxi).{0,20}(?:city|urban|astik)/]);
+ const negativeCity=any(text,[/(?:οχι|δεν θελω|χωρις|not|no|without|oxi).{0,24}(?:πολη|αστικ|city|urban|astik)/]);
  const negativeAdventure=any(text,[/(?:οχι|δεν θελω|χωρις).{0,20}(?:βουνο|πεζοπορ)/,/(?:not|no|without|oxi).{0,20}(?:mountain|hiking|pezopor)/]);
  const negativeLuxury=any(text,[/(?:οχι|δεν θελω|χωρις).{0,20}(?:luxury|πολυτελ)/,/(?:not|no|without|oxi).{0,20}(?:luxury|polytele)/]);
- if(food)pos("food",.88);if(beach)pos("beach",.9);if(relax)pos("relax",.86);if(nature)pos("nature",.9);if(culture)pos("culture",.94);if(family)pos("family",.9);if(romantic)pos("romantic",.84);if(adventure)pos("adventure",.8);if(warmth)pos("warmth",.8);if(explicitCity)pos("city",.86);
+ if(food)pos("food",.88);if(beach)pos("beach",.9);if(relax)pos("relax",.86);if(nature)pos("nature",.9);if(culture)pos("culture",.94);if(family)pos("family",.9);if(romantic)pos("romantic",.84);if(adventure)pos("adventure",.8);if(warmth)pos("warmth",.8);if(explicitCity&&!negativeCity)pos("city",.86);
  if(nightlifeWord&&!negativeNightlife)pos("nightlife",.76);
  if(negativeNightlife)neg("nightlife",.96);if(negativeBeach)neg("beach",.88);if(negativeCity)neg("city",.92);if(negativeAdventure)neg("adventure",.9);if(negativeLuxury)neg("luxury",.92);
 
  qualifiers.avoidCrowds=any(text,[/τουριστοπαγ|πολυκοσμ|πολυ κοσμ|ορδ.{0,12}τουριστ|φασαρι|crowd|packed.{0,12}tourist|tourist trap|not chaos|no party crowds|polykosm|fasaria/])?1:0;
- qualifiers.easyAccess=any(text,[/ευκολ.{0,15}(?:προσβ|μεταβ)|κοντιν.{0,15}μεταβ|λιγη.{0,10}οδηγ|να μη.{0,25}(?:χασ|φαμε).{0,30}(?:ωρ|μερα|δρομ)|χωρις.{0,18}οδηγ/,/easy access|easy transfer|little driving|not much driv|dont want a long transfer|do not want a long transfer|eukol.{0,15}metav|xoris.{0,18}odig|xwris.{0,18}odig|na min.{0,25}xas.{0,20}(?:or|drom)/])?1:0;
+ qualifiers.easyAccess=any(text,[/ευκολ.{0,15}(?:προσβ|μεταβ)|κοντιν.{0,15}μεταβ|λιγη.{0,10}οδηγ|να μη.{0,25}(?:χασ|φαμε).{0,30}(?:ωρ|μερα|δρομ)|χωρις.{0,18}οδηγ/,/easy access|easy transfer|little driving|not much driv|dont want a long transfer|don t want a long transfer|do not want a long transfer|eukol.{0,15}metav|xoris.{0,18}odig|xwris.{0,18}odig|na min.{0,25}xas.{0,20}(?:or|drom)/])?1:0;
  qualifiers.slowRhythm=any(text,[/slow rhythm|slow morning|easy rhythm|ηρεμ.{0,12}ρυθμ|χαλαρ.{0,12}ρυθμ|χωρις.{0,15}τρεξ|να μην.{0,12}τρεχ|να μη.{0,12}τρεχ|οχι.{0,15}μαραθ|ξεκουρα|xalara|xoris.{0,12}trex|xwris.{0,12}trex/])?1:0;
  qualifiers.walkable=any(text,[/walkable|με τα ποδια|ολα.{0,8}κοντα|περπατ|βολτ|perpat|ola.{0,8}konta|volta/])?1:0;
  qualifiers.localCharacter=any(text,[/τοπικ.{0,12}χαρακτηρ|αυθεντικ|οχι.{0,12}τουριστικ|authentic|local character|not a generic resort|not touristy|local tavern|topik.{0,12}xarakt|oxi.{0,12}touristik/])?1:0;
  if(qualifiers.avoidCrowds){pos("relax",.8);neg("nightlife",Math.max(negative.nightlife??0,.55));}if(qualifiers.slowRhythm)pos("relax",.92);if(qualifiers.walkable){pos("city",Math.max(positive.city??0,.5));pos("culture",Math.max(positive.culture??0,.45));}if(qualifiers.localCharacter)pos("culture",Math.max(positive.culture??0,.78));if(qualifiers.easyAccess){pos("short_break",.68);pos("relax",Math.max(positive.relax??0,.55));}
 
- const first=(d:V8Dimension,terms:string[])=>{const joined=terms.join("|");return new RegExp(`(?:προτεραιοτητα|πανω απ ολα|πρωτα|κυριως|priority|first|proteraiotita|prota).{0,28}(?:${joined})|(?:${joined}).{0,22}(?:πρωτ|priority|first)`).test(text)&&priority(d)};
+ const first=(d:V8Dimension,terms:string[])=>{const joined=terms.join("|");return new RegExp(`(?:προτεραιοτητα|πανω απ ολα|πρωτα|κυριως|priority|first|proteraiotita|prota).{0,28}(?:${joined})|(?:${joined}).{0,22}(?:πρωτ|priority|first|prota|proteraiotita)`).test(text)&&priority(d)};
  first("food",["φαγητ","food","fagit","faght"]);first("culture",["πολιτισ","ιστορ","culture","heritage","politism"]);first("nature",["φυση","nature","fusi","fysi"]);first("relax",["ηρεμ","ξεκουρα","χαλαρ","relax","xalar"]);
 
  for(const d of V8_DIMENSIONS){if((negative[d]??0)>=.75&&(positive[d]??0)>.25)positive[d]=.2;}

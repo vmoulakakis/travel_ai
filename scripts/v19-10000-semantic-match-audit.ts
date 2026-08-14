@@ -77,7 +77,7 @@ function semanticPass(t:Template,s:V8SemanticIntent){
 }
 function average<T>(items:T[],read:(item:T)=>number){return items.length?items.reduce((s,x)=>s+read(x),0)/items.length:0}
 function rankingMetric(t:Template,items:ReturnType<typeof rank>){const top=items.slice(0,3);if(!top.length)return NaN;if(t.positive)return average(top,x=>x.destination.vector[idx[t.positive![0]]]??0);if(t.negative)return average(top,x=>x.destination.vector[idx[t.negative![0]]]??0);if(t.qualifier?.[0]==="avoidCrowds")return average(top,x=>x.destination.crowdLevel);if(t.qualifier?.[0]==="easyAccess")return average(top,x=>x.breakdown.effort);if(t.qualifier?.[0]==="slowRhythm")return average(top,x=>x.destination.vector[idx.relax]??0);if(t.qualifier?.[0]==="walkable")return average(top,x=>((x.destination.vector[idx.city]??0)+(x.destination.vector[idx.culture]??0))/2);if(t.qualifier?.[0]==="localCharacter")return average(top,x=>x.destination.vector[idx.culture]??0);return NaN}
-function directionOk(t:Template,withText:number,withoutText:number){if(!Number.isFinite(withText)||!Number.isFinite(withoutText))return true;if(t.negative||t.qualifier?.[0]==="avoidCrowds")return withText<=withoutText+.08;if(t.qualifier?.[0]==="easyAccess")return withText>=withoutText-2;return withText>=withoutText-.025}
+function directionOk(t:Template,withText:number,withoutText:number){if(!Number.isFinite(withText)||!Number.isFinite(withoutText))return true;if(t.positive)return withText>=withoutText-.025;if(t.negative||t.qualifier?.[0]==="avoidCrowds")return withText<=withoutText+.08;if(t.qualifier?.[0]==="easyAccess")return withText>=withoutText-2;return withText>=withoutText-.025}
 function rank(request:TripRequest,catalog:Awaited<ReturnType<typeof loadV8DestinationCatalog>>){const intent=structuredIntent(request),{constrainedCatalog,rankingTrip}=canonicalRankingInputsV19(request,catalog),raw=preRankV8(rankingTrip,intent,constrainedCatalog,constrainedCatalog.length);return applySemanticIntentRankingV18(raw,intent).slice(0,12)}
 
 async function main(){
@@ -100,6 +100,12 @@ async function main(){
  console.log("V19_10000_SEMANTIC_MATCH_AUDIT",JSON.stringify(output));
  assert.equal(geoLeaks,0,`Hard geography leaked in ${geoLeaks} cases`);
  assert(parseOk/Math.max(1,parseTotal)>=.95,`Semantic parse accuracy only ${(parseOk/Math.max(1,parseTotal)*100).toFixed(1)}%`);
+ const rate=(name:string)=>byCategory.get(name)!.ok/byCategory.get(name)!.total;
+ assert(rate("positive")>=.98,`Positive parse only ${(rate("positive")*100).toFixed(1)}%`);
+ assert(rate("negative")>=.98,`Negative parse only ${(rate("negative")*100).toFixed(1)}%`);
+ assert(rate("qualifier")>=.98,`Qualifier parse only ${(rate("qualifier")*100).toFixed(1)}%`);
+ assert(rate("priority")>=.98,`Priority parse only ${(rate("priority")*100).toFixed(1)}%`);
+ assert(rate("mixed")>=.95,`Mixed parse only ${(rate("mixed")*100).toFixed(1)}%`);
  assert(ambiguousOk/Math.max(1,ambiguousTotal)>=.95,`Ambiguous/noisy safety only ${(ambiguousOk/Math.max(1,ambiguousTotal)*100).toFixed(1)}%`);
  assert(directionPass/Math.max(1,directionTotal)>=.8,`Ranking moves in the intended direction only ${(directionPass/Math.max(1,directionTotal)*100).toFixed(1)}%`);
  assert(empty/CASES<=.08,`Too many empty results: ${(empty/CASES*100).toFixed(1)}%`);
