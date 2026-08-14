@@ -1,10 +1,7 @@
-export const FALLBACK_SITE_URL = "https://travel-ai-git-main-vassilis-projects-3bf8541b.vercel.app";
+export const FALLBACK_SITE_URL = "https://travel-ai-navy-eight.vercel.app";
 
 export function getSiteUrl() {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL
-    ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined)
-    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined)
-    ?? FALLBACK_SITE_URL;
+  const raw = process.env.NEXT_PUBLIC_SITE_URL ?? FALLBACK_SITE_URL;
   return raw.replace(/\/$/, "");
 }
 
