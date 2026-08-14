@@ -3,11 +3,11 @@ import { assessStayAvailabilityV20 } from "@/lib/decision/stay-availability-v20"
 import { evaluateStayOfferV16 } from "@/lib/decision/stay-constraints-v16";
 import { V8_DIMENSIONS,type StayConstraintSpec,type V8Dimension,type V8IntentProfile } from "@/lib/decision/v8-types";
 import type { V8Ranked } from "@/lib/decision/v8-matcher";
-import type { TripRequest } from "@/lib/validation/trip";
+import type { HotelStyle,StayLocationPreference,TripRequest } from "@/lib/validation/trip";
 
 const clamp=(value:number,min=0,max=100)=>Math.max(min,Math.min(max,value));
 const negativeGateDimensions=new Set<V8Dimension>(["nightlife","luxury","adventure","city"]);
-const styleVectorIndex:Record<Exclude<TripRequest["hotelStyle"],"any">,number>={luxury:8,boutique:9,resort:10,value:11};
+const styleVectorIndex:Record<Exclude<HotelStyle,"any">,number>={luxury:8,boutique:9,resort:10,value:11};
 const travelerVectorIndex:Record<TripRequest["travelerType"],number>={family:12,couple:13,solo:14,friends:15};
 
 export interface V21ChoiceAudit{
@@ -36,7 +36,7 @@ export function semanticEligibilityReasonV21(item:V8Ranked,intent:V8IntentProfil
   return null;
 }
 
-function fallbackStyleAffinity(candidate:GlobalStayCandidateV21,style:TripRequest["hotelStyle"]){
+function fallbackStyleAffinity(candidate:GlobalStayCandidateV21,style:HotelStyle){
   if(style==="any")return 70;
   const text=`${candidate.propertyName} ${candidate.description??""}`.toLowerCase();
   if(style==="boutique")return /boutique|design|concept/.test(text)?90:48;
@@ -46,7 +46,7 @@ function fallbackStyleAffinity(candidate:GlobalStayCandidateV21,style:TripReques
   return 60;
 }
 function vectorAffinity(candidate:GlobalStayCandidateV21,index:number,fallback:number){return candidate.semanticVector.length===24?clamp((candidate.semanticVector[index]??.5)*100):fallback;}
-function locationAffinity(distance:number|null|undefined,preference:TripRequest["stayLocationPreference"]){
+function locationAffinity(distance:number|null|undefined,preference:StayLocationPreference){
   if(preference==="balanced")return 72;
   const d=distance??20;
   if(preference==="central")return clamp(100-d*5,30,100);
@@ -57,13 +57,13 @@ export function scoreGlobalStayCandidateV21(candidate:GlobalStayCandidateV21,req
   const evaluation=evaluateStayOfferV16(candidate,spec);
   if(!evaluation.passed)return{eligible:false,score:0,softMatches:evaluation.softMatches.length,hardFailures:evaluation.hardFailures};
   const truth=assessStayAvailabilityV20(candidate,request.startDate,request.endDate);
-  if(truth.state==="EXPLICITLY_UNAVAILABLE"||truth.state==="OUTSIDE_VALIDITY_WINDOW"||truth.state==="INVALID_FEED_EVIDENCE")return{eligible:false,score:0,softMatches:evaluation.softMatches.length,hardFailures:[] as typeof evaluation.hardFailures};
-  const styleFallback=fallbackStyleAffinity(candidate,request.hotelStyle),style=request.hotelStyle==="any"?70:vectorAffinity(candidate,styleVectorIndex[request.hotelStyle],styleFallback),traveler=vectorAffinity(candidate,travelerVectorIndex[request.travelerType],68),location=locationAffinity(candidate.distanceKm,request.stayLocationPreference),soft=spec.soft.length?50+50*(evaluation.softMatches.length/spec.soft.length):70,truthScore=truth.state==="CONFIRMED_ACTIVE"?82:65;
+  if(truth.truth==="EXPLICITLY_UNAVAILABLE"||truth.truth==="OUTSIDE_VALIDITY_WINDOW"||truth.truth==="INVALID_FEED_EVIDENCE")return{eligible:false,score:0,softMatches:evaluation.softMatches.length,hardFailures:[] as typeof evaluation.hardFailures};
+  const hotelStyle=request.hotelStyle??"any",stayLocationPreference=request.stayLocationPreference??"balanced",styleFallback=fallbackStyleAffinity(candidate,hotelStyle),style=hotelStyle==="any"?70:vectorAffinity(candidate,styleVectorIndex[hotelStyle],styleFallback),traveler=vectorAffinity(candidate,travelerVectorIndex[request.travelerType],68),location=locationAffinity(candidate.distanceKm,stayLocationPreference),soft=spec.soft.length?50+50*(evaluation.softMatches.length/spec.soft.length):70,truthScore=truth.truth==="CONFIRMED_ACTIVE"?82:65;
   const score=style*.36+traveler*.16+location*.20+soft*.20+truthScore*.08;
   return{eligible:true,score:clamp(score),softMatches:evaluation.softMatches.length,hardFailures:[] as typeof evaluation.hardFailures};
 }
 
-function hasAccommodationSignal(request:TripRequest,spec:StayConstraintSpec){return spec.hard.length>0||spec.soft.length>0||request.hotelStyle!=="any"||request.stayLocationPreference!=="balanced";}
+function hasAccommodationSignal(request:TripRequest,spec:StayConstraintSpec){return spec.hard.length>0||spec.soft.length>0||(request.hotelStyle??"any")!=="any"||(request.stayLocationPreference??"balanced")!=="balanced";}
 
 export async function applyChoiceCorrectnessV21(request:TripRequest,intent:V8IntentProfile,spec:StayConstraintSpec,ranked:V8Ranked[]):Promise<{ranked:V8Ranked[];audit:V21ChoiceAudit}>{
   const semanticRejected:string[]=[],semanticSurvivors=ranked.filter(item=>{const reason=semanticEligibilityReasonV21(item,intent);if(reason){semanticRejected.push(`${item.destination.slug}:${reason}`);return false}return true});
