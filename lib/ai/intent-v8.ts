@@ -59,10 +59,10 @@ export async function interpretIntentV8(request:TripRequest,budget:LLMRequestBud
  const base=structuredIntent(request),text=request.tripText?.trim();if(!text||text.length<8)return base;
  const normalized=normalizedFreeText(text),known=knownIntentPattern.test(normalized),clauses=(normalized.match(/(?: και | αλλα | χωρις | and | but | without |,)/g)??[]).length;
  const deterministicConfidence=known?(clauses>=3?.82:.95):.58;
- const hardRisk=/\b(?:μονο|only|mono|χωρις|without|must|οπωσδηποτε)\b/i.test(normalized);
+ const hardRisk=/(?:μονο|χωρις|οπωσδηποτε|\b(?:only|mono|without|must)\b)/i.test(normalized);
  const system=`You are a semantic travel-intent parser, not a destination recommender. Convert free text into preference weights only. Never name destinations, hotels, flights, prices, routes, weather or availability. Dimensions: ${V8_DIMENSIONS.join(", ")}. Return JSON only: {"weights":{"dimension":0..1},"summary":"max 90 chars"}. Use only dimensions clearly supported by the text. Hard exclusions and stay-specific requirements are handled elsewhere; do not convert them into invented destination facts.`;
  const routed=await generateJsonWithRoutingV16<Parsed>({
-  context:{task:"intent",text,deterministicConfidence,hardConstraintRisk,contradictorySignals:clauses>=4},budget,system,prompt:text,preference:"critical",
+  context:{task:"intent",text,deterministicConfidence,hardConstraintRisk:hardRisk,contradictorySignals:clauses>=4},budget,system,prompt:text,preference:"critical",
   validate(raw){const weights=raw.weights&&typeof raw.weights==="object"&&!Array.isArray(raw.weights)?raw.weights as Record<string,unknown>:null;if(!weights)return null;const parsed:Parsed={weights:{},summary:typeof raw.summary==="string"?raw.summary.slice(0,100):undefined};for(const d of V8_DIMENSIONS){const value=Number(weights[d]);if(Number.isFinite(value)&&value>=0&&value<=1)(parsed.weights as Partial<Record<V8Dimension,number>>)[d]=value;}return Object.keys(parsed.weights??{}).length?parsed:null;}
  });
  if(!routed)return base;
