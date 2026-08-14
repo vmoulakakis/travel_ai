@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { structuredIntent } from "../lib/ai/intent-v8";
 import { diversifyV8,type V8Ranked } from "../lib/decision/v8-matcher";
-import { filterPortfolioV21,scoreGlobalStayCandidateV21,semanticEligibilityReasonV21 } from "../lib/decision/choice-correctness-v21";
+import { filterPortfolioV21,scoreGlobalStayCandidateV21,semanticEligibilityReasonV21,structuredEligibilityReasonV21 } from "../lib/decision/choice-correctness-v21";
 import type { GlobalStayCandidateV21 } from "../lib/data/global-stays-v21";
 import type { StayConstraintSpec,V8Destination,V8IntentProfile } from "../lib/decision/v8-types";
 import type { TripRequest } from "../lib/validation/trip";
@@ -11,9 +11,10 @@ const parsed=structuredIntent(trip);assert.ok(parsed.weights.food>1);assert.ok((
 const blankVector=()=>Array(16).fill(.05);
 function destination(slug:string,overrides:Partial<V8Destination>={}):V8Destination{return{slug,nameEl:slug,nameEn:slug,countryCode:"GR",countryEl:"Ελλάδα",countryEn:"Greece",latitude:38,longitude:23,regionGroup:"test",aliases:[],tags:[],vector:blankVector(),monthFit:Array(12).fill(80),idealNightsMin:2,idealNightsMax:5,costTier:3,effortAthens:"road-near",effortThessaloniki:"road-medium",directFromAthens:true,routeConfidence:.9,travelerFit:{},crowdLevel:2,hotelRadiusKm:30,knowledgeSource:"test",seasonProfile:"test",...overrides};}
 function ranked(d:V8Destination,score=75):V8Ranked{return{destination:d,score,preScore:score,breakdown:{intent:80,season:80,effort:80,duration:90,budget:80,weather:70,traveler:80,crowdFit:80,routeConfidence:90}};}
-const nightlife=destination("party",{tags:["nightlife"],vector:(()=>{const v=blankVector();v[8]=1;return v})()}),food=destination("food",{tags:["food"],vector:(()=>{const v=blankVector();v[2]=1;return v})()});
+const nightlife=destination("party",{tags:["nightlife"],vector:(()=>{const v=blankVector();v[8]=1;return v})()}),cityOnly=destination("city-only",{tags:["city"],vector:(()=>{const v=blankVector();v[4]=1;return v})()}),food=destination("food",{tags:["food"],vector:(()=>{const v=blankVector();v[2]=1;return v})()});
 const semanticIntent:V8IntentProfile={weights:{romantic:0,relax:0,food:1.75,culture:0,city:0,nature:0,beach:0,adventure:0,nightlife:0,family:0,luxury:0,value:0,warmth:0,wellness:0,short_break:0,shoulder_season:0},source:"structured+free",summary:"food first, no nightlife",semantic:{positive:{food:.95},negative:{nightlife:.95},priorities:["food"],qualifiers:{avoidCrowds:0,easyAccess:0,slowRhythm:0,walkable:0,localCharacter:0},confidence:.95,source:"structured+free",rationale:[]}};
 assert.equal(semanticEligibilityReasonV21(ranked(nightlife),semanticIntent),"negative:nightlife");assert.equal(semanticEligibilityReasonV21(ranked(destination("no-food")),semanticIntent),"priority-miss:food");assert.equal(semanticEligibilityReasonV21(ranked(food),semanticIntent),null);
+const nightlifeTrip={...trip,mustHave:"nightlife" as const,tripText:undefined};assert.equal(structuredEligibilityReasonV21(ranked(cityOnly),nightlifeTrip),"hard-must:nightlife","CITY is not evidence of hard NIGHTLIFE");assert.equal(structuredEligibilityReasonV21(ranked(nightlife),nightlifeTrip),null);
 const spec:StayConstraintSpec={hard:[],soft:["BREAKFAST"],confidence:"HIGH",source:"deterministic",needsSemanticAssist:false};
 function stay(strong:boolean,semanticVector:number[]):GlobalStayCandidateV21{return{destinationSlug:"food",distanceKm:1,availabilityTruth:"VALID_WINDOW_STOCK_UNKNOWN",semanticVector,semanticConfidence:.7,starLevel:strong?5:3,valueSignal:strong?70:58,styleHints:{boutique:strong,resort:false,luxury:strong},constraintEvidence:{BREAKFAST:strong}};}
 const boutiqueVector=Array(24).fill(.4);boutiqueVector[9]=.9;boutiqueVector[13]=.9;const genericVector=Array(24).fill(.4);genericVector[9]=.25;genericVector[13]=.55;
