@@ -36,6 +36,18 @@ export function semanticEligibilityReasonV21(item:V8Ranked,intent:V8IntentProfil
   return null;
 }
 
+// Keep the long-standing diversity engine broad for internal exploration, but do not expose
+// low-relevance padding when there are already strong options. If the whole set is a compromise,
+// keep the feasible breadth and let the public fitStatus/confidence make that trade-off explicit.
+export function filterPortfolioV21(items:readonly V8Ranked[]):V8Ranked[]{
+  if(items.length<=3)return [...items];
+  const best=items[0]?.score??0;
+  if(best<60)return [...items].filter(item=>item.score>0&&item.breakdown.season>=30&&item.breakdown.budget>=20&&item.breakdown.crowdFit>20);
+  const floor=Math.max(50,best-16);
+  const kept=items.filter((item,index)=>index<3||(item.score>=floor&&item.breakdown.season>=40&&item.breakdown.budget>25&&item.breakdown.crowdFit>25));
+  return kept.length>=3?kept:[...items.slice(0,3)];
+}
+
 function fallbackStyleAffinity(candidate:GlobalStayCandidateV21,style:HotelStyle){
   if(style==="any")return 70;
   const text=`${candidate.propertyName} ${candidate.description??""}`.toLowerCase();
