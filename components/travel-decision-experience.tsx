@@ -551,20 +551,15 @@ function trackGrowth(eventName:string,destinationId:string,sourceProductId:strin
 function ShareTools({ recommendation, trip, lang }: { recommendation: V8Recommendation; trip: TripRequest; lang: Lang }) {
   const [status, setStatus] = useState<"idle" | "shared" | "copied">("idle");
   const giveawayActive = process.env.NEXT_PUBLIC_GIVEAWAY_ACTIVE === "true" && Boolean(process.env.NEXT_PUBLIC_GIVEAWAY_TERMS_PATH);
-  async function share() {
-    const url = new URL(`/proorismoi/${recommendation.slug}`, window.location.origin);
-    url.searchParams.set("start", trip.startDate);
-    url.searchParams.set("end", trip.endDate);
-    const title = say(lang, `${recommendation.destination}: λες να είναι το επόμενο ταξίδι;`, `${recommendation.destination}: could this be the next trip?`);
-    const text = say(lang, "Ο Ελληνικός AI Travel Guru την έβαλε στις τελικές επιλογές μου. Δες γιατί.", "The Greek AI Travel Guru shortlisted it for me. See why.");
-    let channel: "native" | "clipboard" = "clipboard";
-    try {
-      if (navigator.share) { await navigator.share({ title, text, url: url.toString() }); channel = "native"; setStatus("shared"); }
-      else { await navigator.clipboard.writeText(url.toString()); setStatus("copied"); }
-      void fetch("/api/growth/track", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventName: "social_share", destinationId: recommendation.slug, channel }), keepalive: true });
-    } catch { return; }
-  }
-  return <aside className="share-tools"><div><span className="eyebrow"><ShareNetwork size={18} weight="duotone" /> {say(lang, "ΜΟΙΡΑΣΟΥ ΤΗΝ ΙΔΕΑ", "SHARE THE IDEA")}</span><h3>{say(lang, "Ένα ταξίδι γίνεται πιο αληθινό όταν το συζητάς.", "A trip becomes more real when you talk about it.")}</h3><p>{say(lang, "Η κοινοποίηση ανοίγει με ειδική εικόνα του προορισμού και οδηγεί μόνο στη δική του εσωτερική σελίδα.", "The share opens with a destination card and points only to its internal page.")}</p>{giveawayActive && <small>{say(lang, "Η κοινοποίηση μπορεί να μετρήσει ως συμμετοχή μόνο σύμφωνα με τους επίσημους όρους της ενεργής ενέργειας.", "A share may count as an entry only under the official terms of the active campaign.")}</small>}</div><button type="button" onClick={() => void share()}><ShareNetwork size={20} weight="bold" /> {status === "copied" ? say(lang, "Ο σύνδεσμος αντιγράφηκε", "Link copied") : status === "shared" ? say(lang, "Μοιράστηκε", "Shared") : say(lang, "Μοιράσου το ταξίδι", "Share this trip")}</button></aside>;
+  function payload(){const url=new URL(`/proorismoi/${recommendation.slug}`,window.location.origin);url.searchParams.set("start",trip.startDate);url.searchParams.set("end",trip.endDate);return{url:url.toString(),title:say(lang,`${recommendation.destination}: λες να είναι το επόμενο ταξίδι;`,`${recommendation.destination}: could this be the next trip?`),text:say(lang,"Ο Ελληνικός AI Travel Guru την έβαλε στις τελικές επιλογές μου. Δες γιατί.","The Greek AI Travel Guru shortlisted it for me. See why.")};}
+  function record(channel:string){void fetch("/api/growth/track",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({eventName:"social_share",destinationId:recommendation.slug,channel}),keepalive:true});}
+  function openChannel(channel:string,target:string){window.open(target,"_blank","noopener,noreferrer");record(channel);setStatus("shared");}
+  function whatsapp(){const {url,text}=payload();openChannel("whatsapp",`https://wa.me/?text=${encodeURIComponent(`${text}
+${url}`)}`);}
+  function facebook(){const {url}=payload();openChannel("facebook",`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`);}
+  async function copyLink(){const {url}=payload();try{await navigator.clipboard.writeText(url);setStatus("copied");record("copy");}catch{return;}}
+  async function shareMore(){const {url,title,text}=payload();try{if(navigator.share){await navigator.share({title,text,url});setStatus("shared");record("native");}else await copyLink();}catch{return;}}
+  return <aside className="share-tools"><div><span className="eyebrow"><ShareNetwork size={18} weight="duotone" /> {say(lang,"ΜΟΙΡΑΣΟΥ ΤΗΝ ΙΔΕΑ","SHARE THE IDEA")}</span><h3>{say(lang,"Στείλε τη συγκεκριμένη επιλογή στην παρέα σου.","Send this exact choice to your travel group.")}</h3><p>{say(lang,"Ο σύνδεσμος κρατά τον προορισμό και τις ημερομηνίες σου — όχι μια γενική αρχική σελίδα.","The link keeps your destination and dates — not a generic homepage.")}</p>{giveawayActive&&<small>{say(lang,"Η κοινοποίηση μπορεί να μετρήσει ως συμμετοχή μόνο σύμφωνα με τους επίσημους όρους της ενεργής ενέργειας.","A share may count as an entry only under the official terms of the active campaign.")}</small>}</div><div className="share-actions" aria-label={say(lang,"Επιλογές κοινοποίησης","Share options")}><button type="button" className="share-whatsapp" onClick={whatsapp}>WhatsApp</button><button type="button" className="share-facebook" onClick={facebook}>Facebook</button><button type="button" className="share-copy" onClick={()=>void copyLink()}>{status==="copied"?say(lang,"Αντιγράφηκε ✓","Copied ✓"):say(lang,"Αντιγραφή link","Copy link")}</button><button type="button" className="share-more" onClick={()=>void shareMore()}><ShareNetwork size={18} weight="bold"/>{say(lang,"Άλλα…","More…")}</button></div></aside>;
 }
 
 function topReason(recommendation: V8Recommendation, lang: Lang) {

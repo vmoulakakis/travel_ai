@@ -25,7 +25,8 @@
     "test:v16:stay": "node --import tsx scripts/v16-stay-constraints-smoke.ts",
     "test:v16:router": "node --import tsx scripts/v16-model-router-smoke.ts",
     "test:v16:stay1000": "node --import tsx scripts/v16-1000-stay-text-audit.ts",
-    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:audit:10000 && npm run test:availability && npm run test:charging && npm run test:result-auditor && npm run test:geo-composition && npm run test:research-scout && npm run test:stay-cities && npm run test:v15:architecture && npm run test:v15:greeklish && npm run test:v15:1000 && npm run test:v16:stay && npm run test:v16:router && npm run test:v16:stay1000"
+    "test:v17:choice1000": "node --import tsx scripts/v17-1000-choice-audit.ts",
+    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:audit:10000 && npm run test:availability && npm run test:charging && npm run test:result-auditor && npm run test:geo-composition && npm run test:research-scout && npm run test:stay-cities && npm run test:v15:architecture && npm run test:v15:greeklish && npm run test:v15:1000 && npm run test:v16:stay && npm run test:v16:router && npm run test:v16:stay1000 && npm run test:v17:choice1000"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.36",

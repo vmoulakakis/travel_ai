@@ -21,10 +21,24 @@ function travelerFit(r:TripRequest,d:V8Destination){if(r.travelerType==="family"
 function crowdFit(r:TripRequest,d:V8Destination){if(r.avoid==="crowds")return clamp(112-d.crowdLevel*18,22,100);if(r.socialPreference==="quiet")return clamp(108-d.crowdLevel*14,38,100);if(r.socialPreference==="lively")return clamp(58+d.crowdLevel*8,60,98);return clamp(100-(d.crowdLevel-1)*5,75,100)}
 function matchesMustHave(r:TripRequest,d:V8Destination){if(r.mustHave==="sea")return d.tags.includes("beach");if(r.mustHave==="nature")return d.tags.includes("nature");if(r.mustHave==="culture")return d.tags.includes("culture");if(r.mustHave==="nightlife")return d.tags.includes("nightlife")||d.tags.includes("city");return true}
 function consideredFit(r:TripRequest,d:V8Destination){const candidate=norm(r.consideredDestination??"");if(!candidate)return false;return[norm(d.slug),norm(d.nameEl),norm(d.nameEn),...d.aliases.map(norm)].some(value=>value===candidate||value.includes(candidate)||candidate.includes(value))}
+function freeTextPreferenceAdjustment(r:TripRequest,d:V8Destination,effortScore:number){
+ const text=norm(r.tripText??"");if(!text)return 0;let delta=0;
+ const antiCrowd=/(?:tourist trap|no party crowds|not chaos|χωρις πολυ κοσμο|oxi poly kosmo|οχι πολυ κοσμο)/i.test(text);
+ if(antiCrowd)delta+=d.crowdLevel<=3?6:d.crowdLevel>=5?-12:-2;
+ const slowRhythm=/(?:easy rhythm|slow morning|μαραθωνιο|marathon|χωρις πολυ αγχος|xwris poly agxos|οχι προγραμμα μαραθωνιο)/i.test(text);
+ if(slowRhythm){if(d.tags.includes("relax"))delta+=5;if(d.tags.includes("nightlife"))delta-=4;}
+ const authentic=/(?:local character|αυθεντικ|τοπικ.{0,12}χαρακτηρ|not a generic resort|generic resort|local tavern|ταβερν)/i.test(text);
+ if(authentic){if(d.tags.includes("culture"))delta+=5;if(d.crowdLevel<=3)delta+=2;}
+ if(/(?:walkable|βολτα|volta)/i.test(text)){if(d.tags.includes("city"))delta+=3;if(d.tags.includes("culture"))delta+=2;}
+ if(/(?:χωρις.{0,18}δυσκολ.{0,18}μεταβ|xwris.{0,18}dyskol.{0,18}metav|without.{0,18}difficult.{0,18}travel)/i.test(text))delta+=effortScore>=80?5:effortScore<60?-8:0;
+ if(/(?:κατι διαφορετικ|kati diaforetik|something different|different from the usual)/i.test(text)){if(d.crowdLevel<=3)delta+=3;if(d.tags.includes("culture")||d.tags.includes("nature"))delta+=2;}
+ return clamp(delta,-3,3);
+}
 function weights(r:TripRequest,intent:V8IntentProfile){const outdoor=Math.max(intent.weights.warmth,intent.weights.beach,intent.weights.nature,intent.weights.adventure);if(outdoor>=.7)return{intent:.31,season:.16,effort:.12,duration:.09,budget:.08,weather:.14,traveler:.08,crowd:.02};if(outdoor>=.35)return{intent:.33,season:.18,effort:.12,duration:.09,budget:.09,weather:.10,traveler:.07,crowd:.02};return{intent:.34,season:.18,effort:.12,duration:.09,budget:.09,weather:.06,traveler:.08,crowd:.04}}
 function compute(r:TripRequest,intent:V8IntentProfile,d:V8Destination,weather?:WeatherEvidence|null):V8Ranked{
  const e=effort(r,d),b:V8ScoreBreakdown={intent:Math.round(intentFit(intent,d)),season:Math.round(seasonFit(r,d)),effort:Math.round(e.score),duration:Math.round(durationFit(r,d)),budget:Math.round(budgetFit(r,d)),weather:Math.round(weather?.score??62),traveler:Math.round(travelerFit(r,d)),crowdFit:Math.round(crowdFit(r,d)),routeConfidence:Math.round(d.routeConfidence*100)},w=weights(r,intent);
  let score=b.intent*w.intent+b.season*w.season+b.effort*w.effort+b.duration*w.duration+b.budget*w.budget+b.weather*w.weather+b.traveler*w.traveler+b.crowdFit*w.crowd;
+ score+=freeTextPreferenceAdjustment(r,d,e.score);
  if(isOrigin(r,d))score=0;if(r.distancePreference==="island"&&!V8_ISLAND_SLUGS.has(d.slug))score=0;if(!matchesMustHave(r,d))score=0;if(r.avoid==="crowds"&&d.crowdLevel>=5)score-=16;if(r.avoid==="high-cost"&&d.costTier>budgetTarget(r)+1)score-=18;if(r.avoid==="high-cost"&&d.costTier>=5)score=Math.min(score,45);if(r.socialPreference==="quiet"&&d.crowdLevel>=5)score-=9;if(r.noveltyPreference==="surprise"&&d.crowdLevel<=3)score+=4;if(r.noveltyPreference==="familiar"&&d.routeConfidence>=.95)score+=3;
  // Keep a user's explicitly considered, feasible idea in the comparison set without forcing it to win.
  if(consideredFit(r,d)&&b.season>=55&&b.budget>=48)score+=12;
@@ -42,13 +56,18 @@ function compute(r:TripRequest,intent:V8IntentProfile,d:V8Destination,weather?:W
  return{destination:d,score:clamp(score),preScore:clamp(score),breakdown:b,weather};
 }
 
-export function preRankV8(r:TripRequest,intent:V8IntentProfile,catalog:V8Destination[],limit=30){const geo=geographyConstraint(r,catalog),eligible=catalog.filter(d=>matchesGeographyConstraint(d,geo)&&(r.distancePreference!=="island"||V8_ISLAND_SLUGS.has(d.slug))&&matchesMustHave(r,d)&&(r.avoid!=="crowds"||d.crowdLevel<5)&&(r.avoid!=="high-cost"||d.costTier<5));return eligible.map(d=>compute(r,intent,d,null)).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,Math.max(12,limit))}
+export function preRankV8(r:TripRequest,intent:V8IntentProfile,catalog:V8Destination[],limit=30){
+ const geo=geographyConstraint(r,catalog),eligible=catalog.filter(d=>matchesGeographyConstraint(d,geo)&&(r.distancePreference!=="island"||V8_ISLAND_SLUGS.has(d.slug))&&matchesMustHave(r,d)&&(r.avoid!=="crowds"||d.crowdLevel<5)&&(r.avoid!=="high-cost"||d.costTier<5)),ranked=eligible.map(d=>compute(r,intent,d,null)).filter(x=>x.score>0).sort((a,b)=>b.score-a.score),size=Math.max(12,limit),selected=ranked.slice(0,size);
+ const considered=ranked.find(item=>consideredFit(r,item.destination)&&item.breakdown.season>=55&&item.breakdown.budget>=48&&item.breakdown.crowdFit>30);
+ if(considered&&!selected.some(item=>item.destination.slug===considered.destination.slug)){if(selected.length>=size)selected[selected.length-1]=considered;else selected.push(considered);}
+ return selected;
+}
 export function finalRankV8(r:TripRequest,intent:V8IntentProfile,pre:V8Ranked[],weather:Map<string,WeatherEvidence>){return pre.map(x=>compute(r,intent,x.destination,weather.get(x.destination.slug)??null)).sort((a,b)=>b.score-a.score)}
 function jaccard(a:string[],b:string[]){const A=new Set(a),B=new Set(b),i=[...A].filter(x=>B.has(x)).length,u=new Set([...a,...b]).size;return u?i/u:0}
 function portfolioScore(candidate:V8Ranked,selected:V8Ranked[],lens:number){const sameRegion=selected.filter(item=>item.destination.regionGroup===candidate.destination.regionGroup).length,similarity=selected.length?Math.max(...selected.map(item=>jaccard(item.destination.tags,candidate.destination.tags))):0,island=V8_ISLAND_SLUGS.has(candidate.destination.slug),hasOtherGeography=selected.some(item=>V8_ISLAND_SLUGS.has(item.destination.slug)!==island);return lens-(sameRegion>=2?70:sameRegion*10)-similarity*9+(sameRegion===0?7:0)+(hasOtherGeography?2:0)}
 function regionCapFor(ranked:V8Ranked[],count:number){const capacity=new Map<string,number>();for(const item of ranked)capacity.set(item.destination.regionGroup,(capacity.get(item.destination.regionGroup)??0)+1);for(let cap=1;cap<=count;cap+=1)if([...capacity.values()].reduce((sum,value)=>sum+Math.min(value,cap),0)>=count)return Math.max(2,cap);return count}
 function pick(pool:V8Ranked[],selected:V8Ranked[],role:V8ExplorationRole,predicate:(item:V8Ranked)=>boolean,lens:(item:V8Ranked)=>number,regionCap=Infinity){let bestIndex=-1,bestScore=-Infinity;for(let i=0;i<pool.length;i+=1){const candidate=pool[i],regionCount=selected.filter(item=>item.destination.regionGroup===candidate.destination.regionGroup).length;if(regionCount>=regionCap||!predicate(candidate))continue;const value=portfolioScore(candidate,selected,lens(candidate));if(value>bestScore){bestScore=value;bestIndex=i}}if(bestIndex<0)return false;selected.push({...pool.splice(bestIndex,1)[0],explorationRole:role});return true}
-export function diversifyV8(ranked:V8Ranked[],count=12){const pool=ranked.filter(item=>item.score>0).map(item=>({...item})),selected:V8Ranked[]=[];if(!pool.length)return selected;const targetCount=Math.min(count,pool.length),regionCap=regionCapFor(pool,targetCount);selected.push({...pool.shift()!,explorationRole:"BEST_FIT"});
+export function diversifyV8(ranked:V8Ranked[],count=12,request?:TripRequest){const pool=ranked.filter(item=>item.score>0).map(item=>({...item})),selected:V8Ranked[]=[];if(!pool.length)return selected;const targetCount=Math.min(count,pool.length),regionCap=regionCapFor(pool,targetCount);selected.push({...pool.shift()!,explorationRole:"BEST_FIT"});
  // Finalists remain accuracy-first. Diversity may break near ties, but it cannot promote a weak option merely to look different.
  const finalistFloor=Math.max(56,selected[0].score-8),finalistEligible=(item:V8Ranked)=>item.score>=finalistFloor&&item.breakdown.season>=45&&item.breakdown.crowdFit>30&&item.breakdown.budget>30;
  pick(pool,selected,"EASIEST",finalistEligible,item=>item.score*.9+item.breakdown.effort*.1,regionCap);
@@ -67,6 +86,10 @@ export function diversifyV8(ranked:V8Ranked[],count=12){const pool=ranked.filter
  ];
  for(const selector of selectors){if(selected.length>=count||!pool.length)break;pick(pool,selected,...selector,regionCap)}
  while(selected.length<count&&pool.length){if(!pick(pool,selected,"ALTERNATIVE",()=>true,item=>item.score,regionCap))break}
+ if(request?.consideredDestination){
+  const wanted=ranked.find(item=>consideredFit(request,item.destination)&&item.score>0&&item.breakdown.season>=55&&item.breakdown.budget>=48&&item.breakdown.crowdFit>30);
+  if(wanted&&!selected.some(item=>item.destination.slug===wanted.destination.slug)){const preserved={...wanted,explorationRole:"ALTERNATIVE" as V8ExplorationRole};if(selected.length<targetCount)selected.push(preserved);else if(selected.length>3)selected[selected.length-1]=preserved;}
+ }
  return selected;
 }
 

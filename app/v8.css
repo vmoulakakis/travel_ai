@@ -67,3 +67,8 @@
 .hard-stay-requirement>div{display:grid;gap:.2rem}.hard-stay-requirement strong{font-size:.94rem}.hard-stay-requirement span{font-weight:700}.hard-stay-requirement small{opacity:.75;line-height:1.45}
 .hard-stay-evidence{font-weight:700!important;border-color:rgba(35,125,92,.22)!important;background:rgba(228,247,238,.75)!important}
 @media(max-width:640px){.hard-stay-requirement{border-radius:15px;padding:.85rem}.hard-stay-requirement small{font-size:.78rem}}
+
+
+/* V17 explicit share actions */
+.share-actions{flex:0 0 auto;display:grid;grid-template-columns:repeat(2,minmax(118px,1fr));gap:8px;min-width:300px}.share-actions button{min-height:46px;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:0 15px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:850;cursor:pointer;transition:.18s ease}.share-actions button:hover{transform:translateY(-1px)}.share-whatsapp{background:#eefbf3;color:#17683b}.share-facebook{background:#eef4ff;color:#244b8f}.share-copy{background:rgba(255,255,255,.08);color:#fff}.share-more{background:var(--cyan);color:var(--night)}
+@media(max-width:760px){.share-actions{width:100%;min-width:0;grid-template-columns:1fr 1fr}.share-actions button{width:100%}}
