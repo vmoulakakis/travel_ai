@@ -95,9 +95,9 @@ $$;
 revoke all on function public.get_locality_profiles_v23(date,date) from public,anon,authenticated;
 grant execute on function public.get_locality_profiles_v23(date,date) to service_role;
 
--- V23 destination detail: preserve semantic hotel evidence so the final hotel order can use
--- the SAME formulated 24D intent that was used during locality discovery.
-create or replace function public.get_destination_stays_v8(
+-- V23 semantic hotel detail RPC is intentionally a NEW contract.
+-- V8 remains untouched so production can continue serving the previous release while this is tested.
+create or replace function public.get_destination_stays_v23(
   p_slug text,
   p_start_date date,
   p_end_date date,
@@ -112,6 +112,7 @@ returns table(
   demand_proxy numeric, semantic_vector text, semantic_confidence real, raw jsonb
 )
 language sql
+stable
 security definer
 set search_path=public,extensions,pg_temp
 as $$
@@ -160,5 +161,5 @@ as $$
   limit greatest(1,least(coalesce(p_limit,18),40));
 $$;
 
-revoke all on function public.get_destination_stays_v8(text,date,date,int) from public,anon,authenticated;
-grant execute on function public.get_destination_stays_v8(text,date,date,int) to service_role;
+revoke all on function public.get_destination_stays_v23(text,date,date,int) from public,anon,authenticated;
+grant execute on function public.get_destination_stays_v23(text,date,date,int) to service_role;
