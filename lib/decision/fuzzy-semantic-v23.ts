@@ -68,19 +68,19 @@ const terms:Partial<Record<V23SemanticDimension,RegExp>>={
 function applyExtraFreeText(text:string,positive:Partial<Record<V23SemanticDimension,number>>,negative:Partial<Record<V23SemanticDimension,number>>){
  const n=normalized(text),clauses=n.split(/[,;]|\b(?:but|and|however)\b|\b(?:αλλα|και|ομως)\b/).map(x=>x.trim()).filter(Boolean);
  for(const [dimension,pattern] of Object.entries(terms) as Array<[V23SemanticDimension,RegExp]>){
-  for(const clause of clauses){pattern.lastIndex=0;if(!pattern.test(clause))continue;const negated=/(?:\b(?:no|not|without|avoid|exclude)\b|(?:οχι|χωρις|αποφυγ))/i.test(clause);maxSet(negated?negative:positive,dimension,negated?.9:.72);}
+  for(const clause of clauses){pattern.lastIndex=0;if(!pattern.test(clause))continue;const negated=/(?:\b(?:no|not|without|avoid|exclude)\b|(?:οχι|χωρις|αποφυγ))/i.test(clause);maxSet(negated?negative:positive,dimension,negated ? .9 : .72);}
  }
 }
 
 export function buildFuzzyContractV23(request:TripRequest,legacy?:V8SemanticIntent):V23FuzzyIntentContract{
  const positive:Partial<Record<V23SemanticDimension,number>>={},negative:Partial<Record<V23SemanticDimension,number>>={};
  applyStructured(request,positive);applyLegacySemantic(positive,negative,legacy);if(request.tripText)applyExtraFreeText(request.tripText,positive,negative);
- const qualifiers={avoidCrowds:legacy?.qualifiers.avoidCrowds??(request.avoid==="crowds"?.82:0),easyAccess:legacy?.qualifiers.easyAccess??0,slowRhythm:legacy?.qualifiers.slowRhythm??0,walkable:legacy?.qualifiers.walkable??0,localCharacter:legacy?.qualifiers.localCharacter??0};
+ const qualifiers={avoidCrowds:legacy?.qualifiers.avoidCrowds??(request.avoid==="crowds" ? .82 : 0),easyAccess:legacy?.qualifiers.easyAccess??0,slowRhythm:legacy?.qualifiers.slowRhythm??0,walkable:legacy?.qualifiers.walkable??0,localCharacter:legacy?.qualifiers.localCharacter??0};
  if(qualifiers.easyAccess>0)maxSet(positive,"low_effort",.92*qualifiers.easyAccess);
  if(qualifiers.walkable>0){maxSet(positive,"city",.46*qualifiers.walkable);maxSet(positive,"low_effort",.32*qualifiers.walkable);}
  if(qualifiers.localCharacter>0)maxSet(positive,"culture",.72*qualifiers.localCharacter);
  const priorities=(legacy?.priorities??[]).map(d=>legacyMap[d]).filter((d):d is V23SemanticDimension=>Boolean(d));
- return{positive,negative,priorities:[...new Set(priorities)],qualifiers,confidence:legacy?.confidence??(request.tripText?.trim()?.75:1),source:legacy?.source??"structured",positiveVector:vectorFromSemanticMapV23(positive),negativeVector:vectorFromSemanticMapV23(negative)};
+ return{positive,negative,priorities:[...new Set(priorities)],qualifiers,confidence:legacy?.confidence??(request.tripText?.trim() ? .75 : 1),source:legacy?.source??"structured",positiveVector:vectorFromSemanticMapV23(positive),negativeVector:vectorFromSemanticMapV23(negative)};
 }
 
 export function mergeFuzzyContractV23(base:V23FuzzyIntentContract,parsed:{positive?:Partial<Record<V23SemanticDimension,number>>;negative?:Partial<Record<V23SemanticDimension,number>>;priorities?:V23SemanticDimension[];qualifiers?:Partial<V23FuzzyIntentContract["qualifiers"]>;confidence?:number},source:V23FuzzyIntentContract["source"]):V23FuzzyIntentContract{
