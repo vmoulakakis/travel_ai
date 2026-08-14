@@ -143,6 +143,7 @@ export interface V8RecommendationResponse {
 }
 
 export interface V8StayOffer extends AffiliateOffer {
+  inStock?:boolean|null;
   city?:string|null;
   address?:string|null;
   distanceKm?:number|null;
