@@ -19,8 +19,8 @@ const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,
 Deno.serve(async(req:Request)=>{
   if(req.method!=="GET")return json({error:"Method not allowed"},405);
   const base=Deno.env.get("SUPABASE_URL"),key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),appSecret=Deno.env.get("SUPABASE_INGEST_SECRET");
-  if(!base||!key)return json({error:"Runtime credentials missing"},500);
-  if(appSecret&&req.headers.get("x-app-secret")!==appSecret)return json({error:"Unauthorized"},401);
+  if(!base||!key||!appSecret)return json({error:"Runtime credentials missing"},500);
+  if(req.headers.get("x-app-secret")!==appSecret)return json({error:"Unauthorized"},401);
 
   const response=await fetch(`${base}/rest/v1/rpc/get_production_truth_v20`,{method:"POST",headers:{apikey:key,Authorization:`Bearer ${key}`,"content-type":"application/json"},body:"{}"});
   if(!response.ok)return json({error:"Production truth unavailable"},502);
