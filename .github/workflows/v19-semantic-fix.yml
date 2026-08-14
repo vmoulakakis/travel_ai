@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: python3 scripts/v19-apply-semantic-fixes.py
+      - run: python3 scripts/v19-refine-semantic.py
       - run: npm install
       - run: npm run typecheck
       - run: npm run test:v18:semantic
@@ -23,7 +23,7 @@ jobs:
       - run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add lib/ai/intent-v8.ts lib/decision/geography-constraint.ts scripts/v19-10000-semantic-match-audit.ts
+          git add lib/ai/semantic-fallback-v19.ts scripts/v19-10000-semantic-match-audit.ts
           git diff --cached --check
-          git commit -m "Improve semantic typo, negation and geography handling"
+          git commit -m "Refine mixed, priority and natural-language semantics"
           git push
