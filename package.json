@@ -18,9 +18,11 @@
     "test:availability": "node --import tsx scripts/stay-availability-smoke.ts",
     "test:charging": "node --import tsx scripts/ev-charging-smoke.ts",
     "test:result-auditor": "node --import tsx scripts/result-auditor-smoke.ts",
-    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:audit:10000 && npm run test:availability && npm run test:charging && npm run test:result-auditor && npm run test:geo-composition && npm run test:research-scout",
     "test:geo-composition": "node --import tsx scripts/geography-composition-smoke.ts",
-    "test:research-scout": "node --import tsx scripts/research-scout-smoke.ts"
+    "test:research-scout": "node --import tsx scripts/research-scout-smoke.ts",
+    "test:stay-cities": "node --import tsx scripts/stay-city-inventory-smoke.ts",
+    "test:v15:1000": "node --import tsx scripts/v15-1000-search-audit.ts",
+    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:audit:10000 && npm run test:availability && npm run test:charging && npm run test:result-auditor && npm run test:geo-composition && npm run test:research-scout && npm run test:stay-cities && npm run test:v15:1000"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.36",
