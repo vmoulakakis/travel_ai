@@ -46,7 +46,7 @@ function mapOffer(row:Record<string,unknown>):V8StayOffer|null{
  const base:AffiliateOffer={sourceProductId,propertyName,description:cleanHtml(text(row.description)),category:text(row.source_category),programId:text(row.program_id),trackingUrl,imageUrl:text(row.image_url),thumbUrl:text(row.thumb_url),availability:text(row.availability),validFrom:text(row.valid_from),validTo:text(row.valid_to),currency:text(row.currency),price:num(row.price),fullPrice:num(row.full_price),discount:num(row.discount),demandSignal:num(row.demand_proxy),starLevel:null};
  const starMatch=propertyName.match(/(?:^|\s)([1-5])\s*\*/);if(starMatch)base.starLevel=Number(starMatch[1]);
  const raw=row.raw&&typeof row.raw==="object"&&!Array.isArray(row.raw)?row.raw as Record<string,unknown>:{};
- return{...base,city:text(row.city),address:text(row.address),distanceKm:num(row.distance_km),latitude:num(row.latitude)??num(raw.latitude),longitude:num(row.longitude)??num(raw.longitude),raw};
+ return{...base,inStock:typeof row.in_stock==="boolean"?row.in_stock:null,city:text(row.city),address:text(row.address),distanceKm:num(row.distance_km),latitude:num(row.latitude)??num(raw.latitude),longitude:num(row.longitude)??num(raw.longitude),raw};
 }
 
 export async function loadV8StayOffers(slug:string,startDate:string,endDate:string,limit=18):Promise<V8StayOffer[]>{
