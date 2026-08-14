@@ -44,11 +44,28 @@ export interface V8Destination {
   seasonProfile:string;
 }
 
+export interface V8SemanticIntent {
+  positive:Partial<Record<V8Dimension,number>>;
+  negative:Partial<Record<V8Dimension,number>>;
+  priorities:V8Dimension[];
+  qualifiers:{
+    avoidCrowds:number;
+    easyAccess:number;
+    slowRhythm:number;
+    walkable:number;
+    localCharacter:number;
+  };
+  confidence:number;
+  source:"structured"|"structured+free"|"structured+deepseek"|"structured+openai";
+  rationale:string[];
+}
+
 export interface V8IntentProfile {
   weights:Record<V8Dimension,number>;
   source:"structured"|"structured+free"|"structured+deepseek"|"structured+openai";
   summary:string;
   interpretedText?:string|null;
+  semantic?:V8SemanticIntent;
 }
 
 export interface V8ScoreBreakdown {
