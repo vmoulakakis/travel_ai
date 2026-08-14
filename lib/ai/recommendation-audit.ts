@@ -5,6 +5,8 @@ export type RecommendationAuditRecord={
   timingsMs?:Record<string,number>;
   intentSource?:string;
   hardConstraint?:string|null;
+  stayRequirements?:Record<string,unknown>;
+  llmBudget?:Record<string,unknown>;
   catalogSize?:number;
   preCandidates?:string[];
   researchScout?:Record<string,unknown>;
@@ -20,7 +22,8 @@ function safeRecord(record:RecommendationAuditRecord){
   event:"travel_recommendation_audit",
   at:new Date().toISOString(),
   ...record,
-  // The audit deliberately excludes raw free text, secrets, tokens and provider credentials.
+  // Deliberately excludes raw free text, prompts, secrets, credentials and generated reasoning.
+  // llmBudget contains counts/ceilings only — never request or response content.
  };
 }
 
@@ -29,11 +32,5 @@ export function writeRecommendationAudit(record:RecommendationAuditRecord){
 }
 
 export function writeRecommendationAuditError(sessionId:string,stage:string,error:unknown,timingsMs?:Record<string,number>){
- writeRecommendationAudit({
-  sessionId,
-  status:"error",
-  stage,
-  timingsMs,
-  errorType:error instanceof Error?error.name:"unknown",
- });
+ writeRecommendationAudit({sessionId,status:"error",stage,timingsMs,errorType:error instanceof Error?error.name:"unknown"});
 }
