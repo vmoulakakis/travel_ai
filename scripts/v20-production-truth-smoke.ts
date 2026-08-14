@@ -47,8 +47,8 @@ assert.match(edge,/SUPABASE_INGEST_SECRET/);
 assert.match(edge,/get_production_truth_v20/);
 assert.match(edge,/TRI_STATE_STOCK_TRUTH/);
 
+// V20's permanent gate checks the truth semantics, not the name of the latest release.
 const health=readFileSync("app/api/health/route.ts","utf8");
-assert.match(health,/release:\"V20\"/);
 assert.match(health,/productionTruthReady/);
 assert.match(health,/triStateStayAvailability:true/);
 
@@ -60,4 +60,4 @@ assert.match(status,/evidenceCoveragePercent/);
 const mapper=readFileSync("lib/data/destination-v8.ts","utf8");
 assert.match(mapper,/inStock:typeof row\.in_stock===\"boolean\"\?row\.in_stock:null/);
 
-console.log("V20_PRODUCTION_TRUTH_OK tri-state-availability=PASS privileged-rpc=HARDENED evidence-status=EXPOSED release-health=PASS");
+console.log("V20_PRODUCTION_TRUTH_OK tri-state-availability=PASS privileged-rpc=HARDENED evidence-status=EXPOSED release-health=COMPATIBLE");
