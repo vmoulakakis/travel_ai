@@ -40,10 +40,8 @@ function compute(r:TripRequest,intent:V8IntentProfile,d:V8Destination,weather?:W
  let score=b.intent*w.intent+b.season*w.season+b.effort*w.effort+b.duration*w.duration+b.budget*w.budget+b.weather*w.weather+b.traveler*w.traveler+b.crowdFit*w.crowd;
  score+=freeTextPreferenceAdjustment(r,d,e.score);
  if(isOrigin(r,d))score=0;if(r.distancePreference==="island"&&!V8_ISLAND_SLUGS.has(d.slug))score=0;if(!matchesMustHave(r,d))score=0;if(r.avoid==="crowds"&&d.crowdLevel>=5)score-=16;if(r.avoid==="high-cost"&&d.costTier>budgetTarget(r)+1)score-=18;if(r.avoid==="high-cost"&&d.costTier>=5)score=Math.min(score,45);if(r.socialPreference==="quiet"&&d.crowdLevel>=5)score-=9;if(r.noveltyPreference==="surprise"&&d.crowdLevel<=3)score+=4;if(r.noveltyPreference==="familiar"&&d.routeConfidence>=.95)score+=3;
- // Keep a user's explicitly considered, feasible idea in the comparison set without forcing it to win.
  if(consideredFit(r,d)&&b.season>=55&&b.budget>=48)score+=12;
  if(b.season<40)score-=8;
- // Explicit warmth is a feasibility requirement, not a soft style preference. Diversity cannot rescue a cold/off-season beach destination.
  if(r.moods.includes("warmth")&&b.season<55)score=Math.min(score,48);
  if(r.moods.includes("warmth")&&weather&&weather.source!=="unavailable"&&weather.score<55)score=Math.min(score,48);
  if(r.distancePreference==="nearby"&&e.score<70)score-=25+(70-e.score)*1.5;
@@ -68,26 +66,27 @@ function portfolioScore(candidate:V8Ranked,selected:V8Ranked[],lens:number){cons
 function regionCapFor(ranked:V8Ranked[],count:number){const capacity=new Map<string,number>();for(const item of ranked)capacity.set(item.destination.regionGroup,(capacity.get(item.destination.regionGroup)??0)+1);for(let cap=1;cap<=count;cap+=1)if([...capacity.values()].reduce((sum,value)=>sum+Math.min(value,cap),0)>=count)return Math.max(2,cap);return count}
 function pick(pool:V8Ranked[],selected:V8Ranked[],role:V8ExplorationRole,predicate:(item:V8Ranked)=>boolean,lens:(item:V8Ranked)=>number,regionCap=Infinity){let bestIndex=-1,bestScore=-Infinity;for(let i=0;i<pool.length;i+=1){const candidate=pool[i],regionCount=selected.filter(item=>item.destination.regionGroup===candidate.destination.regionGroup).length;if(regionCount>=regionCap||!predicate(candidate))continue;const value=portfolioScore(candidate,selected,lens(candidate));if(value>bestScore){bestScore=value;bestIndex=i}}if(bestIndex<0)return false;selected.push({...pool.splice(bestIndex,1)[0],explorationRole:role});return true}
 export function diversifyV8(ranked:V8Ranked[],count=12,request?:TripRequest){const pool=ranked.filter(item=>item.score>0).map(item=>({...item})),selected:V8Ranked[]=[];if(!pool.length)return selected;const targetCount=Math.min(count,pool.length),regionCap=regionCapFor(pool,targetCount);selected.push({...pool.shift()!,explorationRole:"BEST_FIT"});
- // Finalists remain accuracy-first. Diversity may break near ties, but it cannot promote a weak option merely to look different.
  const finalistFloor=Math.max(56,selected[0].score-8),finalistEligible=(item:V8Ranked)=>item.score>=finalistFloor&&item.breakdown.season>=45&&item.breakdown.crowdFit>30&&item.breakdown.budget>30;
+ // V21: every displayed alternative gets a relevance floor. Diversity can choose among viable options; it cannot rescue an irrelevant one.
+ const alternativeFloor=Math.max(50,selected[0].score-16),alternativeEligible=(item:V8Ranked)=>item.score>=alternativeFloor&&item.breakdown.season>=40&&item.breakdown.crowdFit>25&&item.breakdown.budget>25;
  pick(pool,selected,"EASIEST",finalistEligible,item=>item.score*.9+item.breakdown.effort*.1,regionCap);
  if(selected.length<3)pick(pool,selected,"ALTERNATIVE",finalistEligible,item=>item.score,regionCap);
- while(selected.length<Math.min(3,count)&&pool.length)pick(pool,selected,"ALTERNATIVE",()=>true,item=>item.score,regionCap);
+ while(selected.length<Math.min(3,count)&&pool.length){if(!pick(pool,selected,"ALTERNATIVE",alternativeEligible,item=>item.score,regionCap))break;}
  const firstIsIsland=V8_ISLAND_SLUGS.has(selected[0].destination.slug),selectors:Array<[V8ExplorationRole,(item:V8Ranked)=>boolean,(item:V8Ranked)=>number]>=[
-  ["QUIETER",item=>item.destination.crowdLevel<=3,item=>item.score*.62+item.breakdown.crowdFit*.38],
-  ["SMART_VALUE",item=>item.breakdown.budget>=72,item=>item.score*.62+item.breakdown.budget*.38],
-  ["GEOGRAPHY_CONTRAST",item=>V8_ISLAND_SLUGS.has(item.destination.slug)!==firstIsIsland,item=>item.score*.82+item.breakdown.effort*.18],
-  ["BEST_SEASON",item=>item.breakdown.season>=60,item=>item.score*.62+item.breakdown.season*.38],
-  ["NATURE_AND_SEA",item=>item.destination.tags.includes("nature")&&item.destination.tags.includes("beach"),item=>item.score*.72+item.breakdown.intent*.28],
-  ["CITY_AND_SEA",item=>item.destination.tags.includes("city")&&item.destination.tags.includes("beach"),item=>item.score*.72+item.breakdown.intent*.28],
-  ["HIDDEN_GEM",item=>item.destination.crowdLevel<=3&&item.destination.routeConfidence>=.7,item=>item.score*.58+item.breakdown.crowdFit*.25+item.breakdown.traveler*.17],
-  ["DIFFERENT_RHYTHM",()=>true,item=>item.score*.64+item.breakdown.duration*.2+item.breakdown.traveler*.16],
-  ["WILDCARD",()=>true,item=>item.score*.7+item.breakdown.intent*.3],
+  ["QUIETER",item=>alternativeEligible(item)&&item.destination.crowdLevel<=3,item=>item.score*.62+item.breakdown.crowdFit*.38],
+  ["SMART_VALUE",item=>alternativeEligible(item)&&item.breakdown.budget>=72,item=>item.score*.62+item.breakdown.budget*.38],
+  ["GEOGRAPHY_CONTRAST",item=>alternativeEligible(item)&&V8_ISLAND_SLUGS.has(item.destination.slug)!==firstIsIsland,item=>item.score*.82+item.breakdown.effort*.18],
+  ["BEST_SEASON",item=>alternativeEligible(item)&&item.breakdown.season>=60,item=>item.score*.62+item.breakdown.season*.38],
+  ["NATURE_AND_SEA",item=>alternativeEligible(item)&&item.destination.tags.includes("nature")&&item.destination.tags.includes("beach"),item=>item.score*.72+item.breakdown.intent*.28],
+  ["CITY_AND_SEA",item=>alternativeEligible(item)&&item.destination.tags.includes("city")&&item.destination.tags.includes("beach"),item=>item.score*.72+item.breakdown.intent*.28],
+  ["HIDDEN_GEM",item=>alternativeEligible(item)&&item.destination.crowdLevel<=3&&item.destination.routeConfidence>=.7,item=>item.score*.58+item.breakdown.crowdFit*.25+item.breakdown.traveler*.17],
+  ["DIFFERENT_RHYTHM",alternativeEligible,item=>item.score*.64+item.breakdown.duration*.2+item.breakdown.traveler*.16],
+  ["WILDCARD",alternativeEligible,item=>item.score*.7+item.breakdown.intent*.3],
  ];
  for(const selector of selectors){if(selected.length>=count||!pool.length)break;pick(pool,selected,...selector,regionCap)}
- while(selected.length<count&&pool.length){if(!pick(pool,selected,"ALTERNATIVE",()=>true,item=>item.score,regionCap))break}
+ while(selected.length<count&&pool.length){if(!pick(pool,selected,"ALTERNATIVE",alternativeEligible,item=>item.score,regionCap))break}
  if(request?.consideredDestination){
-  const wanted=ranked.find(item=>consideredFit(request,item.destination)&&item.score>0&&item.breakdown.season>=55&&item.breakdown.budget>=48&&item.breakdown.crowdFit>30);
+  const wanted=ranked.find(item=>consideredFit(request,item.destination)&&alternativeEligible(item)&&item.breakdown.season>=55&&item.breakdown.budget>=48&&item.breakdown.crowdFit>30);
   if(wanted&&!selected.some(item=>item.destination.slug===wanted.destination.slug)){const preserved={...wanted,explorationRole:"ALTERNATIVE" as V8ExplorationRole};if(selected.length<targetCount)selected.push(preserved);else if(selected.length>3)selected[selected.length-1]=preserved;}
  }
  return selected;
