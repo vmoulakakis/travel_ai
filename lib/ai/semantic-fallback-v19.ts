@@ -34,7 +34,7 @@ export function deterministicSemanticIntentV19(raw:string):V8SemanticIntent{
  const negativeCity=any(text,[/(?:οχι|δεν θελω|χωρις|not|no|without|oxi).{0,24}(?:πολη|αστικ|city|urban|astik)/]);
  const negativeAdventure=any(text,[/(?:οχι|δεν θελω|χωρις).{0,20}(?:βουνο|πεζοπορ)/,/(?:not|no|without|oxi).{0,20}(?:mountain|hiking|pezopor)/]);
  const negativeLuxury=any(text,[/(?:οχι|δεν θελω|χωρις).{0,20}(?:luxury|πολυτελ)/,/(?:not|no|without|oxi).{0,20}(?:luxury|polytele)/]);
- if(food)pos("food",.88);if(beach)pos("beach",.94);if(relax)pos("relax",.86);if(nature)pos("nature",.9);if(culture)pos("culture",.94);if(family)pos("family",.9);if(romantic)pos("romantic",.84);if(adventure)pos("adventure",.8);if(warmth)pos("warmth",.8);if(explicitCity&&!negativeCity)pos("city",.86);
+ if(food)pos("food",.88);if(beach)pos("beach",.94);if(relax)pos("relax",.86);if(nature)pos("nature",.9);if(culture)pos("culture",.98);if(family)pos("family",.9);if(romantic)pos("romantic",.84);if(adventure)pos("adventure",.8);if(warmth)pos("warmth",.8);if(explicitCity&&!negativeCity)pos("city",.9);
  if(nightlifeWord&&!negativeNightlife)pos("nightlife",.76);
  if(negativeNightlife)neg("nightlife",.96);if(negativeBeach)neg("beach",.88);if(negativeCity)neg("city",.92);if(negativeAdventure)neg("adventure",.9);if(negativeLuxury)neg("luxury",.92);
 
