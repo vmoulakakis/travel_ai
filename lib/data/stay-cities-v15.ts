@@ -66,7 +66,7 @@ export function buildInventoryDestinationOptionsV15(cities:readonly ActiveStayCi
  for(const city of cities){
   const destination=matchIdentity(city.value,destinations);if(!destination)continue;
   const current=grouped.get(destination.slug),label=language==="en"?destination.nameEn:destination.nameEl;
-  if(!current){grouped.set(destination.slug,{slug:destination.slug,value:label,label,propertyCount:city.propertyCount,offerCount:city.offerCount,sourceCities:[city.value]});continue}
+  if(!current){grouped.set(destination.slug,{slug:destination.slug,value:destination.slug,label,propertyCount:city.propertyCount,offerCount:city.offerCount,sourceCities:[city.value]});continue}
   current.propertyCount=Math.max(current.propertyCount,city.propertyCount);
   current.offerCount=Math.max(current.offerCount,city.offerCount);
   if(!current.sourceCities.includes(city.value))current.sourceCities.push(city.value);
