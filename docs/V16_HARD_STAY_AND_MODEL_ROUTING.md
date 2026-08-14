@@ -7,6 +7,7 @@
 3. A language model may classify what the user asked for; it may never manufacture property evidence.
 4. Property facts fail closed. For `BEACHFRONT`, a property name containing `Beach` is not proof. Explicit beachfront/seafront/on-the-beach wording is required.
 5. Feed date coverage is not a room reservation and must still be confirmed with the provider.
+6. The same hard requirement must survive the finalist gate, the stay cards, and the final availability recheck; no later stage may silently substitute a looser stay.
 
 ## Cost ladder
 
