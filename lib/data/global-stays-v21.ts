@@ -1,38 +1,32 @@
-import type { V8StayOffer } from "@/lib/decision/v8-types";
+import type { StayConstraintKind } from "@/lib/decision/v8-types";
 
 const GLOBAL_STAYS_URL=process.env.SUPABASE_GLOBAL_STAYS_V21_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/global-stays-v21";
-const text=(value:unknown)=>typeof value==="string"&&value.trim()?value.trim():null;
 const num=(value:unknown)=>Number.isFinite(Number(value))?Number(value):null;
-const vector=(value:unknown)=>typeof value==="string"?value.replace(/^\[/,"").replace(/\]$/,"").split(",").map(Number).filter(Number.isFinite).slice(0,24):Array.isArray(value)?value.map(Number).filter(Number.isFinite).slice(0,24):[];
+const vector=(value:unknown)=>Array.isArray(value)?value.map(Number).filter(Number.isFinite).slice(0,24):[];
 
-export interface GlobalStayCandidateV21 extends V8StayOffer{
+export interface GlobalStayCandidateV21{
   destinationSlug:string;
+  distanceKm:number|null;
+  availabilityTruth:"CONFIRMED_ACTIVE"|"VALID_WINDOW_STOCK_UNKNOWN";
   semanticVector:number[];
   semanticConfidence:number|null;
+  starLevel:number|null;
+  valueSignal:number;
+  styleHints:{boutique:boolean;resort:boolean;luxury:boolean};
+  constraintEvidence:Partial<Record<StayConstraintKind,boolean>>;
 }
 
 type Payload={stays?:Array<Record<string,unknown>>};
-
 export async function loadGlobalStayCandidatesV21(startDate:string,endDate:string,perDestination=40):Promise<GlobalStayCandidateV21[]>{
-  const secret=process.env.SUPABASE_INGEST_SECRET;
-  if(!secret)throw new Error("Global stay retrieval secret unavailable");
   const url=new URL(GLOBAL_STAYS_URL);url.searchParams.set("start_date",startDate);url.searchParams.set("end_date",endDate);url.searchParams.set("per_destination",String(Math.max(1,Math.min(60,perDestination))));
-  const response=await fetch(url,{cache:"no-store",headers:{"user-agent":"travel-guru/1.0","x-app-secret":secret},signal:AbortSignal.timeout(8000)});
+  const response=await fetch(url,{cache:"no-store",headers:{"user-agent":"travel-guru/1.0","accept":"application/json"},signal:AbortSignal.timeout(8000)});
   if(!response.ok)throw new Error(`Global stay retrieval ${response.status}`);
-  const payload=await response.json() as Payload;
-  const rows=payload.stays??[],result:GlobalStayCandidateV21[]=[];
-  for(const row of rows){
-    const destinationSlug=text(row.destination_slug),sourceProductId=text(row.source_product_id),propertyName=text(row.property_name),trackingUrl=text(row.tracking_url);
-    if(!destinationSlug||!sourceProductId||!propertyName||!trackingUrl||!trackingUrl.startsWith("https://go.linkwi.se/")||!trackingUrl.includes("/CD104/"))continue;
-    const raw=row.raw&&typeof row.raw==="object"&&!Array.isArray(row.raw)?row.raw as Record<string,unknown>:{};
-    const starMatch=propertyName.match(/(?:^|\s)([1-5])\s*\*/);
-    result.push({
-      destinationSlug,sourceProductId,propertyName,trackingUrl,
-      description:text(row.description),category:text(row.source_category),programId:text(row.program_id),imageUrl:text(row.image_url),thumbUrl:text(row.thumb_url),
-      inStock:typeof row.in_stock==="boolean"?row.in_stock:null,availability:text(row.availability),validFrom:text(row.valid_from),validTo:text(row.valid_to),currency:text(row.currency),price:num(row.price),fullPrice:num(row.full_price),discount:num(row.discount),demandSignal:num(row.demand_proxy),starLevel:starMatch?Number(starMatch[1]):null,
-      city:text(row.city),address:text(row.address),distanceKm:num(row.distance_km),latitude:num(raw.latitude),longitude:num(raw.longitude),raw,
-      semanticVector:vector(row.semantic_vector),semanticConfidence:num(row.semantic_confidence),
-    });
+  const payload=await response.json() as Payload,result:GlobalStayCandidateV21[]=[];
+  for(const row of payload.stays??[]){
+    const destinationSlug=typeof row.destination_slug==="string"?row.destination_slug.trim():"",truth=row.availability_truth;
+    if(!destinationSlug||(truth!=="CONFIRMED_ACTIVE"&&truth!=="VALID_WINDOW_STOCK_UNKNOWN"))continue;
+    const hints=row.style_hints&&typeof row.style_hints==="object"&&!Array.isArray(row.style_hints)?row.style_hints as Record<string,unknown>:{},evidence=row.constraint_evidence&&typeof row.constraint_evidence==="object"&&!Array.isArray(row.constraint_evidence)?row.constraint_evidence as Record<string,unknown>:{};
+    result.push({destinationSlug,distanceKm:num(row.distance_km),availabilityTruth:truth,semanticVector:vector(row.semantic_vector),semanticConfidence:num(row.semantic_confidence),starLevel:num(row.star_level),valueSignal:num(row.value_signal)??58,styleHints:{boutique:hints.boutique===true,resort:hints.resort===true,luxury:hints.luxury===true},constraintEvidence:Object.fromEntries(Object.entries(evidence).filter(([,value])=>typeof value==="boolean")) as Partial<Record<StayConstraintKind,boolean>>});
   }
   return result;
 }
