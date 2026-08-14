@@ -1,0 +1,73 @@
+name: V16 exact type fix
+
+on:
+  push:
+    branches: [agent/v16-hard-stay-constraints-cost-router]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Run V16 exact type fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v16-hard-stay-constraints-cost-router
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply exact compiler fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p=Path('lib/ai/intent-v8.ts')
+          s=p.read_text()
+          old='context:{task:"intent",text,deterministicConfidence,hardConstraintRisk,contradictorySignals:clauses>=4}'
+          new='context:{task:"intent",text,deterministicConfidence,hardConstraintRisk:hardRisk,contradictorySignals:clauses>=4}'
+          assert old in s
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('lib/ai/recommendation-research-agent-v14.ts')
+          s=p.read_text()
+          old='new ToolLoopAgent({model:route.model,instructions,tools:{searchTravelEvidence}'
+          new='new ToolLoopAgent({model:route.model,maxOutputTokens:route.maxOutputTokens,instructions,tools:{searchTravelEvidence}'
+          assert old in s
+          s=s.replace(old,new,1)
+          old=',abortSignal:controller.signal,maxOutputTokens:route.maxOutputTokens});'
+          new=',abortSignal:controller.signal});'
+          assert old in s
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('lib/ai/travel-council-v9.ts')
+          s=p.read_text()
+          old='new ToolLoopAgent({model:route.model,instructions,tools:{inspectEvidence}'
+          new='new ToolLoopAgent({model:route.model,maxOutputTokens:route.maxOutputTokens,instructions,tools:{inspectEvidence}'
+          assert old in s
+          s=s.replace(old,new,1)
+          old=',abortSignal:controller.signal,maxOutputTokens:route.maxOutputTokens});'
+          new=',abortSignal:controller.signal});'
+          assert old in s
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('lib/ai/travel-orchestrator-v15.ts')
+          s=p.read_text()
+          old='import { interpretStayConstraintsV16 } from "@/lib/decision/stay-constraints-v16";'
+          new='import { interpretStayConstraintsV16 } from "@/lib/ai/stay-constraint-interpreter-v16";'
+          assert old in s
+          p.write_text(s.replace(old,new,1))
+          PY
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run test:v16:stay
+      - run: npm run test:v16:router
+      - run: git diff --check
+      - name: Commit fixes
+        run: |
+          git config user.name "travel-ai-auditor"
+          git config user.email "68458826+vmoulakakis@users.noreply.github.com"
+          git add lib/ai/intent-v8.ts lib/ai/recommendation-research-agent-v14.ts lib/ai/travel-council-v9.ts lib/ai/travel-orchestrator-v15.ts
+          git commit -m "Fix V16 AI SDK typing and server boundary"
+          git push origin HEAD:agent/v16-hard-stay-constraints-cost-router
