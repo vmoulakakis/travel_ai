@@ -14,6 +14,7 @@ import { screenResearchEvidence } from "@/lib/decision/research-intent-v13";
 import { buildSmartDateWindows } from "@/lib/decision/date-windows-v9";
 import { geographyConstraint } from "@/lib/decision/geography-constraint";
 import { diversifyV8,finalRankV8,preRankV8,responseFeasibility,toRecommendationsV8,type V8Ranked } from "@/lib/decision/v8-matcher";
+import { applySemanticIntentRankingV18 } from "@/lib/decision/semantic-intent-ranking-v18";
 import { interpretStayConstraintsV16 } from "@/lib/ai/stay-constraint-interpreter-v16";
 import { gateRankedByStayRequirementsV16 } from "@/lib/decision/stay-eligibility-v16";
 import type { V8RecommendationResponse } from "@/lib/decision/v8-types";
@@ -40,10 +41,11 @@ export async function runTravelOrchestratorV15(trip:TripRequest,sessionId:string
   signal("understand:start",8,{hasFreeText:Boolean(trip.tripText),agent:"intent-constraint"});signal("catalog:start",12,{agent:"orchestrator"});
   stage="intent+catalog";
   const[intent,stayRequirements,allDestinations]=await Promise.all([interpretIntentV8(trip,llmBudget),interpretStayConstraintsV16(trip.tripText,llmBudget),loadV8DestinationCatalog()]);mark("intent+catalog");
-  const catalog=allDestinations.filter(destination=>destination.countryCode==="GR"),hardConstraint=geographyConstraint(trip,catalog);
-  signal("understand:ready",24,{summary:intent.summary,hardStayRequirements:stayRequirements.hard,agent:"intent-constraint"});signal("catalog:ready",36,{catalogSize:catalog.length,agent:"orchestrator"});
+  const catalog=allDestinations.filter(destination=>destination.countryCode==="GR"),hardConstraint=geographyConstraint(trip,catalog),rankingTrip:TripRequest={...trip,tripText:""};
+  signal("understand:ready",24,{summary:intent.summary,semanticSource:intent.source,semanticPriorities:intent.semantic?.priorities??[],hardStayRequirements:stayRequirements.hard,agent:"intent-constraint"});signal("catalog:ready",36,{catalogSize:catalog.length,agent:"orchestrator"});
 
-  const preAll=preRankV8(trip,intent,catalog,30),minimum=(hardConstraint||stayRequirements.hard.length)?1:3;mark("pre-rank");
+  // V18: the raw free text is interpreted once into a canonical semantic contract. The legacy matcher receives a sanitized request so it cannot independently reinterpret the same text with regexes.
+  const rawPre=preRankV8(rankingTrip,intent,catalog,Math.max(30,catalog.length)),preAll=applySemanticIntentRankingV18(rawPre,intent).slice(0,30),minimum=(hardConstraint||stayRequirements.hard.length)?1:3;mark("pre-rank");
   if(preAll.length<minimum){
    writeRecommendationAudit({sessionId,status:"no-result",stage:"pre-rank",timingsMs:{...timings,total:Date.now()-started},intentSource:intent.source,hardConstraint:hardConstraint?.id??null,stayRequirements:stayRequirementAudit(stayRequirements),llmBudget:llmBudget.snapshot(),catalogSize:catalog.length,preCandidates:preAll.map(item=>item.destination.slug),auditor:{roles}});
    throw new TravelDecisionError(422,trip.language==="en"?"No available destination satisfies that combination yet.":"Δεν υπάρχουν διαθέσιμες επιλογές για αυτόν τον συνδυασμό.","pre-rank");
@@ -62,7 +64,7 @@ export async function runTravelOrchestratorV15(trip:TripRequest,sessionId:string
   signal("shortlist:ready",50,{preview:pre.slice(0,7).map(x=>({destination:trip.language==="en"?x.destination.nameEn:x.destination.nameEl})),agent:"orchestrator"});
 
   signal("weather:start",56,{candidates:Math.min(18,pre.length),agent:"season-route"});stage="weather";
-  const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),18),weatherRanked=finalRankV8(trip,intent,pre,weather);mark("weather");
+  const weather=await enrichV8Weather(trip,pre.map(x=>x.destination),18),weatherRanked=applySemanticIntentRankingV18(finalRankV8(rankingTrip,intent,pre,weather),intent);mark("weather");
   signal("weather:ready",70,{checked:weather.size,agent:"season-route"});
 
   stage="stored-evidence";const research=await screenResearchEvidence(trip,weatherRanked,18);mark("stored-evidence");
@@ -70,9 +72,9 @@ export async function runTravelOrchestratorV15(trip:TripRequest,sessionId:string
   const researchScout=await runRecommendationResearchAgent(trip,research.ranked,llmBudget),ranked=applyResearchScoutRanking(research.ranked,researchScout);mark("research-scout");
   signal("research:ready",84,{webBacked:researchScout.ran,checked:researchScout.inspectedSlugs.length,confidence:researchScout.confidence,agent:"research-scout"});
 
-  const selected=diversifyV8(ranked,12,trip),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,18);
+  const selected=diversifyV8(ranked,12,rankingTrip),selectedIds=new Set(selected.map(x=>x.destination.slug)),verifyPool=[...selected,...ranked.filter(x=>!selectedIds.has(x.destination.slug))].slice(0,18);
   signal("verify:start",87,{conditional:true,agent:"skeptical-auditor"});stage="verifier";
-  const verification=await verifyV8(trip,verifyPool,llmBudget),fixed=verification.checked&&!verification.passed?repair(trip,selected,ranked,verification.rejectSlugs):selected;mark("verifier");
+  const verification=await verifyV8(trip,verifyPool,llmBudget),fixed=verification.checked&&!verification.passed?repair(rankingTrip,selected,ranked,verification.rejectSlugs):selected;mark("verifier");
   stage="auditor";const audited=await auditAndRepairV10(trip,fixed,ranked,12,research.evidence,llmBudget);mark("auditor");
   signal("verify:ready",91,{checked:true,corrected:audited.audit.attempts>1,confidence:audited.audit.confidence,agent:"skeptical-auditor"});
   if(!audited.audit.passed||!audited.items.length){
@@ -84,7 +86,7 @@ export async function runTravelOrchestratorV15(trip:TripRequest,sessionId:string
   const council=await runTravelCouncilV9(trip,audited.items,llmBudget),ordered=council.agreement==="STRONG"?[...audited.items].sort((a,b)=>a.destination.slug===council.finalSlug?-1:b.destination.slug===council.finalSlug?1:0):audited.items;mark("council");
   signal("council:ready",97,{agreement:council.agreement,agent:"traveler-advocate"});
 
-  const recommendations=toRecommendationsV8(trip,ordered).map(x=>({...x,dateWindows:buildSmartDateWindows(trip,x)})),publicIntent={...intent,source:"structured" as const,interpretedText:undefined},publicStayRequirements={...stayRequirements,source:"deterministic" as const,needsSemanticAssist:false};
+  const recommendations=toRecommendationsV8(trip,ordered).map(x=>({...x,dateWindows:buildSmartDateWindows(trip,x)})),publicIntent={...intent,interpretedText:undefined},publicStayRequirements={...stayRequirements,source:"deterministic" as const,needsSemanticAssist:false};
   const result:V8RecommendationResponse={version:9,experienceVersion:16,request:trip,generatedAt:new Date().toISOString(),source:"verified-travel-knowledge",intent:publicIntent,stayRequirements:publicStayRequirements,catalogSize:catalog.length,eligibleCount:ranked.length,explorationCount:Math.max(0,recommendations.length-3),mode:"guided",resultCount:recommendations.length,profileSummary:profileSummary(trip),feasibility:responseFeasibility(ordered),council,continuity:fullContinuity(),recommendations};
 
   stage="learning";await recordV8RecommendationSession(sessionId,trip,intent,recommendations).catch(()=>false);mark("learning");
