@@ -187,7 +187,7 @@ export function TravelDecisionExperience({weeklyPick}:{weeklyPick:WeeklyPick|nul
     setTimeout(() => document.getElementById("discovery")?.scrollIntoView({ behavior: "smooth", block: "start" }), 40);
   }
 
-  function beginWeekly(){if(!weeklyPick)return;const moods:TripRequest["moods"]=weeklyPick.tags.includes("beach")?["relax","warmth"]:weeklyPick.tags.includes("nature")?["relax","nature"]:["food","culture"];setTrip(current=>({...current,entryMode:"idea",consideredDestination:weeklyPick.destination,startDate:weeklyPick.startDate,endDate:weeklyPick.endDate,nights:weeklyPick.nights,month:monthFromDate(weeklyPick.startDate),moods}));setEntryMode("idea");setStep(0);setResult(null);setSelected(null);setVisibleAlternativeCount(0);setCompareSlugs([]);setTimeout(()=>document.getElementById("discovery")?.scrollIntoView({behavior:"smooth",block:"start"}),40)}
+  function beginWeekly(){if(!weeklyPick)return;const moods:TripRequest["moods"]=weeklyPick.tags.includes("beach")?["relax","warmth"]:weeklyPick.tags.includes("nature")?["relax","nature"]:["food","culture"];setTrip(current=>({...current,entryMode:"idea",consideredDestination:weeklyPick.slug,startDate:weeklyPick.startDate,endDate:weeklyPick.endDate,nights:weeklyPick.nights,month:monthFromDate(weeklyPick.startDate),moods}));setEntryMode("idea");setStep(0);setResult(null);setSelected(null);setVisibleAlternativeCount(0);setCompareSlugs([]);setTimeout(()=>document.getElementById("discovery")?.scrollIntoView({behavior:"smooth",block:"start"}),40)}
 
   async function run(attempt=0) {
     if (running.current&&attempt===0) return;
