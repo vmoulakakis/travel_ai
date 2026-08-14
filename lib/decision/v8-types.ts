@@ -7,6 +7,21 @@ import type { ContinuityEnvelope } from "@/lib/continuity";
 export const V8_DIMENSIONS=["romantic","relax","food","culture","city","nature","beach","adventure","nightlife","family","luxury","value","warmth","wellness","short_break","shoulder_season"] as const;
 export type V8Dimension=typeof V8_DIMENSIONS[number];
 
+// Canonical semantic_dimensions order in Supabase. V23 formulates both structured fields and
+// free text into this full 24D space before locality or stay retrieval.
+export const V23_SEMANTIC_DIMENSIONS=["relax","romantic","food","warmth","city","nature","adventure","culture","luxury","boutique","resort","value","family","couple","solo","friends","low_effort","warm_climate","all_weather","beach_season","nightlife","wellness","short_break","shoulder_season"] as const;
+export type V23SemanticDimension=typeof V23_SEMANTIC_DIMENSIONS[number];
+export interface V23FuzzyIntentContract{
+  positive:Partial<Record<V23SemanticDimension,number>>;
+  negative:Partial<Record<V23SemanticDimension,number>>;
+  priorities:V23SemanticDimension[];
+  qualifiers:{avoidCrowds:number;easyAccess:number;slowRhythm:number;walkable:number;localCharacter:number};
+  confidence:number;
+  source:"structured"|"structured+free"|"structured+deepseek"|"structured+openai";
+  positiveVector:number[];
+  negativeVector:number[];
+}
+
 export type StayConstraintKind="BEACHFRONT"|"NEAR_BEACH"|"SEA_VIEW"|"POOL"|"PARKING"|"EV_CHARGING"|"BREAKFAST"|"PET_FRIENDLY"|"FAMILY_ROOM"|"ADULTS_ONLY";
 export interface StayConstraintSpec{
   hard:StayConstraintKind[];
@@ -66,6 +81,9 @@ export interface V8IntentProfile {
   summary:string;
   interpretedText?:string|null;
   semantic?:V8SemanticIntent;
+  semantic24?:V23FuzzyIntentContract;
+  /** Internal observability only. The orchestrator removes this from public responses. */
+  formulationModel?:string|null;
 }
 
 export interface V8ScoreBreakdown {
@@ -149,6 +167,8 @@ export interface V8StayOffer extends AffiliateOffer {
   distanceKm?:number|null;
   latitude?:number|null;
   longitude?:number|null;
+  semanticVector?:number[];
+  semanticConfidence?:number|null;
   raw?:Record<string,unknown>;
 }
 
