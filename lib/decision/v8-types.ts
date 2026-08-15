@@ -7,8 +7,6 @@ import type { ContinuityEnvelope } from "@/lib/continuity";
 export const V8_DIMENSIONS=["romantic","relax","food","culture","city","nature","beach","adventure","nightlife","family","luxury","value","warmth","wellness","short_break","shoulder_season"] as const;
 export type V8Dimension=typeof V8_DIMENSIONS[number];
 
-// Canonical semantic_dimensions order in Supabase. V23 formulates both structured fields and
-// free text into this full 24D space before locality or stay retrieval.
 export const V23_SEMANTIC_DIMENSIONS=["relax","romantic","food","warmth","city","nature","adventure","culture","luxury","boutique","resort","value","family","couple","solo","friends","low_effort","warm_climate","all_weather","beach_season","nightlife","wellness","short_break","shoulder_season"] as const;
 export type V23SemanticDimension=typeof V23_SEMANTIC_DIMENSIONS[number];
 export interface V23FuzzyIntentContract{
@@ -57,19 +55,18 @@ export interface V8Destination {
   hotelRadiusKm:number;
   knowledgeSource:string;
   seasonProfile:string;
+  /** V24: exact stay-inventory locality identity. Present for locality-native candidates. */
+  localityId?:string;
+  localityLabel?:string;
+  canonicalParentSlug?:string|null;
+  localityProfileConfidence?:number;
 }
 
 export interface V8SemanticIntent {
   positive:Partial<Record<V8Dimension,number>>;
   negative:Partial<Record<V8Dimension,number>>;
   priorities:V8Dimension[];
-  qualifiers:{
-    avoidCrowds:number;
-    easyAccess:number;
-    slowRhythm:number;
-    walkable:number;
-    localCharacter:number;
-  };
+  qualifiers:{avoidCrowds:number;easyAccess:number;slowRhythm:number;walkable:number;localCharacter:number};
   confidence:number;
   source:"structured"|"structured+free"|"structured+deepseek"|"structured+openai";
   rationale:string[];
@@ -82,35 +79,12 @@ export interface V8IntentProfile {
   interpretedText?:string|null;
   semantic?:V8SemanticIntent;
   semantic24?:V23FuzzyIntentContract;
-  /** Internal observability only. The orchestrator removes this from public responses. */
   formulationModel?:string|null;
 }
 
-export interface V8ScoreBreakdown {
-  intent:number;
-  season:number;
-  effort:number;
-  duration:number;
-  budget:number;
-  weather:number;
-  traveler:number;
-  crowdFit:number;
-  routeConfidence:number;
-}
+export interface V8ScoreBreakdown {intent:number;season:number;effort:number;duration:number;budget:number;weather:number;traveler:number;crowdFit:number;routeConfidence:number;}
 
-export type V8ExplorationRole =
-  | "BEST_FIT"
-  | "EASIEST"
-  | "QUIETER"
-  | "SMART_VALUE"
-  | "GEOGRAPHY_CONTRAST"
-  | "BEST_SEASON"
-  | "NATURE_AND_SEA"
-  | "CITY_AND_SEA"
-  | "HIDDEN_GEM"
-  | "DIFFERENT_RHYTHM"
-  | "WILDCARD"
-  | "ALTERNATIVE";
+export type V8ExplorationRole = "BEST_FIT"|"EASIEST"|"QUIETER"|"SMART_VALUE"|"GEOGRAPHY_CONTRAST"|"BEST_SEASON"|"NATURE_AND_SEA"|"CITY_AND_SEA"|"HIDDEN_GEM"|"DIFFERENT_RHYTHM"|"WILDCARD"|"ALTERNATIVE";
 
 export interface V8Recommendation {
   slug:string;
@@ -138,6 +112,9 @@ export interface V8Recommendation {
   breakdown:V8ScoreBreakdown;
   weather?:WeatherEvidence|null;
   dateWindows?:SmartDateWindow[];
+  localityId?:string;
+  localityLabel?:string;
+  canonicalParentSlug?:string|null;
 }
 
 export interface V8RecommendationResponse {
@@ -160,21 +137,13 @@ export interface V8RecommendationResponse {
   recommendations:V8Recommendation[];
 }
 
-export interface V8StayOffer extends AffiliateOffer {
-  inStock?:boolean|null;
-  city?:string|null;
-  address?:string|null;
-  distanceKm?:number|null;
-  latitude?:number|null;
-  longitude?:number|null;
-  semanticVector?:number[];
-  semanticConfidence?:number|null;
-  raw?:Record<string,unknown>;
-}
+export interface V8StayOffer extends AffiliateOffer {inStock?:boolean|null;city?:string|null;address?:string|null;distanceKm?:number|null;latitude?:number|null;longitude?:number|null;semanticVector?:number[];semanticConfidence?:number|null;raw?:Record<string,unknown>;}
 
 export interface V8StayResponse {
   version:8|9;
   slug:string;
+  localityId?:string;
+  localityLabel?:string;
   startDate:string;
   endDate:string;
   offers:V8StayOffer[];
