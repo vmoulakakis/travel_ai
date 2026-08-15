@@ -1,154 +1,144 @@
-# Ελληνικός AI Travel Guru V10 — Greece-First Travel Decision AI
+# Ελληνικός AI Travel Guru — Greece-First Travel Decision System
 
-Travel decision intelligence for travelers starting primarily from Greece.
+Το Travel Guru είναι σύστημα ταξιδιωτικής απόφασης, όχι hotel catalog και όχι one-shot LLM recommender.
 
-**Promise:** answer five short human question sets and get six genuinely different Greek destination matches based on emotional need, dates, season, effort, group budget and non-negotiables — **before hotel inventory enters the decision**.
+**Current production:** V22 on `main` (`93d7bee4a908b9f1cf1de0e76bc4dc6262654d2f`)  
+**Current release candidate:** V24 Locality-Native on `v24-locality-native` — test first, not production until all gates pass.
 
-The current product and recovery blueprint is in [`docs/BLUEPRINT_V10.md`](docs/BLUEPRINT_V10.md). The 100-scenario acceptance record is in [`docs/EVALUATION_V10.md`](docs/EVALUATION_V10.md).
+Η μοναδική πηγή αλήθειας για architecture, recovery, agents, memory, data, tests και deployment είναι το [`docs/MASTER_BLUEPRINT.md`](docs/MASTER_BLUEPRINT.md).
 
-## Core rule
+## Core V24 decision path
 
 ```text
-USER ANSWERS
-    ↓
-STRUCTURED SEMANTIC INTENT
-    ↓ optional free text only
-DEEPSEEK INTENT PARSER
-    ↓
-DESTINATION KNOWLEDGE V8
-    ↓
-SEASON + EFFORT + DURATION + BUDGET BAND
-    ↓
-WEATHER ON FINALISTS
-    ↓
-DIVERSITY + CONDITIONAL OPENAI VERIFIER
-    ↓
-EXACTLY 6 DIVERSE DESTINATIONS
-    ↓ user selects one
-GEOLOCATED LINKWISE STAYS
+USER STRUCTURED FIELDS + FREE TEXT
+        ↓
+CANONICAL 24D FUZZY SEMANTIC CONTRACT
+        ↓
+DATED REAL LOCALITIES FROM LIVE INVENTORY
+        ↓
+DETERMINISTIC HARD-CONSTRAINT GATES
+        ↓
+EXACT-LOCALITY FUZZY MULTI-CRITERIA RECALL
+        ↓
+GROUNDED LOCALITY EVIDENCE RERANK
+        ↓
+EXACT-LOCALITY DATED STAY VALIDATION
+        ↓
+WEATHER / SEASON / ROUTE UNCERTAINTY
+        ↓
+FINALIST RESEARCH + INDEPENDENT CRITIQUE
+        ↓
+DIVERSE, EVIDENCE-BACKED TRIP DECISIONS
+        ↓ user selects one
+EXACT LOCALITY HOTEL RERANKING
 ```
 
-### What V8 deliberately does not do
+## Non-negotiable rules
 
-- Hotel count does **not** rank destinations.
-- Affiliate EPC, discount and merchant economics have **0%** destination weight.
-- Hotel descriptions do **not** define what a destination is.
-- Feed `location_label` is not trusted as destination identity.
-- Missing affiliate inventory does **not** invalidate a good destination match.
-- Feed validity overlap is not presented as live room availability.
-- OpenAI is not a travel planner or source of facts.
+- **Locality is first-class identity.** A place does not need a legacy canonical destination parent to participate.
+- **Canonical destination is optional enrichment.** No wide nearest-island/city mapping.
+- **Free text is first class.** It is formulated into the same 24D contract as the structured form.
+- **The formulator does not choose destinations or hotels.** It only translates meaning into the canonical contract.
+- **Hard constraints remain deterministic and fail closed.**
+- **Inventory depth is not relevance.** Property/offer count may be audited but never increases ranking score.
+- **Evidence must be able to repair coarse semantic recall.** It runs before shortlist freeze.
+- **Hotels are retrieved by exact `locality_id` for locality-native recommendations.**
+- **Unknown availability/route truth is never presented as confirmed.**
+- **Raw model/provider errors never reach the traveler.**
+- **Cross-session learned personalization is disabled** until consent, sufficient validated outcomes and calibration exist.
 
-## Destination Knowledge
+## Current data model
 
-`destination_knowledge_v8` remains the independent destination graph. The current product filters it to 21 active Greek places before scoring. Every destination stores:
+V24 uses the live dated locality layer backed by:
 
-- canonical names and aliases
-- latitude / longitude
-- semantic travel traits
-- 12-month suitability profile
-- ideal trip duration
-- qualitative cost tier
-- effort class from Athens and Thessaloniki
-- route confidence
-- crowd level
-- hotel matching radius
+- `destination_semantic_profiles` — 24D locality semantic recall profiles,
+- `stay_semantic_profiles` — 24D hotel semantic profiles,
+- `get_locality_profiles_v23(date,date)` — service-role-only dated locality candidates,
+- `get_locality_stays_v23(locality_id,date,date,limit)` — service-role-only exact-locality stays,
+- protected Edge functions `locality-profiles-v23` and `locality-stays-v24` using the existing server-side `x-app-secret` pattern.
 
-The catalog is seeded by `0014_seed_destination_knowledge_v8.sql` and can be expanded without touching the matching engine.
+The 24 ordered dimensions are:
+
+`relax, romantic, food, warmth, city, nature, adventure, culture, luxury, boutique, resort, value, family, couple, solo, friends, low_effort, warm_climate, all_weather, beach_season, nightlife, wellness, short_break, shoulder_season`.
+
+## Free-text / model routing
+
+For quality-critical formulation and locality evidence reasoning, the preferred route is:
+
+1. DeepSeek V4 Pro when configured,
+2. strong OpenAI reasoner (`OPENAI_REASONER_MODEL`, V24 default `gpt-5.1`),
+3. self-hosted OpenAI-compatible model,
+4. Hugging Face/open-model fallback,
+5. deterministic multilingual fallback.
+
+Cheaper models may still handle lower-risk verification/classification work. Model memory is never accepted as travel evidence.
 
 ## Matching
 
-The production V8 score is explainable. Depending on intent, the normalized blend uses approximately:
+V24 uses a hybrid decision system:
 
-- Intent: 31–34%
-- Season: 16–18%
-- Effort: 12%
-- Duration: 9%
-- Budget band: 8–9%
-- Weather: 6–14%
-- Traveler fit: 7–8%
-- Crowd fit: 2–4%
+- deterministic hard eligibility,
+- continuous fuzzy semantic memberships,
+- explicit negative memberships,
+- non-compensatory priority floors,
+- grounded evidence reranking,
+- exact-locality accommodation fit,
+- weather/season/access uncertainty,
+- portfolio diversity,
+- independent critique.
 
-Explicit requirements can become feasibility guards. For example, a user explicitly asking for warmth cannot receive an off-season/cold beach destination merely because diversity would otherwise promote it.
+The same semantic contract follows the user from locality retrieval into hotel ranking, so a request such as `food first, boutique, no nightlife, xoris poli odigisi` affects both **where** and **which stay**.
 
-`npm run test:strict` runs the V8/V9 regression checks plus 100 strict traveler scenarios. It verifies hard constraints, stable evidence-based output, catalog coverage and concentration limits so the same destinations do not dominate unrelated profiles.
+## Memory and learning truth
 
-## AI roles
+Active today:
 
-### DeepSeek V4 Pro
+- anonymous session semantic contract,
+- derived hard/soft stay requirements,
+- recommendation impressions/selections/offer events/click outcomes for evaluation.
 
-Optional. Structured answers require no LLM. DeepSeek is used only when the traveler adds natural-language intent such as “quiet, great food, not too touristy, easy to reach.” It converts that text to semantic preference weights. It does not name destinations or invent facts.
+Not active as ranking input:
 
-### Independent result audit
+- hidden cross-session behavioral personalization,
+- inferred psychological profiling,
+- LambdaMART/LambdaRank production reranker.
 
-Every recommendation now passes a deterministic audit of explicit free-text constraints, must-haves, season and route evidence. Failed candidates are removed and the shortlist is regenerated, with a maximum of three evidence-changing attempts. Configure `AUDIT_AI_BASE_URL`, `AUDIT_AI_MODEL` and `AUDIT_AI_API_KEY` to add a second independent OpenAI-compatible audit call through a self-hosted runtime such as LocalAI or vLLM. The local model may reject an evidence inconsistency but cannot introduce a destination or override deterministic constraints. If high confidence cannot be reached, the API returns no recommendation instead of unrelated results.
+A learned ranker requires sufficient validated outcomes, a holdout benchmark, calibration/bias checks and explicit memory consent UX before it can influence production.
 
-### OpenAI
-
-Optional low-cost final consistency verifier. Default model: `gpt-5.4-nano`. It runs only when the numeric ranking is genuinely ambiguous or contains a risk signal. Clear ranking sets skip the call entirely.
-
-### Neural learning
-
-V8 learning is isolated under model version `v8-destination-ranker`.
-
-The trainer is a small 12→8→1 network and stays inactive until all of these are true:
-
-- at least 500 labeled candidate examples
-- at least 60 positive outcomes
-- at least 200 negative examples
-- balanced validation accuracy >= 0.75
-
-Until that gate passes, learned influence is zero. Training runs in Supabase and consumes no LLM tokens.
-
-## Stay matching
-
-Stays are fetched **only after destination selection**. `get_destination_stays_v8` links feed products to the selected destination using raw latitude/longitude plus canonical city aliases. Polluted values such as `city=all` are discarded.
-
-Only tracked Linkwise URLs are surfaced. If the feed omits currency, V8 does not display a monetary price. The UI explicitly tells users to confirm actual room availability with the merchant.
-
-## Supabase
-
-V8 database assets:
-
-- `destination_knowledge_v8`
-- `get_destination_catalog_v8()`
-- `get_destination_stays_v8()`
-- `v8_match_training_examples`
-- `matching_model_versions` → `v8-destination-ranker`
-
-V8 Edge Functions:
-
-- `destination-catalog-v8`
-- `destination-stays-v8`
-- `match-learning`
-- `train-v8-ranker`
-- `ingest-linkwise-travel`
-
-Server-to-edge reads use the existing hashed application secret. No Supabase service-role key is exposed to Vercel or the browser.
-
-## Environment
-
-Copy `.env.example`. Required for the destination catalog and stay lookup:
+## Key V24 files
 
 ```text
-SUPABASE_INGEST_SECRET=
-CRON_SECRET=
+lib/ai/travel-orchestrator-v24.ts
+lib/ai/locality-evidence-reranker-v24.ts
+lib/ai/result-auditor-v24.ts
+lib/ai/agent-skills-v24.ts
+lib/decision/locality-candidate-v24.ts
+lib/decision/locality-native-ranking-v24.ts
+lib/decision/choice-correctness-v24.ts
+lib/decision/v24-matcher.ts
+lib/data/locality-profiles-v23.ts
+lib/data/locality-stays-v24.ts
+app/api/recommend/route.ts
+app/api/recommend/stream/route.ts
+app/api/destination-detail/route.ts
+app/api/v24/status/route.ts
+supabase/functions/locality-stays-v24/index.ts
+scripts/v24-locality-native-smoke.ts
 ```
 
-DeepSeek and OpenAI keys are optional enhancements. See `.env.example` for the full contract.
+Legacy V8–V23 modules remain as regression/recovery baselines until V24 has passed preview/canary and production observation.
 
-## Operations
+## API / operations
 
-- `/api/health` — V8 destination-brain readiness
-- `/admin` — V8 architecture and import readiness
-- `/api/recommend` — V8 JSON recommendation endpoint
-- `/api/recommend/stream` — V8 progressive recommendation endpoint
-- `/api/destination-detail` — downstream geolocated stay lookup
-- `/api/jobs/linkwise` — protected feed ingestion
-- `/api/jobs/train-matcher` — protected V8 neural training gate
+- `/api/recommend` — authoritative V24 JSON decision endpoint on the V24 branch.
+- `/api/recommend/stream` — authoritative V24 progressive endpoint on the V24 branch.
+- `/api/destination-detail` — exact-locality stay lookup for V24 recommendation identities.
+- `/api/v24/status` — V24 locality/model/memory readiness probe.
+- `/api/health` — current production release health; remains production-version-specific until V24 promotion.
 
-## CI / deployment
+## Release gates
 
-Every pull request runs:
+Every PR must pass:
 
 ```bash
 npm install
@@ -157,4 +147,37 @@ npm run test:strict
 npm run build
 ```
 
-Merge to `main` only after all four pass. Production should then be validated with `/api/health`, one deterministic matching request, one free-text request and a downstream stay lookup.
+`test:strict` includes all historical V8–V23 regression gates plus:
+
+```bash
+npm run test:v24:locality
+```
+
+The V24 gate proves, among other things:
+
+- locality-only candidates survive into ranking,
+- changing a primary semantic criterion can change the winner,
+- two localities sharing one canonical parent remain independently rankable,
+- grounded evidence can repair coarse recall,
+- exact locality identity is reversible from the public recommendation identity,
+- hotel lookup uses exact locality rather than a nearby canonical radius,
+- evidence reranking runs before shortlist choice correctness.
+
+## Deployment policy
+
+Current V22 production is preserved while V24 is tested. Do **not** merge to obtain a preview URL.
+
+Promotion order:
+
+1. exact-head typecheck,
+2. cumulative strict suite,
+3. production build,
+4. live locality/offer audit,
+5. counterfactual behavior tests,
+6. exact-locality hotel smoke,
+7. preview/canary,
+8. explicit acceptance,
+9. merge to `main`,
+10. Vercel production + health + rollback verification.
+
+If a meaningful test fails, fix the implementation. Do not lower the acceptance threshold to make the release green.
