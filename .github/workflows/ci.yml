@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,8 +17,26 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - name: Show lockfile sync diff
-        run: git diff -- package-lock.json || true
+      - name: Preserve generated lockfile
+        if: github.event_name == 'pull_request' && github.head_ref == 'v24-locality-native'
+        run: cp package-lock.json /tmp/package-lock.v24.json
       - run: npm run typecheck
       - run: npm run test:strict
       - run: npm run build
+      - name: Commit generated V24 lockfile
+        if: github.event_name == 'pull_request' && github.head_ref == 'v24-locality-native'
+        env:
+          BRANCH: v24-locality-native
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$BRANCH"
+          git checkout -B "$BRANCH" "origin/$BRANCH"
+          cp /tmp/package-lock.v24.json package-lock.json
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "Lockfile already synchronized"
+          else
+            git commit -m "Security: sync Next 16.3.1 lockfile"
+            git push origin "HEAD:$BRANCH"
+          fi
