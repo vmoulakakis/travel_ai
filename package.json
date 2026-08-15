@@ -1,6 +1,6 @@
 {
   "name": "travel-ai-decision-engine",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "engines": {"node": ">=22.0.0"},
   "scripts": {
@@ -33,7 +33,8 @@
     "test:v22:criterion": "node --import tsx scripts/v22-criterion-relevance-smoke.ts",
     "test:v23:fuzzy": "node --import tsx scripts/v23-fuzzy-locality-smoke.ts",
     "test:v23:evidence": "node --import tsx scripts/v23-evidence-rerank-smoke.ts",
-    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:audit:10000 && npm run test:availability && npm run test:charging && npm run test:result-auditor && npm run test:geo-composition && npm run test:research-scout && npm run test:stay-cities && npm run test:v15:architecture && npm run test:v15:greeklish && npm run test:v15:1000 && npm run test:v16:stay && npm run test:v16:router && npm run test:v16:stay1000 && npm run test:v17:choice1000 && npm run test:v18:semantic && npm run test:v19:match10000 && npm run test:v20:truth && npm run test:v21:choice && npm run test:v22:criterion && npm run test:v23:fuzzy && npm run test:v23:evidence"
+    "test:v24:locality": "node --import tsx scripts/v24-locality-native-smoke.ts",
+    "test:strict": "npm run test:v8 && npm run test:v9 && npm run test:v10 && npm run test:population && npm run test:audit:10000 && npm run test:availability && npm run test:charging && npm run test:result-auditor && npm run test:geo-composition && npm run test:research-scout && npm run test:stay-cities && npm run test:v15:architecture && npm run test:v15:greeklish && npm run test:v15:1000 && npm run test:v16:stay && npm run test:v16:router && npm run test:v16:stay1000 && npm run test:v17:choice1000 && npm run test:v18:semantic && npm run test:v19:match10000 && npm run test:v20:truth && npm run test:v21:choice && npm run test:v22:criterion && npm run test:v23:fuzzy && npm run test:v23:evidence && npm run test:v24:locality"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.36",
