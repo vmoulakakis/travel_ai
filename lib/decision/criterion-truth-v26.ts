@@ -57,9 +57,6 @@ export function hasLiteralMustHaveV26(request:TripRequest,destination:V8Destinat
 }
 
 function noCarLocalMobilityV26(destination:V8Destination){
- // Precision-first until a dedicated local-mobility evidence table exists. Broad rural/island
- // destinations do not pass merely because arrival is easy. Curated CITY means an urban base;
- // Hydra is explicitly handled as the canonical car-free exception.
  return CAR_FREE_CURATED.has(destination.slug)||(destination.tags.includes("city")&&destination.routeConfidence>=.75);
 }
 
@@ -99,9 +96,9 @@ export function applyCriterionTruthV26(request:TripRequest,intent:V8IntentProfil
  corrected.sort((a,b)=>b.score-a.score);
  let ranked=corrected,publicFloor:number|null=null;
  if(publicStage&&corrected.length){
-  const best=corrected[0].score;publicFloor=Math.max(52,best-16);
+  const best=corrected[0].score,floor=Math.max(52,best-16);publicFloor=floor;
   ranked=corrected.filter(item=>{
-   const ok=item.score>=publicFloor&&item.breakdown.season>=40&&item.breakdown.budget>=25&&item.breakdown.crowdFit>25;
+   const ok=item.score>=floor&&item.breakdown.season>=40&&item.breakdown.budget>=25&&item.breakdown.crowdFit>25;
    if(!ok)rejectedBy.ACCURACY_FLOOR=(rejectedBy.ACCURACY_FLOOR??0)+1;
    return ok;
   });
