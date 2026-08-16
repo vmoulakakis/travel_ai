@@ -3,7 +3,8 @@ import { budgetTargetTierV26,criterionTruthV26,applyCriterionTruthV26 } from "..
 import { mergeStructuredStayRequirementsV26 } from "../lib/decision/structured-stay-requirements-v26";
 import { buildDestinationChoiceProfilesV26 } from "../lib/data/destination-choice-profiles-v26";
 import { GREEK_ISLAND_SLUGS } from "../lib/decision/geography-constraint";
-import { V8_DIMENSIONS,type V8Destination,type V8Dimension,type V8IntentProfile,type V8Ranked,type StayConstraintSpec } from "../lib/decision/v8-types";
+import { V8_DIMENSIONS,type V8Destination,type V8Dimension,type V8IntentProfile,type StayConstraintSpec } from "../lib/decision/v8-types";
+import type { V8Ranked } from "../lib/decision/v8-matcher";
 import type { TripRequest,Mood } from "../lib/validation/trip";
 
 const baseVector=Object.fromEntries(V8_DIMENSIONS.map(d=>[d,.55])) as Record<V8Dimension,number>;
