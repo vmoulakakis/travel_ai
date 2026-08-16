@@ -1,6 +1,6 @@
 import type { TripRequest } from "@/lib/validation/trip";
 
-export type TripBuilderAvailabilityStateV25="CONFIRMED_ACTIVE"|"VALID_WINDOW_STOCK_UNKNOWN"|"EXPLICITLY_UNAVAILABLE"|"NOT_IN_FEED"|"PROVIDER_DATES_PROBED"|"PROVIDER_PAGE_REACHED"|"PROVIDER_UNAVAILABLE"|"PROVIDER_PROBE_UNAVAILABLE";
+export type TripBuilderAvailabilityStateV25="CONFIRMED_ACTIVE"|"VALID_WINDOW_STOCK_UNKNOWN"|"EXPLICITLY_UNAVAILABLE"|"NOT_IN_FEED"|"PROVIDER_PAGE_REACHED"|"PROVIDER_UNAVAILABLE"|"PROVIDER_PROBE_UNAVAILABLE";
 export interface TripBuilderRequestV25{trip:TripRequest;slug:string;offerId:string;}
 export interface DailyWeatherV25{date:string;source:"forecast"|"typical"|"unavailable";confidence:"HIGH"|"MEDIUM"|"LOW";temperatureMinC:number|null;temperatureMaxC:number|null;precipitationProbability:number|null;precipitationMm:number|null;windKmh:number|null;weatherCode:number|null;summary:string;}
 export interface AvailabilityTruthV25{state:TripBuilderAvailabilityStateV25;confidence:"HIGH"|"MEDIUM"|"LOW";propertyName:string|null;sourceProductId:string|null;feedWindowCovered:boolean;stockState:"AVAILABLE"|"UNAVAILABLE"|"UNKNOWN";providerConfirmationRequired:true;providerUrl:string|null;datedProviderUrl:string|null;reason:string;}
