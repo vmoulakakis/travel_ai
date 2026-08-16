@@ -1,0 +1,116 @@
+import type { TripRequest } from "@/lib/validation/trip";
+
+export type TripBuilderAvailabilityStateV25=
+  |"CONFIRMED_ACTIVE"
+  |"VALID_WINDOW_STOCK_UNKNOWN"
+  |"EXPLICITLY_UNAVAILABLE"
+  |"NOT_IN_FEED"
+  |"PROVIDER_PAGE_REACHED"
+  |"PROVIDER_UNAVAILABLE"
+  |"PROVIDER_PROBE_UNAVAILABLE";
+
+export interface TripBuilderRequestV25{
+  trip:TripRequest;
+  slug:string;
+  offerId:string;
+}
+
+export interface DailyWeatherV25{
+  date:string;
+  source:"forecast"|"typical"|"unavailable";
+  confidence:"HIGH"|"MEDIUM"|"LOW";
+  temperatureMinC:number|null;
+  temperatureMaxC:number|null;
+  precipitationProbability:number|null;
+  precipitationMm:number|null;
+  windKmh:number|null;
+  weatherCode:number|null;
+  summary:string;
+}
+
+export interface AvailabilityTruthV25{
+  state:TripBuilderAvailabilityStateV25;
+  confidence:"HIGH"|"MEDIUM"|"LOW";
+  propertyName:string|null;
+  sourceProductId:string|null;
+  feedWindowCovered:boolean;
+  stockState:"AVAILABLE"|"UNAVAILABLE"|"UNKNOWN";
+  providerConfirmationRequired:true;
+  providerUrl:string|null;
+  datedProviderUrl:string|null;
+  reason:string;
+}
+
+export interface FlexibleWindowV25{
+  startDate:string;
+  endDate:string;
+  shiftDays:number;
+  sameWeekdayPattern:true;
+  weatherScore:number|null;
+  weatherLabel:string;
+  availability:AvailabilityTruthV25;
+  alternativeStayCount:number;
+}
+
+export type TripadvisorPlaceKindV25="hotel"|"place"|"museum"|"restaurant"|"nightlife"|"beach";
+
+export interface TripadvisorPlaceV25{
+  locationId:string;
+  kind:TripadvisorPlaceKindV25;
+  name:string;
+  description:string|null;
+  rating:number|null;
+  reviewCount:number|null;
+  ranking:number|null;
+  rankingLabel:string|null;
+  address:string|null;
+  webUrl:string|null;
+  imageUrl:string|null;
+  ratingImageUrl:string|null;
+  sourceMonth:string;
+}
+
+export interface TripadvisorBundleV25{
+  status:"live"|"not-configured"|"unavailable";
+  attribution:"Tripadvisor";
+  sourceMonth:string;
+  hotel:TripadvisorPlaceV25|null;
+  places:TripadvisorPlaceV25[];
+  museums:TripadvisorPlaceV25[];
+  restaurants:TripadvisorPlaceV25[];
+  nightlife:TripadvisorPlaceV25[];
+  beaches:TripadvisorPlaceV25[];
+  note:string;
+}
+
+export interface ExtraBudgetV25{
+  currency:"EUR";
+  groupSize:number;
+  nights:number;
+  tripDays:number;
+  foodLow:number;
+  foodHigh:number;
+  drinksNightlifeLow:number;
+  drinksNightlifeHigh:number;
+  attractionsLow:number;
+  attractionsHigh:number;
+  localTransportLow:number;
+  localTransportHigh:number;
+  totalLow:number;
+  totalHigh:number;
+  note:string;
+}
+
+export interface TripBuilderPlanV25{
+  release:"V25";
+  generatedAt:string;
+  destination:{slug:string;name:string;nameEn:string;latitude:number;longitude:number;isSummer:boolean};
+  trip:TripRequest;
+  stay:{sourceProductId:string;propertyName:string;trackingUrl:string;imageUrl:string|null;price:number|null;currency:string|null}|null;
+  availability:AvailabilityTruthV25;
+  weather:{days:DailyWeatherV25[];score:number|null;label:string};
+  flexibleWindows:FlexibleWindowV25[];
+  tripadvisor:TripadvisorBundleV25;
+  budgetBeyondHotel:ExtraBudgetV25;
+  guide:{path:string;canvaReady:true;canvaTemplateStatus:"ready-for-autofill"|"requires-canva-template"};
+}
