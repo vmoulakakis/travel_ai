@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { TravelDecisionError,runTravelOrchestratorV15 } from "@/lib/ai/travel-orchestrator-v15";
+import { TravelDecisionError,runTravelOrchestratorV26 } from "@/lib/ai/travel-orchestrator-v26";
 import { pendingContinuity } from "@/lib/continuity";
 import { parseTripRequest } from "@/lib/validation/trip";
 
@@ -11,8 +11,8 @@ export async function POST(request:Request){
  if(!parsed.success)return NextResponse.json({message:"Χρειάζομαι έγκυρες ημερομηνίες και βασικές προτιμήσεις για να συνεχίσω.",continuity:pendingContinuity()},{status:400});
  const trip=parsed.data,sessionId=crypto.randomUUID();
  try{
-  const result=await runTravelOrchestratorV15(trip,sessionId);
-  const response=NextResponse.json(result,{headers:{"cache-control":"no-store","x-travel-engine":"v15-agentic"}});
+  const result=await runTravelOrchestratorV26(trip,sessionId);
+  const response=NextResponse.json(result,{headers:{"cache-control":"no-store","x-travel-engine":"v26-criterion-truth"}});
   response.cookies.set("travel_match_session",sessionId,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:7776000});
   return response;
  }catch(error){
