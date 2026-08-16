@@ -1,4 +1,5 @@
 import { geographyConstraint, matchesGeographyConstraint } from "@/lib/decision/geography-constraint";
+import { criterionTruthV26 } from "@/lib/decision/criterion-truth-v26";
 import { diversifyV8, type V8Ranked } from "@/lib/decision/v8-matcher";
 import type { TripRequest } from "@/lib/validation/trip";
 import { researchIntent, satisfiesResearchNeed } from "@/lib/decision/research-intent-v13";
@@ -8,15 +9,24 @@ import { createLLMRequestBudgetV16,generateJsonWithRoutingV16,type LLMRequestBud
 export type AuditIssue={slug:string;code:"HARD_CONSTRAINT"|"MUST_HAVE"|"LOW_EVIDENCE"|"RESEARCH_EVIDENCE";detail:string};
 export type AuditResult={passed:boolean;confidence:"HIGH"|"MEDIUM"|"LOW";issues:AuditIssue[];attempts:number;checkedBy:"deterministic"|"deterministic+local-llm"};
 
-function mustHave(request:TripRequest,item:V8Ranked){if(request.mustHave==="sea")return item.destination.tags.includes("beach");if(request.mustHave==="nature")return item.destination.tags.includes("nature");if(request.mustHave==="culture")return item.destination.tags.includes("culture");if(request.mustHave==="nightlife")return item.destination.tags.includes("nightlife")||item.destination.tags.includes("city");return true}
-function deterministicAudit(request:TripRequest,items:V8Ranked[],catalog:V8Ranked["destination"][],evidence?:Map<string,DestinationEvidenceBundle>):AuditIssue[]{const constraint=geographyConstraint(request,catalog),research=researchIntent(request),issues:AuditIssue[]=[];for(const item of items){if(!matchesGeographyConstraint(item.destination,constraint))issues.push({slug:item.destination.slug,code:"HARD_CONSTRAINT",detail:"Does not satisfy the explicit free-text constraint"});if(!mustHave(request,item))issues.push({slug:item.destination.slug,code:"MUST_HAVE",detail:"Does not satisfy the selected must-have"});if(item.breakdown.season<35||item.breakdown.routeConfidence<45)issues.push({slug:item.destination.slug,code:"LOW_EVIDENCE",detail:"Season or route evidence is below the safe floor"});const bundle=evidence?.get(item.destination.slug);for(const need of research.needs)if(!bundle||!satisfiesResearchNeed(bundle,need))issues.push({slug:item.destination.slug,code:"RESEARCH_EVIDENCE",detail:`Missing verified ${need} evidence for the requested dates`});}return issues}
+function deterministicAudit(request:TripRequest,items:V8Ranked[],catalog:V8Ranked["destination"][],evidence?:Map<string,DestinationEvidenceBundle>):AuditIssue[]{
+ const constraint=geographyConstraint(request,catalog),research=researchIntent(request),issues:AuditIssue[]=[];
+ for(const item of items){
+  if(!matchesGeographyConstraint(item.destination,constraint))issues.push({slug:item.destination.slug,code:"HARD_CONSTRAINT",detail:"Does not satisfy the explicit free-text geography constraint"});
+  const truth=criterionTruthV26(request,item.destination,{effortScore:item.breakdown.effort,publicStage:true});
+  for(const failure of truth.failures)issues.push({slug:item.destination.slug,code:failure.startsWith("MUST_")?"MUST_HAVE":"HARD_CONSTRAINT",detail:`V26 criterion truth rejected ${failure}`});
+  if(item.breakdown.season<35||item.breakdown.routeConfidence<45)issues.push({slug:item.destination.slug,code:"LOW_EVIDENCE",detail:"Season or route evidence is below the safe floor"});
+  const bundle=evidence?.get(item.destination.slug);for(const need of research.needs)if(!bundle||!satisfiesResearchNeed(bundle,need))issues.push({slug:item.destination.slug,code:"RESEARCH_EVIDENCE",detail:`Missing verified ${need} evidence for the requested dates`});
+ }
+ return issues;
+}
 
 async function localAudit(request:TripRequest,items:V8Ranked[],budget:LLMRequestBudgetV16):Promise<Set<string>>{
  const candidates=items.map(item=>({slug:item.destination.slug,tags:item.destination.tags,seasonProfile:item.destination.seasonProfile,evidence:item.breakdown}));
  const routed=await generateJsonWithRoutingV16<{reject_slugs:string[]}>({
-  context:{task:"verification",text:request.tripText,deterministicConfidence:.86,hardConstraintRisk:false,contradictorySignals:false},budget,
-  system:"You are an independent result auditor, never a recommender. Audit only against supplied constraints and evidence. Never invent facts.",
-  prompt:`Find only candidates that contradict the explicit request or supplied structured evidence. Return JSON only: {"reject_slugs":[]}. Request=${JSON.stringify({freeText:request.tripText,mustHave:request.mustHave,avoid:request.avoid,distance:request.distancePreference,dates:[request.startDate,request.endDate]})}; Candidates=${JSON.stringify(candidates)}`,
+  context:{task:"verification",text:request.tripText,deterministicConfidence:.90,hardConstraintRisk:true,contradictorySignals:false},budget,
+  system:"You are an independent result auditor, never a recommender. Audit only against supplied constraints and evidence. Never invent facts. A model may reject an unsafe option but may never override deterministic hard-criterion truth.",
+  prompt:`Find only candidates that contradict the explicit request or supplied structured evidence. Return JSON only: {"reject_slugs":[]}. Request=${JSON.stringify({freeText:request.tripText,mustHave:request.mustHave,avoid:request.avoid,distance:request.distancePreference,transport:request.transportMode,dates:[request.startDate,request.endDate]})}; Candidates=${JSON.stringify(candidates)}`,
   validate(value){const reject_slugs=Array.isArray(value.reject_slugs)?value.reject_slugs.filter((slug):slug is string=>typeof slug==="string"&&items.some(item=>item.destination.slug===slug)):[];return{reject_slugs};}
  });
  return new Set(routed?.value.reject_slugs??[]);

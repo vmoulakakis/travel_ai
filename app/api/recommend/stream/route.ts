@@ -1,4 +1,4 @@
-import { TravelDecisionError,runTravelOrchestratorV15 } from "@/lib/ai/travel-orchestrator-v15";
+import { TravelDecisionError,runTravelOrchestratorV26 } from "@/lib/ai/travel-orchestrator-v26";
 import { pendingContinuity,safePublicMessage } from "@/lib/continuity";
 import { parseTripRequest } from "@/lib/validation/trip";
 
@@ -14,7 +14,7 @@ export async function POST(request:Request){
   let closed=false;
   const emit=(type:string,progress:number,payload:Payload={})=>{if(!closed)controller.enqueue(encoder.encode(`${JSON.stringify({type,progress,at:new Date().toISOString(),...payload})}\n`))};
   try{
-   const result=await runTravelOrchestratorV15(trip,sessionId,event=>emit(event.type,event.progress,event.payload));
+   const result=await runTravelOrchestratorV26(trip,sessionId,event=>emit(event.type,event.progress,event.payload));
    emit("final",100,{result});
   }catch(error){
    if(error instanceof TravelDecisionError)emit("continuity",100,{message:error.publicMessage,continuity:pendingContinuity()});
@@ -22,5 +22,5 @@ export async function POST(request:Request){
   }finally{if(!closed){closed=true;controller.close()}}
  }});
  const secure=process.env.NODE_ENV==="production"?"; Secure":"";
- return new Response(stream,{headers:{"content-type":"application/x-ndjson; charset=utf-8","cache-control":"no-store, no-transform","x-content-type-options":"nosniff","x-travel-engine":"v15-agentic","set-cookie":`travel_match_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7776000${secure}`}});
+ return new Response(stream,{headers:{"content-type":"application/x-ndjson; charset=utf-8","cache-control":"no-store, no-transform","x-content-type-options":"nosniff","x-travel-engine":"v26-criterion-truth","set-cookie":`travel_match_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7776000${secure}`}});
 }
