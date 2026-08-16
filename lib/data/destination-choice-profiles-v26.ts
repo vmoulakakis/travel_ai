@@ -15,7 +15,7 @@ export function buildDestinationChoiceProfilesV26(catalog:readonly V8Destination
   // These dimensions do not exist in the canonical 16D destination vector. Keep neutral rather
   // than infer them from hotels. Traveler suitability remains available through travelerFit elsewhere.
   vector[9]=.5;vector[10]=.5;vector[13]=clamp01(Number(destination.travelerFit.couple??.5));vector[14]=clamp01(Number(destination.travelerFit.solo??.5));vector[15]=clamp01(Number(destination.travelerFit.friends??.5));vector[16]=.5;vector[17]=vector[3];vector[18]=vector[23];
-  const confidence=destination.knowledgeSource.startsWith("curated")?.96:Math.max(.65,Math.min(.90,destination.routeConfidence));
+  const confidence=destination.knowledgeSource.startsWith("curated") ? .96 : Math.max(.65,Math.min(.90,destination.routeConfidence));
   profiles.set(destination.slug,{slug:destination.slug,vector,confidence});
  }
  return profiles;
