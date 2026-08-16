@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { estimateBeyondHotelBudgetV25 } from "../lib/decision/trip-budget-v25";
 import { sameWeekdayFlexibleWindowsV25 } from "../lib/trip-builder/build-v25";
 import { parseTripRequest,type TripRequest } from "../lib/validation/trip";
@@ -7,4 +8,5 @@ const oneNight={origin:"Athens",startDate:"2026-09-18",endDate:"2026-09-19",mont
 const parsed=parseTripRequest(oneNight);assert.equal(parsed.success,true,"one-night trips must be accepted");if(parsed.success)assert.equal(parsed.data.nights,1);
 const windows=sameWeekdayFlexibleWindowsV25("2026-09-18","2026-09-22");assert.ok(windows.length>=3);const startDay=new Date("2026-09-18T00:00:00Z").getUTCDay(),endDay=new Date("2026-09-22T00:00:00Z").getUTCDay();for(const window of windows){assert.equal(new Date(`${window.startDate}T00:00:00Z`).getUTCDay(),startDay,"check-in weekday must never change");assert.equal(new Date(`${window.endDate}T00:00:00Z`).getUTCDay(),endDay,"check-out weekday must never change");assert.equal(Math.abs(window.shiftDays%7),0,"flexibility must move only in whole weeks")}
 const budget=estimateBeyondHotelBudgetV25({...oneNight,nights:1},2);assert.ok(budget.totalLow===budget.foodLow+budget.drinksNightlifeLow+budget.attractionsLow+budget.localTransportLow);assert.ok(budget.totalHigh===budget.foodHigh+budget.drinksNightlifeHigh+budget.attractionsHigh+budget.localTransportHigh);assert.ok(budget.totalHigh>budget.totalLow);
+const provider=readFileSync("lib/data/provider-availability-v25.ts","utf8"),tripadvisorProof=readFileSync("components/tripadvisor-proof-v25.tsx","utf8");assert.doesNotMatch(provider,/method:\s*["']POST["']/,"generic provider availability probing must stay GET-only");assert.match(provider,/publicGetDateForm/,"provider date probing must stay read-only and explicit");assert.match(tripadvisorProof,/9f59534-Vector_1\.png/,"Tripadvisor content must carry official attribution");assert.match(tripadvisorProof,/ratingImageUrl/,"Tripadvisor aggregate ratings must use API-provided bubble graphics");
 console.log("V25 post-stay Trip Builder: PASS");
