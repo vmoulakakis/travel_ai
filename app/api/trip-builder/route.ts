@@ -4,6 +4,7 @@ import { parseTripRequest } from "@/lib/validation/trip";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
+export const maxDuration=60;
 const slugPattern=/^[a-z0-9-]{2,80}$/i,idPattern=/^[a-zA-Z0-9:_-]{1,180}$/;
 
 export async function POST(request:Request){
