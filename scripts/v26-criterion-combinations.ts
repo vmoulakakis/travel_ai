@@ -34,8 +34,8 @@ function signature(r:TripRequest,pool:V8Destination[]){return preRankV8(r,struct
 // Hard truth regressions.
 assert.equal(criterionTruthV26(request({mustHave:"nightlife"}),candidates[0],{effortScore:90}).eligible,false,"CITY is never proof of NIGHTLIFE");
 assert.equal(criterionTruthV26(request({mustHave:"nightlife"}),candidates[1],{effortScore:90}).eligible,true);
-assert.equal(budgetTargetTierV26(request({nights:1,budget:300,groupSize:2})),3,"one-night budget must divide by one night");
-assert.equal(budgetTargetTierV26(request({nights:2,budget:300,groupSize:2})),2);
+assert.equal(budgetTargetTierV26(request({nights:1,budget:300,groupSize:2})),4,"€300 / 2 people / 1 night = €150 per person-night = tier 4");
+assert.equal(budgetTargetTierV26(request({nights:2,budget:300,groupSize:2})),2,"€300 / 2 people / 2 nights = €75 per person-night = tier 2");
 
 // EV criterion ownership: do not create a false feed no-result. Verify at stay selection using
 // property evidence OR a mapped nearby charger; the UI blocks selection until this is verified.
