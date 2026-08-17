@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { getSiteUrl, SITE_NAME } from "@/lib/site";
 import "./globals.css";
 import "./v8.css";
+import "./final.css";
 import "leaflet/dist/leaflet.css";
 
 const resolvedSiteUrl = getSiteUrl();
@@ -18,8 +19,8 @@ export const metadata: Metadata = {
   category: "travel",
   alternates: { canonical: "/", languages: { "el-GR": "/" } },
   robots: { index: true, follow: true },
-  openGraph: { title: "Ελληνικός AI Travel Guru — πού αξίζει πραγματικά να πας", description: "Πες πώς θέλεις να νιώσεις και ο Guru θα συγκρίνει έξι διαφορετικές επιλογές σε Ελλάδα και εξωτερικό πριν σε οδηγήσει στην τελική απόφαση.", type: "website", locale: "el_GR", siteName: SITE_NAME, images: [{ url: "/api/og?name=%CE%A4%CE%BF%20%CF%84%CE%B1%CE%BE%CE%AF%CE%B4%CE%B9%20%CF%80%CE%BF%CF%85%20%CF%83%CE%BF%CF%85%20%CF%84%CE%B1%CE%B9%CF%81%CE%B9%CE%AC%CE%B6%CE%B5%CE%B9", width: 1200, height: 630, alt: "Ελληνικός AI Travel Guru" }] },
-  twitter: { card: "summary_large_image", title: SITE_NAME, description: "Έξι προσωπικές επιλογές σε Ελλάδα και εξωτερικό, πριν εμφανιστεί οποιοδήποτε κατάλυμα.", images: ["/api/og?name=%CE%A4%CE%BF%20%CF%84%CE%B1%CE%BE%CE%AF%CE%B4%CE%B9%20%CF%80%CE%BF%CF%85%20%CF%83%CE%BF%CF%85%20%CF%84%CE%B1%CE%B9%CF%81%CE%B9%CE%AC%CE%B6%CE%B5%CE%B9"] },
+  openGraph: { title: "Ελληνικός AI Travel Guru — πού αξίζει πραγματικά να πας", description: "Πες πώς θέλεις να νιώσεις και ο Guru θα συγκρίνει διαφορετικές επιλογές σε Ελλάδα και εξωτερικό πριν σε οδηγήσει στην τελική απόφαση.", type: "website", locale: "el_GR", siteName: SITE_NAME, images: [{ url: "/api/og?name=%CE%A4%CE%BF%20%CF%84%CE%B1%CE%BE%CE%AF%CE%B4%CE%B9%20%CF%80%CE%BF%CF%85%20%CF%83%CE%BF%CF%85%20%CF%84%CE%B1%CE%B9%CF%81%CE%B9%CE%AC%CE%B6%CE%B5%CE%B9", width: 1200, height: 630, alt: "Ελληνικός AI Travel Guru" }] },
+  twitter: { card: "summary_large_image", title: SITE_NAME, description: "Προσωπικές επιλογές προορισμών, πριν εμφανιστεί οποιοδήποτε κατάλυμα.", images: ["/api/og?name=%CE%A4%CE%BF%20%CF%84%CE%B1%CE%BE%CE%AF%CE%B4%CE%B9%20%CF%80%CE%BF%CF%85%20%CF%83%CE%BF%CF%85%20%CF%84%CE%B1%CE%B9%CF%81%CE%B9%CE%AC%CE%B6%CE%B5%CE%B9"] },
   verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : undefined,
 };
 
