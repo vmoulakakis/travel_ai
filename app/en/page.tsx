@@ -9,7 +9,7 @@ import { getWeeklyPick } from "@/lib/decision/weekly-pick";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "AI Greece Travel — find the Greek trip that fits you",
+  title: { absolute: "AI Greece Travel — Greece AI Trip Planner" },
   description: "An AI travel advisor for Greece that compares destinations by mood, dates, budget, travel effort and evidence before showing stays.",
   alternates: { canonical: "/en", languages: { "el-GR": "/", "en-GB": "/en" } },
 };
