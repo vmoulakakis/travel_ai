@@ -7,14 +7,15 @@ import "./final.css";
 import "./v28.css";
 import "./v28-concierge.css";
 import "./v28-production.css";
+import "./v29-seo.css";
 import "leaflet/dist/leaflet.css";
 
 const resolvedSiteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(resolvedSiteUrl),
-  title: { default: "AI Greece Travel — βρες το ελληνικό ταξίδι που σου ταιριάζει", template: "%s · AI Greece Travel" },
-  description: "AI travel advisor για την Ελλάδα: σύγκριση προορισμών με βάση διάθεση, ημερομηνίες, budget, μετακίνηση και evidence πριν εμφανιστούν καταλύματα.",
+  title: { default: "Διακοπές στην Ελλάδα με AI | AI Greece Travel", template: "%s · AI Greece Travel" },
+  description: "Σχεδίασε διακοπές στην Ελλάδα με AI: σύγκρινε ελληνικά νησιά και ηπειρωτικούς προορισμούς με βάση εποχή, budget, παρέα, μετακίνηση και πραγματικό travel fit.",
   applicationName: "AI Greece Travel",
   authors: [{ name: SITE_NAME, url: resolvedSiteUrl }],
   creator: SITE_NAME,
@@ -23,15 +24,15 @@ export const metadata: Metadata = {
   alternates: { canonical: "/", languages: { "el-GR": "/", "en-GB": "/en" } },
   robots: { index: true, follow: true },
   openGraph: {
-    title: "AI Greece Travel — βρες πού ταιριάζεις στην Ελλάδα",
-    description: "Πες τι ταξίδι χρειάζεσαι. Ο AI advisor συγκρίνει διαφορετικούς ελληνικούς προορισμούς και εξηγεί το γιατί πριν προτείνει διαμονή.",
+    title: "Διακοπές στην Ελλάδα — βρες τον προορισμό που σου ταιριάζει",
+    description: "AI travel advisor για ελληνικά νησιά και ηπειρωτική Ελλάδα. Σύγκρινε προορισμούς πριν επιλέξεις διαμονή.",
     type: "website",
     locale: "el_GR",
     alternateLocale: ["en_GB"],
     siteName: "AI Greece Travel",
-    images: [{ url: "/api/og?name=AI%20Greece%20Travel", width: 1200, height: 630, alt: "AI Greece Travel" }],
+    images: [{ url: "/api/og?name=AI%20Greece%20Travel", width: 1200, height: 630, alt: "AI Greece Travel - διακοπές στην Ελλάδα" }],
   },
-  twitter: { card: "summary_large_image", title: "AI Greece Travel", description: "AI destination matching for Greece, before accommodation search.", images: ["/api/og?name=AI%20Greece%20Travel"] },
+  twitter: { card: "summary_large_image", title: "AI Greece Travel", description: "AI travel planning for Greece, Greek islands and mainland destinations.", images: ["/api/og?name=AI%20Greece%20Travel"] },
   verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : undefined,
 };
 
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   const structured = {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "Organization", "@id": `${resolvedSiteUrl}/#organization`, name: SITE_NAME, url: resolvedSiteUrl },
+      { "@type": "Organization", "@id": `${resolvedSiteUrl}/#organization`, name: SITE_NAME, url: resolvedSiteUrl, logo: `${resolvedSiteUrl}/icon.svg` },
       { "@type": "WebSite", "@id": `${resolvedSiteUrl}/#website`, name: "AI Greece Travel", url: resolvedSiteUrl, inLanguage: ["el-GR", "en-GB"], publisher: { "@id": `${resolvedSiteUrl}/#organization` } },
     ],
   };

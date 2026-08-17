@@ -1,0 +1,23 @@
+.v29-destination-hub-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 22px;
+  padding: 11px 16px;
+  border: 1px solid rgba(7,93,118,.2);
+  border-radius: 999px;
+  color: #075d76;
+  background: rgba(255,255,255,.72);
+  font: 750 14px/1.2 ui-sans-serif, system-ui, sans-serif;
+  text-decoration: none;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.v29-destination-hub-link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(7,93,118,.38);
+  box-shadow: 0 10px 28px rgba(11,35,48,.08);
+}
+.v29-destination-hub-link:focus-visible {
+  outline: 3px solid rgba(103,232,209,.7);
+  outline-offset: 3px;
+}
