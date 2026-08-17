@@ -1,3 +1,4 @@
+import type { TripadvisorCitySignalV30 } from "@/lib/ai/city-map-ranking-v30";
 import type { TripadvisorBundleV25,TripadvisorPlaceKindV25,TripadvisorPlaceV25 } from "@/lib/trip-builder/types-v25";
 
 const BASE="https://api.content.tripadvisor.com/api/v1";
@@ -12,7 +13,7 @@ type PhotoPayload={data?:Array<{images?:{original?:{url?:string};large?:{url?:st
 type Category="hotels"|"attractions"|"restaurants"|"geos";
 
 function addressOf(row:{address_obj?:Address}){const a=row.address_obj,direct=text(a?.address_string);if(direct)return direct;const joined=[text(a?.street1),text(a?.city),text(a?.country)].filter((value):value is string=>Boolean(value)).join(", ");return joined||null}
-function referer(){const raw=process.env.TRIPADVISOR_REFERER||process.env.NEXT_PUBLIC_SITE_URL||"https://travel-ai-navy-eight.vercel.app";try{return new URL(raw).origin}catch{return"https://travel-ai-navy-eight.vercel.app"}}
+function referer(){const raw=process.env.TRIPADVISOR_REFERER||process.env.NEXT_PUBLIC_SITE_URL||"https://travelaigreece.vercel.app";try{return new URL(raw).origin}catch{return"https://travelaigreece.vercel.app"}}
 async function taFetch<T>(path:string,params:Record<string,string|number|undefined>,timeout=5500):Promise<T>{const key=process.env.TRIPADVISOR_API_KEY;if(!key)throw new Error("TRIPADVISOR_API_KEY missing");const url=new URL(`${BASE}${path}`);url.searchParams.set("key",key);for(const[k,v]of Object.entries(params))if(v!==undefined&&String(v)!=="")url.searchParams.set(k,String(v));const origin=referer(),response=await fetch(url,{cache:"no-store",headers:{accept:"application/json",referer:origin,origin},signal:AbortSignal.timeout(timeout)});if(!response.ok)throw new Error(`Tripadvisor ${response.status}`);return await response.json() as T}
 async function search(query:string,category:Category,lat:number,lon:number,language:string,limit=6){const payload=await taFetch<SearchPayload>("/location/search",{searchQuery:query,category,latLong:`${lat},${lon}`,radius:45,radiusUnit:"km",language});return(payload.data??[]).filter(row=>Boolean(idText(row.location_id))&&Boolean(text(row.name))).slice(0,Math.max(1,Math.min(10,limit)))}
 async function details(locationId:string,language:string){return await taFetch<DetailsPayload>(`/location/${encodeURIComponent(locationId)}/details`,{language,currency:"EUR"})}
@@ -27,6 +28,17 @@ const hotelStop=new Set(["hotel","hotels","resort","resorts","spa","suites","sui
 function nameTokens(value:string){return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim().split(/\s+/).filter(token=>token.length>=2&&!hotelStop.has(token))}
 function hotelMatchScore(expected:string,candidate:string){const e=new Set(nameTokens(expected)),c=new Set(nameTokens(candidate));if(!e.size||!c.size)return 0;const common=[...e].filter(token=>c.has(token)).length,union=new Set([...e,...c]).size,jaccard=common/union,coverage=common/Math.min(e.size,c.size);return Math.max(jaccard,coverage*.9)}
 function bestHotelRow(expected:string,rows:SearchRow[]){let best:SearchRow|null=null,bestScore=0;for(const row of rows){const candidate=text(row.name);if(!candidate)continue;const score=hotelMatchScore(expected,candidate);if(score>bestScore){bestScore=score;best=row}}return bestScore>=.58?best:null}
+
+export async function getTripadvisorCitySignalV30(args:{destinationName:string;latitude:number;longitude:number;language:"el"|"en"}):Promise<TripadvisorCitySignalV30>{
+ const month=sourceMonth(),language=args.language==="el"?"el":"en";
+ if(!process.env.TRIPADVISOR_API_KEY)return{status:"not-configured",rating5:null,reviewCount:0,bestRanking:null,sampleSize:0,sourceMonth:month};
+ try{
+  const[attractionRows,restaurantRows]=await Promise.all([search(args.destinationName,"attractions",args.latitude,args.longitude,language,4),search(args.destinationName,"restaurants",args.latitude,args.longitude,language,4)]),[attractions,restaurants]=await Promise.all([hydrateGroup(attractionRows,"place",language,0,3),hydrateGroup(restaurantRows,"restaurant",language,0,3)]),unique=new Map<string,TripadvisorPlaceV25>();
+  for(const place of [...attractions,...restaurants])if(place.locationId&&!unique.has(place.locationId))unique.set(place.locationId,place);
+  const rated=[...unique.values()].filter(place=>place.rating!=null&&place.rating>0),weights=rated.map(place=>Math.max(1,Math.log10((place.reviewCount??0)+10))),weightTotal=weights.reduce((sum,value)=>sum+value,0),rating5=rated.length?Number((rated.reduce((sum,place,index)=>sum+(place.rating??0)*weights[index],0)/Math.max(1,weightTotal)).toFixed(2)):null,reviewCount=[...unique.values()].reduce((sum,place)=>sum+(place.reviewCount??0),0),bestRanking=[...unique.values()].map(place=>place.ranking).filter((value):value is number=>value!=null).sort((a,b)=>a-b)[0]??null;
+  return{status:"live",rating5,reviewCount,bestRanking,sampleSize:unique.size,sourceMonth:month};
+ }catch{return{status:"unavailable",rating5:null,reviewCount:0,bestRanking:null,sampleSize:0,sourceMonth:month}}
+}
 
 export async function getTripadvisorBundleV25(args:{destinationName:string;hotelName:string|null;latitude:number;longitude:number;isSummer:boolean;language:"el"|"en"}):Promise<TripadvisorBundleV25>{
  const attribution="Tripadvisor" as const,month=sourceMonth(),language=args.language==="el"?"el":"en";
