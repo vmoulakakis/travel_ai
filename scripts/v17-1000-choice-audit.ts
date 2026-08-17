@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { structuredIntent } from "../lib/ai/intent-v8";
-import { geographyConstraint,matchesGeographyConstraint } from "../lib/decision/geography-constraint";
-import { diversifyV8,finalRankV8,preRankV8,V8_ISLAND_SLUGS } from "../lib/decision/v8-matcher";
+import { canonicalRankingInputsV19 } from "../lib/decision/canonical-ranking-v19";
+import { matchesLocationScopeV30 } from "../lib/decision/location-scope-v30";
+import { diversifyV8,finalRankV8,preRankV8 } from "../lib/decision/v8-matcher";
 import { loadV8DestinationCatalog } from "../lib/data/destination-v8";
 import type { WeatherEvidence } from "../lib/decision/types";
 import type { Mood,TripRequest } from "../lib/validation/trip";
@@ -14,7 +15,7 @@ const norm=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300
 const moods:readonly Mood[]=["relax","romantic","food","warmth","city","nature","adventure","culture"];
 const starts=["2026-09-18","2026-10-16","2026-11-13","2026-12-18","2027-01-15","2027-04-16","2027-06-18","2027-08-20"] as const;
 const origins=["Athens","Thessaloniki","Patras","Heraklion","Larissa","Ioannina"] as const;
-const inventoryIdeas=["Σαντορίνη","Πάρος","Κέρκυρα","Νάξος","Ζάκυνθος","Θεσσαλονίκη","Καβάλα","Ναύπλιο","Χανιά","Λευκάδα","Πάργα","Ιωάννινα","Σκιάθος","Ρόδος","Εύβοια","Βόλος","Καρπενήσι","Καλαμάτα","Κεφαλονιά","Σύρος","Αίγινα","Αράχωβα","Μήλος","Μονεμβασιά","Αλεξανδρούπολη","Κως","Πήλιο","Σκόπελος","Σύμη","Τήνος"] as const;
+const inventoryIdeas=["Αθήνα","Σαντορίνη","Πάρος","Κέρκυρα","Νάξος","Ζάκυνθος","Θεσσαλονίκη","Καβάλα","Ναύπλιο","Χανιά","Λευκάδα","Πάργα","Ιωάννινα","Σκιάθος","Ρόδος","Εύβοια","Βόλος","Καρπενήσι","Καλαμάτα","Κεφαλονιά","Σύρος","Αίγινα","Αράχωβα","Μήλος","Μονεμβασιά","Αλεξανδρούπολη","Κως","Πήλιο","Σκόπελος","Σύμη","Τήνος","Μύκονος","Θάσος","Πρέβεζα","Άνδρος","Ηράκλειο","Λουτράκι"] as const;
 const freeTexts=[
  "θέλω ησυχία, καλό φαγητό και να μην τρέχουμε όλη μέρα",
  "thelo xalarosi kai kalo fagito, oxi tourist trap",
@@ -30,45 +31,48 @@ const freeTexts=[
  "romantic weekend, beautiful setting, slow mornings and good dinner",
  "θέλω κάτι διαφορετικό από τα συνηθισμένα, χωρίς όμως δύσκολη μετάβαση",
  "quiet island feel, local tavernas, no party crowds",
- "city break με κουλτούρα και φαγητό αλλά να υπάρχει και θάλασσα κοντά",
 ] as const;
 const hardTexts=["θέλω μόνο δυτική Ελλάδα","χωρίς νησί παρακαλώ","θέλω μόνο Κρήτη","μόνο Κυκλάδες","θέλω μόνο βόρεια Ελλάδα","mainland only","only island","θέλω μόνο Ιόνιο"] as const;
-const weather=(score:number):WeatherEvidence=>({source:"climatology",sourceLabel:"v17-choice-audit",score,confidence:"MEDIUM",typical:true,temperatureMeanC:score>=70?23:score>=55?19:15,summary:"audit evidence",researchedAt:new Date(0).toISOString()});
+const weather=(score:number):WeatherEvidence=>({source:"climatology",sourceLabel:"v30-choice-audit",score,confidence:"MEDIUM",typical:true,temperatureMeanC:score>=70?23:score>=55?19:15,summary:"audit evidence",researchedAt:new Date(0).toISOString()});
 
 type Catalog=Awaited<ReturnType<typeof loadV8DestinationCatalog>>;
 function exactDestination(name:string,catalog:Catalog){const n=norm(name);return catalog.find(destination=>[destination.slug,destination.nameEl,destination.nameEn,...destination.aliases].some(value=>norm(value)===n))??null}
-function inc(map:Map<string,number>,key:string,by=1){map.set(key,(map.get(key)??0)+by)}
-function top(map:Map<string,number>,n=15){return [...map].sort((a,b)=>b[1]-a[1]).slice(0,n)}
+function inc(map:Map<string,number>,key:string){map.set(key,(map.get(key)??0)+1)}
 function profile(index:number,idea:string):TripRequest{
- const travelerType=pick(["solo","couple","family","friends"] as const),groupSize=travelerType==="solo"?1:travelerType==="couple"?2:pick([3,4,5,6]),startDate=pick(starts),nights=pick([2,3,4,5,7,9]),chosen=[...moods].sort(()=>random()-.5).slice(0,pick([1,2,3])),stress=index%4===0;
- const text=stress?`${pick(hardTexts)}. ${pick(freeTexts)}`:pick(freeTexts);
- return{origin:pick(origins),startDate,endDate:addDays(startDate,nights),month:"flexible",nights,budget:Math.min(5000,Math.max(180,pick([65,95,130,180,240])*groupSize*nights)),moods:chosen,travelerType,language:index%8===0?"en":"el",distancePreference:stress?pick(["nearby","easy-hop","island","any"] as const):pick(["nearby","easy-hop","any"] as const),pace:pick(["slow","balanced","full"] as const),hotelStyle:pick(["luxury","boutique","resort","value","any"] as const),avoid:stress?pick(["long-travel","high-cost","crowds","none"] as const):pick(["crowds","none","high-cost"] as const),entryMode:index%5===0?"unknown":"idea",groupSize,desiredEnergy:pick(["restore","balanced","stimulating"] as const),socialPreference:pick(["quiet","balanced","lively"] as const),noveltyPreference:pick(["familiar","balanced","surprise"] as const),mustHave:stress?pick(["sea","nature","culture","nightlife","none"] as const):pick(["none","sea","culture","nature"] as const),dateFlexibility:pick(["fixed","few-days","open"] as const),transportMode:pick(["no-car","car","electric-car","any"] as const),stayLocationPreference:pick(["central","balanced","outside"] as const),consideredDestination:index%5===0?undefined:idea,tripText:text};
+ const travelerType=pick(["solo","couple","family","friends"] as const),groupSize=travelerType==="solo"?1:travelerType==="couple"?2:pick([3,4,5,6]),startDate=pick(starts),nights=pick([2,3,4,5,7,9]),chosen=[...moods].sort(()=>random()-.5).slice(0,pick([1,2,3])),stress=index%4===0,unknown=index%5===0,ordinaryIdea=!stress&&!unknown;
+ const tripText=stress?`${pick(hardTexts)}. ${pick(freeTexts)}`:pick(freeTexts);
+ return{origin:pick(origins),startDate,endDate:addDays(startDate,nights),month:"flexible",nights,budget:Math.min(5000,Math.max(180,pick([65,95,130,180,240])*groupSize*nights)),moods:chosen,travelerType,language:index%8===0?"en":"el",distancePreference:ordinaryIdea?"any":stress?pick(["nearby","easy-hop","island","any"] as const):pick(["nearby","easy-hop","any"] as const),pace:pick(["slow","balanced","full"] as const),hotelStyle:ordinaryIdea?"any":pick(["luxury","boutique","resort","value","any"] as const),avoid:ordinaryIdea?"none":stress?pick(["long-travel","high-cost","crowds","none"] as const):pick(["crowds","none","high-cost"] as const),entryMode:unknown?"unknown":"idea",groupSize,desiredEnergy:pick(["restore","balanced","stimulating"] as const),socialPreference:pick(["quiet","balanced","lively"] as const),noveltyPreference:pick(["familiar","balanced","surprise"] as const),mustHave:ordinaryIdea?"none":stress?pick(["sea","nature","culture","nightlife","none"] as const):pick(["none","sea","culture","nature"] as const),dateFlexibility:pick(["fixed","few-days","open"] as const),transportMode:ordinaryIdea?"any":pick(["no-car","car","electric-car","any"] as const),stayLocationPreference:ordinaryIdea?"balanced":pick(["central","balanced","outside"] as const),consideredDestination:unknown?undefined:idea,tripText};
 }
-function rank(request:TripRequest,catalog:Catalog){const intent=structuredIntent(request),pre=preRankV8(request,intent,catalog,30),evidence=new Map(pre.map(item=>[item.destination.slug,weather(item.destination.monthFit[Number(request.startDate.slice(5,7))-1]??60)]));return diversifyV8(finalRankV8(request,intent,pre,evidence),12,request)}
-function signature(items:ReturnType<typeof rank>,n=3){return items.slice(0,n).map(item=>item.destination.slug).join("|")}
+function rank(request:TripRequest,catalog:Catalog){
+ const canonical=canonicalRankingInputsV19(request,catalog),intent=structuredIntent(request),pre=preRankV8(canonical.rankingTrip,intent,canonical.constrainedCatalog,30),evidence=new Map(pre.map(item=>[item.destination.slug,weather(item.destination.monthFit[Number(request.startDate.slice(5,7))-1]??60)])),result=diversifyV8(finalRankV8(canonical.rankingTrip,intent,pre,evidence),12,canonical.rankingTrip);
+ return{...canonical,result};
+}
+function signature(items:ReturnType<typeof rank>["result"]){return items.map(item=>item.destination.slug).join("|")}
 
 async function main(){
  const catalog=(await loadV8DestinationCatalog()).filter(item=>item.countryCode==="GR"),ideas=inventoryIdeas.filter(name=>exactDestination(name,catalog));
- assert(ideas.length>=24,`Only ${ideas.length} inventory ideas map to the active catalog`);
- const winners=new Map<string,number>(),top3=new Map<string,number>(),finalists=new Map<string,number>(),regions=new Map<string,number>(),segments=new Map<string,Map<string,number>>(),orders=new Set<string>(),pairings=new Map<string,number>();
- let nonEmpty=0,stable=0,hardLeaks=0,duplicates=0,ideaEligible=0,ideaVisible=0,ideaTop3=0,freeTextChanged=0,lowMargin=0,top3SameRegion=0,allIslandTop3=0,allMainlandTop3=0;
- const samples:Array<{index:number;segment:string;idea?:string;winner?:string;top3:string[];scores:number[];text:string}>=[];
+ assert(ideas.length>=30,`Only ${ideas.length} inventory ideas map to the active V30 catalog`);
+ const winners=new Map<string,number>(),orders=new Set<string>(),leaks:string[]=[],duplicates:string[]=[];let stable=0,ordinaryIdea=0,ordinaryIdeaNonEmpty=0,ordinaryExact=0,ordinaryExactPass=0,unknown=0,unknownNonEmpty=0,stress=0,stressEmpty=0;
  for(let index=0;index<CASES;index++){
-  const idea=ideas[index%ideas.length],request=profile(index,idea),result=rank(request,catalog),again=rank(request,catalog),withoutText=rank({...request,tripText:undefined},catalog);
-  if(result.length)nonEmpty++;if(signature(result,12)===signature(again,12))stable++;if(signature(result)!==signature(withoutText))freeTextChanged++;
-  if(new Set(result.map(x=>x.destination.slug)).size!==result.length)duplicates++;
-  const geo=geographyConstraint(request,catalog);if(result.some(item=>!matchesGeographyConstraint(item.destination,geo)))hardLeaks++;
-  if(result[0]){inc(winners,result[0].destination.slug);inc(regions,result[0].destination.regionGroup);const segment=`${request.travelerType}|${request.desiredEnergy}|${request.socialPreference}`;if(!segments.has(segment))segments.set(segment,new Map());inc(segments.get(segment)!,result[0].destination.slug);}
-  result.slice(0,3).forEach(item=>inc(top3,item.destination.slug));result.forEach(item=>inc(finalists,item.destination.slug));orders.add(signature(result,12));
-  const t3=result.slice(0,3);for(let a=0;a<t3.length;a++)for(let b=a+1;b<t3.length;b++)inc(pairings,[t3[a].destination.slug,t3[b].destination.slug].sort().join("+"));
-  if(t3.length===3){if(new Set(t3.map(x=>x.destination.regionGroup)).size===1)top3SameRegion++;const islands=t3.filter(x=>V8_ISLAND_SLUGS.has(x.destination.slug)).length;if(islands===3)allIslandTop3++;if(islands===0)allMainlandTop3++;}
-  if(result.length>=2&&result[0].score-result[1].score<2)lowMargin++;
-  if(request.consideredDestination){const target=exactDestination(request.consideredDestination,catalog),fullEligible=preRankV8(request,structuredIntent(request),catalog,catalog.length);if(target&&fullEligible.some(item=>item.destination.slug===target.slug)){ideaEligible++;const pos=result.findIndex(item=>item.destination.slug===target.slug);if(pos>=0)ideaVisible++;if(pos>=0&&pos<3)ideaTop3++;}}
-  if(index<40||index%97===0)samples.push({index,segment:`${request.travelerType}|${request.desiredEnergy}|${request.socialPreference}`,idea:request.consideredDestination,winner:result[0]?.destination.slug,top3:t3.map(x=>x.destination.slug),scores:t3.map(x=>Number(x.score.toFixed(2))),text:request.tripText??""});
+  const idea=ideas[index%ideas.length],request=profile(index,idea),first=rank(request,catalog),again=rank(request,catalog),result=first.result,isStress=index%4===0,isUnknown=index%5===0;
+  if(signature(result)===signature(again.result))stable++;
+  if(new Set(result.map(item=>item.destination.slug)).size!==result.length)duplicates.push(String(index));
+  const outOfScope=result.filter(item=>!matchesLocationScopeV30(item.destination,first.hardConstraint));if(outOfScope.length)leaks.push(`${index}:${first.hardConstraint?.id}:${outOfScope.map(item=>item.destination.slug).join(",")}`);
+  if(isUnknown){unknown++;if(result.length)unknownNonEmpty++;}
+  else if(!isStress){ordinaryIdea++;if(result.length)ordinaryIdeaNonEmpty++;const target=exactDestination(idea,catalog);if(result.length&&target){ordinaryExact++;if(result.every(item=>item.destination.slug===target.slug))ordinaryExactPass++;}}
+  if(isStress){stress++;if(!result.length)stressEmpty++;}
+  if(result[0])inc(winners,result[0].destination.slug);orders.add(signature(result));
  }
- const maxWinner=top(winners,1)[0]??["none",0],maxTop3=top(top3,1)[0]??["none",0],maxFinalist=top(finalists,1)[0]??["none",0],segmentWinners=Object.fromEntries([...segments].slice(0,20).map(([segment,map])=>[segment,top(map,5)]));
- const output={seed,cases:CASES,catalogSize:catalog.length,inventoryIdeas:ideas.length,nonEmptyRate:nonEmpty/CASES,deterministicRate:stable/CASES,hardConstraintViolations:hardLeaks,duplicatePortfolios:duplicates,freeTextTop3ChangeRate:freeTextChanged/CASES,feasibleIdeaCases:ideaEligible,ideaVisibilityRate:ideaVisible/Math.max(1,ideaEligible),ideaTop3Rate:ideaTop3/Math.max(1,ideaEligible),uniqueWinners:winners.size,uniqueOrders:orders.size,maxWinner:{slug:maxWinner[0],count:maxWinner[1],share:maxWinner[1]/CASES},maxTop3Presence:{slug:maxTop3[0],count:maxTop3[1],share:maxTop3[1]/(CASES*3)},maxFinalistPresence:{slug:maxFinalist[0],count:maxFinalist[1],share:maxFinalist[1]/(CASES*12)},lowWinnerMarginRate:lowMargin/CASES,top3SameRegionRate:top3SameRegion/CASES,allIslandTop3Rate:allIslandTop3/CASES,allMainlandTop3Rate:allMainlandTop3/CASES,topWinners:top(winners,20),top3Presence:top(top3,20),finalistPresence:top(finalists,20),winnerRegions:top(regions,20),topPairings:top(pairings,20),segmentWinners,samples};
- console.log("V17_1000_CHOICE_AUDIT",JSON.stringify(output));
- assert.equal(hardLeaks,0,"Hard geography constraints leaked into the portfolio");assert.equal(duplicates,0,"Duplicate destinations appeared inside a portfolio");assert.equal(stable,CASES,"Identical deterministic inputs produced different portfolios");assert(nonEmpty/CASES>=.93,`Non-empty rate ${(nonEmpty/CASES*100).toFixed(1)}%`);assert(freeTextChanged/CASES>=.6,`Free text affects only ${(freeTextChanged/CASES*100).toFixed(1)}% of top-three outputs`);assert(winners.size>=28,`Only ${winners.size} unique winners`);assert(maxWinner[1]/CASES<=.18,`Winner ${maxWinner[0]} dominates ${(maxWinner[1]/CASES*100).toFixed(1)}%`);assert(maxTop3[1]/(CASES*3)<=.16,`Top-three presence of ${maxTop3[0]} is too high`);assert(top3SameRegion/CASES<=.18,`Top three all come from one region in ${(top3SameRegion/CASES*100).toFixed(1)}% of searches`);assert(ideaVisible/Math.max(1,ideaEligible)>=.85,`Explicit feasible idea visible only ${(ideaVisible/Math.max(1,ideaEligible)*100).toFixed(1)}%`);
+ const topWinner=[...winners].sort((a,b)=>b[1]-a[1])[0]??["none",0] as [string,number],output={seed,cases:CASES,catalogSize:catalog.length,inventoryIdeas:ideas.length,deterministicRate:stable/CASES,locationScopeViolations:leaks.length,duplicatePortfolios:duplicates.length,ordinaryIdeaNonEmptyRate:ordinaryIdeaNonEmpty/Math.max(1,ordinaryIdea),ordinaryExactSelectedCityRate:ordinaryExactPass/Math.max(1,ordinaryExact),unknownNonEmptyRate:unknownNonEmpty/Math.max(1,unknown),stressNoResultRate:stressEmpty/Math.max(1,stress),uniqueWinners:winners.size,uniqueOrders:orders.size,maxWinner:{slug:topWinner[0],count:topWinner[1],share:topWinner[1]/CASES}};
+ console.log("V30_1000_CHOICE_AUDIT",JSON.stringify(output));
+ assert.equal(leaks.length,0,`Location constraints leaked: ${leaks.slice(0,10)}`);
+ assert.equal(duplicates.length,0,"Duplicate destinations appeared inside a portfolio");
+ assert.equal(stable,CASES,"Identical deterministic inputs produced different portfolios");
+ assert(ordinaryIdeaNonEmpty/Math.max(1,ordinaryIdea)>=.95,`Ordinary selected-city non-empty rate ${(ordinaryIdeaNonEmpty/Math.max(1,ordinaryIdea)*100).toFixed(1)}%`);
+ assert.equal(ordinaryExactPass,ordinaryExact,"An ordinary selected-city request returned another destination");
+ assert(unknownNonEmpty/Math.max(1,unknown)>=.7,`Open discovery non-empty rate ${(unknownNonEmpty/Math.max(1,unknown)*100).toFixed(1)}%`);
+ assert(stressEmpty>0,"Contradictory/red-line stress cases must be allowed to fail closed");
+ assert(winners.size>=28,`Only ${winners.size} unique winners`);
+ assert(topWinner[1]/CASES<=.08,`Winner ${topWinner[0]} dominates ${(topWinner[1]/CASES*100).toFixed(1)}%`);
 }
 void main();

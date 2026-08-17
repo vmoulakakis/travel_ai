@@ -10,6 +10,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: base, lastModified: new Date(), changeFrequency: "weekly", priority: 1, alternates: languagePair(base, `${base}/en`) },
     { url: `${base}/en`, lastModified: new Date(), changeFrequency: "weekly", priority: 1, alternates: languagePair(base, `${base}/en`) },
+    { url: `${base}/ai-map`, lastModified: new Date(), changeFrequency: "daily", priority: .96, alternates: languagePair(`${base}/ai-map`, `${base}/en/ai-map`) },
+    { url: `${base}/en/ai-map`, lastModified: new Date(), changeFrequency: "daily", priority: .96, alternates: languagePair(`${base}/ai-map`, `${base}/en/ai-map`) },
     { url: `${base}/proorismoi`, lastModified: new Date(), changeFrequency: "weekly", priority: .95, alternates: languagePair(`${base}/proorismoi`, `${base}/en/destinations`) },
     { url: `${base}/en/destinations`, lastModified: new Date(), changeFrequency: "weekly", priority: .95, alternates: languagePair(`${base}/proorismoi`, `${base}/en/destinations`) },
     ...greek.flatMap(item => {

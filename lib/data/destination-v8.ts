@@ -1,5 +1,6 @@
 import type { AffiliateOffer } from "@/lib/decision/types";
 import { V8_DIMENSIONS, type V8Destination, type V8StayOffer } from "@/lib/decision/v8-types";
+import { mergeV30DestinationFallbacks } from "@/lib/data/destination-fallback-v30";
 
 const CATALOG_URL=process.env.SUPABASE_DESTINATION_CATALOG_V8_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/destination-catalog-v8";
 const STAYS_URL=process.env.SUPABASE_DESTINATION_STAYS_V8_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/destination-stays-v8";
@@ -37,7 +38,7 @@ export async function loadV8DestinationCatalog():Promise<V8Destination[]>{
  const payload=await fetchJson<{destinations?:Array<Record<string,unknown>>}>(CATALOG_URL,8000);
  const rows=(payload.destinations??[]).map(mapDestination).filter((x):x is V8Destination=>Boolean(x));
  if(rows.length<10)throw new Error("Destination catalog is unexpectedly small");
- return rows;
+ return mergeV30DestinationFallbacks(rows);
 }
 
 function mapOffer(row:Record<string,unknown>):V8StayOffer|null{
