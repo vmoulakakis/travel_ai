@@ -1,160 +1,100 @@
-# Ελληνικός AI Travel Guru V10 — Greece-First Travel Decision AI
+# AI Greece Travel V29
 
-Travel decision intelligence for travelers starting primarily from Greece.
+Greece-first bilingual AI travel decision platform built with Next.js, Supabase and a deterministic/agentic recommendation engine.
 
-**Promise:** answer five short human question sets and get six genuinely different Greek destination matches based on emotional need, dates, season, effort, group budget and non-negotiables — **before hotel inventory enters the decision**.
+## Current production architecture
 
-The current product and recovery blueprint is in [`docs/BLUEPRINT_V10.md`](docs/BLUEPRINT_V10.md). The 100-scenario acceptance record is in [`docs/EVALUATION_V10.md`](docs/EVALUATION_V10.md).
+- **Product UI:** V28
+- **Decision engine:** V26
+- **SEO/growth layer:** V29
+- **Languages:** Greek (`/`) and English (`/en`)
+- **Destination model:** destination-first; accommodation is evaluated after destination fit
+- **Backend:** Supabase + protected Edge Functions/RPCs
+- **Hosting:** one supported path — GitHub `main` -> Vercel `travel-ai`
 
-## Core rule
+## Core product flow
 
 ```text
-USER ANSWERS
-    ↓
-STRUCTURED SEMANTIC INTENT
-    ↓ optional free text only
-DEEPSEEK INTENT PARSER
-    ↓
-DESTINATION KNOWLEDGE V8
-    ↓
-SEASON + EFFORT + DURATION + BUDGET BAND
-    ↓
-WEATHER ON FINALISTS
-    ↓
-DIVERSITY + CONDITIONAL OPENAI VERIFIER
-    ↓
-EXACTLY 6 DIVERSE DESTINATIONS
-    ↓ user selects one
-GEOLOCATED LINKWISE STAYS
+Natural-language or structured trip intent
+  -> semantic intent normalization
+  -> Greek destination knowledge
+  -> season / effort / duration / budget / traveller-fit checks
+  -> criterion-sensitive shortlist
+  -> skeptical result audit
+  -> destination comparison
+  -> user selects destination
+  -> geolocated stay matching
 ```
 
-### What V8 deliberately does not do
+The recommendation engine is intentionally independent from affiliate inventory. Hotel count, commission, discounts and merchant economics do not determine which destination ranks first.
 
-- Hotel count does **not** rank destinations.
-- Affiliate EPC, discount and merchant economics have **0%** destination weight.
-- Hotel descriptions do **not** define what a destination is.
-- Feed `location_label` is not trusted as destination identity.
-- Missing affiliate inventory does **not** invalidate a good destination match.
-- Feed validity overlap is not presented as live room availability.
-- OpenAI is not a travel planner or source of facts.
+## Main routes
 
-## Destination Knowledge
+- `/` — Greek AI Greece Travel home
+- `/en` — English home
+- `/proorismoi` — Greek Greece-destination SEO hub
+- `/proorismoi/[slug]` — Greek destination guides
+- `/en/destinations` — English Greece-destination SEO hub
+- `/en/destinations/[slug]` — English destination guides
+- `/api/recommend/stream` — progressive V26 recommendation stream
+- `/api/health` — production readiness
+- `/admin` — admin/architecture view
 
-`destination_knowledge_v8` remains the independent destination graph. The current product filters it to 21 active Greek places before scoring. Every destination stores:
+## V29 SEO growth agent
 
-- canonical names and aliases
-- latitude / longitude
-- semantic travel traits
-- 12-month suitability profile
-- ideal trip duration
-- qualitative cost tier
-- effort class from Athens and Thessaloniki
-- route confidence
-- crowd level
-- hotel matching radius
+The weekly SEO agent builds Greek and English Greece-travel opportunities from first-party destination data, applies a critical AI review through the existing model router, stores the review/opportunity queue in Supabase, maintains bilingual topical architecture and produces legitimate editorial link-earning ideas.
 
-The catalog is seeded by `0014_seed_destination_knowledge_v8.sql` and can be expanded without touching the matching engine.
+Guardrails:
 
-## Matching
+- no fabricated search volume
+- no mass low-value AI pages
+- no paid dofollow backlink schemes
+- no automated directory/comment backlink spam
+- human review for new indexable editorial content
+- hreflang and internal-link pairs across EL/EN destination pages
 
-The production V8 score is explainable. Depending on intent, the normalized blend uses approximately:
+## AI/model policy
 
-- Intent: 31–34%
-- Season: 16–18%
-- Effort: 12%
-- Duration: 9%
-- Budget band: 8–9%
-- Weather: 6–14%
-- Traveler fit: 7–8%
-- Crowd fit: 2–4%
+Structured scoring does not require an LLM. Model calls are reserved for semantic interpretation, critical review or genuinely ambiguous cases. The existing router prefers cheaper/free paths where configured and only escalates when needed.
 
-Explicit requirements can become feasibility guards. For example, a user explicitly asking for warmth cannot receive an off-season/cold beach destination merely because diversity would otherwise promote it.
-
-`npm run test:strict` runs the V8/V9 regression checks plus 100 strict traveler scenarios. It verifies hard constraints, stable evidence-based output, catalog coverage and concentration limits so the same destinations do not dominate unrelated profiles.
-
-## AI roles
-
-### DeepSeek V4 Pro
-
-Optional. Structured answers require no LLM. DeepSeek is used only when the traveler adds natural-language intent such as “quiet, great food, not too touristy, easy to reach.” It converts that text to semantic preference weights. It does not name destinations or invent facts.
-
-### Independent result audit
-
-Every recommendation now passes a deterministic audit of explicit free-text constraints, must-haves, season and route evidence. Failed candidates are removed and the shortlist is regenerated, with a maximum of three evidence-changing attempts. Configure `AUDIT_AI_BASE_URL`, `AUDIT_AI_MODEL` and `AUDIT_AI_API_KEY` to add a second independent OpenAI-compatible audit call through a self-hosted runtime such as LocalAI or vLLM. The local model may reject an evidence inconsistency but cannot introduce a destination or override deterministic constraints. If high confidence cannot be reached, the API returns no recommendation instead of unrelated results.
-
-### OpenAI
-
-Optional low-cost final consistency verifier. Default model: `gpt-5.4-nano`. It runs only when the numeric ranking is genuinely ambiguous or contains a risk signal. Clear ranking sets skip the call entirely.
-
-### Neural learning
-
-V8 learning is isolated under model version `v8-destination-ranker`.
-
-The trainer is a small 12→8→1 network and stays inactive until all of these are true:
-
-- at least 500 labeled candidate examples
-- at least 60 positive outcomes
-- at least 200 negative examples
-- balanced validation accuracy >= 0.75
-
-Until that gate passes, learned influence is zero. Training runs in Supabase and consumes no LLM tokens.
-
-## Stay matching
-
-Stays are fetched **only after destination selection**. `get_destination_stays_v8` links feed products to the selected destination using raw latitude/longitude plus canonical city aliases. Polluted values such as `city=all` are discarded.
-
-Only tracked Linkwise URLs are surfaced. If the feed omits currency, V8 does not display a monetary price. The UI explicitly tells users to confirm actual room availability with the merchant.
+Model outputs cannot invent destination facts or override deterministic hard constraints.
 
 ## Supabase
 
-V8 database assets:
+The application uses Supabase for destination knowledge, stay inventory, evidence, production-truth checks, learning data and SEO-agent state. Service-role credentials remain server-side.
 
-- `destination_knowledge_v8`
-- `get_destination_catalog_v8()`
-- `get_destination_stays_v8()`
-- `v8_match_training_examples`
-- `matching_model_versions` → `v8-destination-ranker`
+Copy `.env.example` for the current environment contract. Never expose private model keys or Supabase service-role credentials through `NEXT_PUBLIC_*` variables.
 
-V8 Edge Functions:
-
-- `destination-catalog-v8`
-- `destination-stays-v8`
-- `match-learning`
-- `train-v8-ranker`
-- `ingest-linkwise-travel`
-
-Server-to-edge reads use the existing hashed application secret. No Supabase service-role key is exposed to Vercel or the browser.
-
-## Environment
-
-Copy `.env.example`. Required for the destination catalog and stay lookup:
-
-```text
-SUPABASE_INGEST_SECRET=
-CRON_SECRET=
-```
-
-DeepSeek and OpenAI keys are optional enhancements. See `.env.example` for the full contract.
-
-## Operations
-
-- `/api/health` — V8 destination-brain readiness
-- `/admin` — V8 architecture and import readiness
-- `/api/recommend` — V8 JSON recommendation endpoint
-- `/api/recommend/stream` — V8 progressive recommendation endpoint
-- `/api/destination-detail` — downstream geolocated stay lookup
-- `/api/jobs/linkwise` — protected feed ingestion
-- `/api/jobs/train-matcher` — protected V8 neural training gate
-
-## CI / deployment
-
-Every pull request runs:
+## Development
 
 ```bash
-npm install
+npm ci
+npm run dev
+```
+
+## Release gate
+
+There is one CI workflow and one production branch. Every pull request and every push to `main` runs:
+
+```bash
+npm ci --no-audit --no-fund
 npm run typecheck
 npm run test:strict
 npm run build
 ```
 
-Merge to `main` only after all four pass. Production should then be validated with `/api/health`, one deterministic matching request, one free-text request and a downstream stay lookup.
+`test:strict` includes the accumulated V8-V26 recommendation regression gates plus the V29 bilingual SEO-agent regression test.
+
+## Deployment
+
+Only `main` is allowed to deploy to production. `vercel.json` disables branch deployments for every other branch.
+
+Supported production path:
+
+```text
+GitHub main -> CI -> Vercel travel-ai -> production alias
+```
+
+Do not create additional hosting providers, temporary production projects, bootstrap deployments or alternate deployment pipelines.
+
+See [`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md) for the final release checklist.
