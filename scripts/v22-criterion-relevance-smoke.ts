@@ -35,5 +35,5 @@ const withBreakfast=stay("with-breakfast","Boutique hotel with breakfast include
 assert.ok((withBreakfast.semanticScore??0)>(withoutBreakfast.semanticScore??0)+20,"soft stay evidence must materially affect relevance");assert.ok(scoreStayOffer(withBreakfast,"boutique","balanced")>scoreStayOffer(withoutBreakfast,"boutique","balanced"),"UI stay sorter must preserve backend criterion relevance");
 
 const health=readFileSync("app/api/health/route.ts","utf8");
-assert.match(health,/release:\"V28\"/);assert.match(health,/engineVersion:\"V26\"/);assert.match(health,/choiceProfilesReady/);assert.match(health,/criterionSensitivityGate:true/);assert.match(health,/negationSafeStayEvidence:true/);
+assert.match(health,/release:\"V29\"/);assert.match(health,/engineVersion:\"V26\"/);assert.match(health,/choiceProfilesReady/);assert.match(health,/criterionSensitivityGate:true/);assert.match(health,/negationSafeStayEvidence:true/);
 console.log("V22 criterion relevance and choice sensitivity: PASS");
