@@ -1,14 +1,17 @@
 import { TravelDecisionError,runTravelOrchestratorV26 } from "@/lib/ai/travel-orchestrator-v26";
 import { pendingContinuity,safePublicMessage } from "@/lib/continuity";
+import { webflowCorsHeadersV31,webflowPreflightV31 } from "@/lib/http/webflow-cors-v31";
 import { parseTripRequest } from "@/lib/validation/trip";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 type Payload=Record<string,unknown>;
 
+export function OPTIONS(request:Request){return webflowPreflightV31(request,"POST, OPTIONS")}
+
 export async function POST(request:Request){
- const body=await request.json().catch(()=>null),parsed=parseTripRequest(body);
- if(!parsed.success)return Response.json({message:"Χρειάζομαι έγκυρες ημερομηνίες και βασικές προτιμήσεις για να συνεχίσω.",continuity:pendingContinuity()},{status:400});
+ const cors=webflowCorsHeadersV31(request,"POST, OPTIONS"),body=await request.json().catch(()=>null),parsed=parseTripRequest(body);
+ if(!parsed.success)return Response.json({message:"Χρειάζομαι έγκυρες ημερομηνίες και βασικές προτιμήσεις για να συνεχίσω.",continuity:pendingContinuity()},{status:400,headers:cors});
  const trip=parsed.data,sessionId=crypto.randomUUID(),encoder=new TextEncoder();
  const stream=new ReadableStream<Uint8Array>({async start(controller){
   let closed=false;
@@ -22,5 +25,5 @@ export async function POST(request:Request){
   }finally{if(!closed){closed=true;controller.close()}}
  }});
  const secure=process.env.NODE_ENV==="production"?"; Secure":"";
- return new Response(stream,{headers:{"content-type":"application/x-ndjson; charset=utf-8","cache-control":"no-store, no-transform","x-content-type-options":"nosniff","x-travel-engine":"v26-criterion-truth","set-cookie":`travel_match_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7776000${secure}`}});
+ return new Response(stream,{headers:{...cors,"content-type":"application/x-ndjson; charset=utf-8","cache-control":"no-store, no-transform","x-content-type-options":"nosniff","x-travel-engine":"v26-criterion-truth","set-cookie":`travel_match_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7776000${secure}`}});
 }

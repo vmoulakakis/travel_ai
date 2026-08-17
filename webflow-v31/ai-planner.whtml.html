@@ -1,0 +1,64 @@
+<main class="wf-ai-planner-page" data-locale="el">
+  <header class="wf-nav">
+    <div class="wf-shell wf-nav__inner">
+      <a class="wf-brand" href="/"><span class="wf-brand__mark">A</span><span>AI Greece Travel</span></a>
+      <nav class="wf-nav__links" aria-label="Κύρια πλοήγηση">
+        <a href="/ai-planner" aria-current="page">AI Σύμβουλος</a>
+        <a href="/ai-map">AI Χάρτης</a>
+        <a href="/proorismoi">Προορισμοί</a>
+        <a href="/how-ai-works">Πώς δουλεύει</a>
+      </nav>
+      <a class="wf-btn wf-btn--secondary" href="/en/ai-planner">EN</a>
+    </div>
+  </header>
+
+  <section class="wf-section wf-section--tight">
+    <div class="wf-shell">
+      <span class="wf-kicker">AI DECISION PLANNER</span>
+      <h1 class="wf-h2">Όχι άλλες γενικές προτάσεις. Πες μου το πραγματικό ταξίδι.</h1>
+      <p class="wf-lead">Ο σύμβουλος περιορίζει πρώτα τη σωστή γεωγραφία και μετά συγκρίνει εποχή, πρόσβαση, budget, stay evidence και το τι πραγματικά ζητάς.</p>
+    </div>
+  </section>
+
+  <section class="wf-section wf-section--tight">
+    <div class="wf-shell" style="display:grid;grid-template-columns:minmax(300px,.72fr) minmax(0,1.28fr);gap:18px;align-items:start">
+      <form class="wf-card" data-travel-stream-form style="display:grid;gap:14px;position:sticky;top:90px">
+        <label><strong>Από πού ξεκινάς;</strong><input name="origin" value="Athens" required style="width:100%;min-height:48px;margin-top:7px;border:1px solid #d9d7cc;border-radius:12px;padding:0 12px"></label>
+        <label><strong>Έχεις προορισμό στο μυαλό σου;</strong><input name="consideredDestination" placeholder="π.χ. Νάξος — άφησέ το κενό για discovery" style="width:100%;min-height:48px;margin-top:7px;border:1px solid #d9d7cc;border-radius:12px;padding:0 12px"></label>
+        <label><strong>Πότε;</strong><select name="month" style="width:100%;min-height:48px;margin-top:7px;border:1px solid #d9d7cc;border-radius:12px;padding:0 12px;background:white"><option value="september">Σεπτέμβριος</option><option value="october">Οκτώβριος</option><option value="november">Νοέμβριος</option><option value="flexible">Ευέλικτα</option></select></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label><strong>Νύχτες</strong><input name="nights" type="number" min="1" max="14" value="4" style="width:100%;min-height:48px;margin-top:7px;border:1px solid #d9d7cc;border-radius:12px;padding:0 12px"></label>
+          <label><strong>Budget €</strong><input name="budget" type="number" min="150" max="5000" value="1200" style="width:100%;min-height:48px;margin-top:7px;border:1px solid #d9d7cc;border-radius:12px;padding:0 12px"></label>
+        </div>
+        <label><strong>Παρέα</strong><select name="travelerType" style="width:100%;min-height:48px;margin-top:7px;border:1px solid #d9d7cc;border-radius:12px;padding:0 12px;background:white"><option value="couple">Ζευγάρι</option><option value="family">Οικογένεια</option><option value="friends">Φίλοι</option><option value="solo">Solo</option></select></label>
+        <label><strong>Τι μετρά περισσότερο;</strong><select name="moods" style="width:100%;min-height:48px;margin-top:7px;border:1px solid #d9d7cc;border-radius:12px;padding:0 12px;background:white"><option value="relax">Χαλάρωση</option><option value="romantic">Ρομαντικό</option><option value="food">Φαγητό</option><option value="nature">Φύση</option><option value="culture">Πολιτισμός</option><option value="city">Πόλη</option><option value="adventure">Περιπέτεια</option><option value="warmth">Ζέστη</option></select></label>
+        <label><strong>Πες το όπως θα το έλεγες σε άνθρωπο</strong><textarea name="tripText" maxlength="320" placeholder="Θέλω παραλία αλλά όχι χαμό, να τρώμε καλά και να μην τρέχουμε όλη μέρα…" style="width:100%;min-height:110px;margin-top:7px;border:1px solid #d9d7cc;border-radius:12px;padding:12px;resize:vertical"></textarea></label>
+        <input type="hidden" name="groupSize" value="2">
+        <input type="hidden" name="distancePreference" value="any">
+        <input type="hidden" name="pace" value="balanced">
+        <input type="hidden" name="hotelStyle" value="any">
+        <input type="hidden" name="avoid" value="none">
+        <input type="hidden" name="entryMode" value="idea">
+        <input type="hidden" name="desiredEnergy" value="balanced">
+        <input type="hidden" name="socialPreference" value="balanced">
+        <input type="hidden" name="noveltyPreference" value="balanced">
+        <input type="hidden" name="mustHave" value="none">
+        <input type="hidden" name="dateFlexibility" value="few-days">
+        <input type="hidden" name="transportMode" value="any">
+        <input type="hidden" name="stayLocationPreference" value="balanced">
+        <button class="wf-btn wf-btn--primary" type="submit">Ανάλυσε το ταξίδι μου →</button>
+      </form>
+
+      <section>
+        <div class="wf-card wf-card--dark" style="padding:28px">
+          <span class="wf-kicker" style="color:#b8d7d2">LIVE AI COUNCIL</span>
+          <h2 class="wf-h3">Η απόφαση χτίζεται μπροστά σου.</h2>
+          <p class="wf-body" style="color:#dceae7">Θα βλέπεις τα στάδια location truth → intent → catalog → season/route → evidence → audit → τελική πρόταση.</p>
+        </div>
+        <div data-travel-stream-output aria-live="polite" style="margin-top:14px"></div>
+      </section>
+    </div>
+  </section>
+
+  <footer class="wf-footer"><div class="wf-shell"><small>AI Greece Travel · Evidence before confidence.</small></div></footer>
+</main>
