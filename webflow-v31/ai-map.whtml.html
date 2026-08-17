@@ -1,0 +1,96 @@
+<main class="wf-ai-map-page" data-locale="el">
+  <header class="wf-nav">
+    <div class="wf-shell wf-nav__inner">
+      <a class="wf-brand" href="/"><span class="wf-brand__mark">A</span><span>AI Greece Travel</span></a>
+      <nav class="wf-nav__links" aria-label="Κύρια πλοήγηση">
+        <a href="/ai-planner">AI Σύμβουλος</a>
+        <a href="/ai-map" aria-current="page">AI Χάρτης</a>
+        <a href="/proorismoi">Προορισμοί</a>
+        <a href="/seasonal">Ανά εποχή</a>
+        <a href="/how-ai-works">Πώς δουλεύει</a>
+      </nav>
+      <a class="wf-btn wf-btn--secondary" href="/en/ai-map">EN</a>
+    </div>
+  </header>
+
+  <section class="wf-section wf-section--tight">
+    <div class="wf-shell">
+      <span class="wf-kicker">DAILY DESTINATION INTELLIGENCE</span>
+      <h1 class="wf-h2">Ο AI χάρτης της Ελλάδας, σήμερα.</h1>
+      <p class="wf-lead">Οι προορισμοί ανεβαίνουν ή κατεβαίνουν με βάση εποχή, πραγματικό stay signal, πρόσβαση και travel fit — όχι επειδή πληρώνουν μεγαλύτερη προμήθεια.</p>
+      <div class="wf-chip-row" style="margin-top:20px" data-ai-map-months>
+        <button class="wf-chip" type="button" data-month="8">Αύγουστος</button>
+        <button class="wf-chip" type="button" data-month="9">Σεπτέμβριος</button>
+        <button class="wf-chip" type="button" data-month="10">Οκτώβριος</button>
+        <button class="wf-chip" type="button" data-month="11">Νοέμβριος</button>
+        <button class="wf-chip" type="button" data-month="12">Δεκέμβριος</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="wf-section wf-section--tight">
+    <div class="wf-shell">
+      <div class="wf-map-preview" style="min-height:760px">
+        <aside class="wf-rank-list" data-ai-map-ranking>
+          <span class="wf-kicker">TOP DESTINATIONS</span>
+          <h2 class="wf-h3">Daily ranking</h2>
+          <div class="wf-body">Το live ranking φορτώνεται από το AI runtime.</div>
+          <div data-ai-map-ranking-list></div>
+          <div class="wf-card" style="margin-top:auto">
+            <strong>Πώς διαβάζεται το score</strong>
+            <p class="wf-body">AI Overall = season + stay signal + access + crowd/value balance. Τα Tripadvisor/Booking ratings εμφανίζονται ξεχωριστά.</p>
+          </div>
+        </aside>
+
+        <div class="wf-map-canvas" data-ai-map-root style="min-height:760px">
+          <div class="wf-card" data-ai-map-loading style="position:absolute;left:20px;top:20px;z-index:2">Φόρτωση σημερινών travel signals…</div>
+          <aside class="wf-card" data-evidence-root style="position:absolute;right:20px;top:20px;z-index:3;width:min(420px,calc(100% - 40px));display:none">
+            <span class="wf-kicker">DESTINATION EVIDENCE</span>
+            <h2 class="wf-h3" data-evidence-name>Προορισμός</h2>
+            <div class="wf-grid-3" style="margin-top:16px">
+              <div><small>AI Overall</small><strong data-evidence-overall>—</strong></div>
+              <div><small>Season</small><strong data-evidence-season>—</strong></div>
+              <div><small>Access</small><strong data-evidence-access>—</strong></div>
+            </div>
+            <div style="margin-top:18px">
+              <strong>Tripadvisor</strong>
+              <p class="wf-body" data-evidence-tripadvisor>Δεν υπάρχουν ακόμη live δεδομένα.</p>
+            </div>
+            <div style="margin-top:14px">
+              <strong>Booking.com</strong>
+              <p class="wf-body" data-evidence-booking>Δεν υπάρχουν ακόμη live δεδομένα.</p>
+            </div>
+            <div style="margin-top:14px">
+              <strong>Stay evidence</strong>
+              <div data-evidence-stays></div>
+            </div>
+            <p class="wf-body" style="font-size:13px" data-evidence-policy>Ratings, review counts και rankings δεν υπολογίζονται όταν λείπει η πηγή.</p>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wf-section">
+    <div class="wf-shell wf-trust">
+      <div>
+        <span class="wf-kicker">WHY THIS RANK</span>
+        <h2 class="wf-h2">Μία κατάταξη που εξηγείται.</h2>
+      </div>
+      <div class="wf-trust__list">
+        <div class="wf-trust__item"><strong>Season fit</strong><p class="wf-body">Πόσο καλά ταιριάζει ο μήνας στις πραγματικές εποχικές συνθήκες του προορισμού.</p></div>
+        <div class="wf-trust__item"><strong>Stay signal</strong><p class="wf-body">Υπάρχει πραγματικό ενεργό inventory signal για το επιλεγμένο διάστημα;</p></div>
+        <div class="wf-trust__item"><strong>Trusted reviews</strong><p class="wf-body">Tripadvisor και Booking evidence προστίθενται μόνο όταν επιστρέφονται από τα αντίστοιχα APIs.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="wf-footer">
+    <div class="wf-shell wf-footer__grid">
+      <div><div class="wf-brand"><span class="wf-brand__mark">A</span><span>AI Greece Travel</span></div></div>
+      <div><a href="/ai-planner">AI Σύμβουλος</a></div>
+      <div><a href="/proorismoi">Προορισμοί</a></div>
+      <div><a href="/how-ai-works">Μεθοδολογία</a></div>
+    </div>
+  </footer>
+</main>
