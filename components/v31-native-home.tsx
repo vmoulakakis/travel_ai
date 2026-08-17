@@ -4,89 +4,27 @@ type Lang="el"|"en";
 const say=(lang:Lang,el:string,en:string)=>lang==="el"?el:en;
 
 export function V31NativeHome({lang="el"}:{lang?:Lang}){
- const prefix=lang==="en"?"/en":"";
- const destinations=lang==="el"?"/proorismoi":"/en/destinations";
+ const prefix=lang==="en"?"/en":"",destinations=lang==="en"?"/en/destinations":"/proorismoi";
+ const apps=[
+  {n:"01",title:say(lang,"AI Σύμβουλος","AI Planner"),text:say(lang,"Δώσε πόλη, ημερομηνίες, budget και τρόπο ταξιδιού. Πάρε audited shortlist.","Give a city, dates, budget and travel style. Get an audited shortlist."),href:`${prefix}/ai-planner`,tag:"DECIDE"},
+  {n:"02",title:say(lang,"Χάρτης Διαμονών","Stay Map"),text:say(lang,"Δες πραγματικά καταλύματα και offers ως markers τιμής πάνω στον χάρτη.","See real stays and offers as price markers directly on the map."),href:`${prefix}/stays-map`,tag:"PRODUCT MAP"},
+  {n:"03",title:say(lang,"AI Χάρτης Ελλάδας","AI Greece Map"),text:say(lang,"Σύγκρινε προορισμούς με season fit, πρόσβαση, supply και trusted evidence.","Compare destinations by season fit, access, supply and trusted evidence."),href:`${prefix}/ai-map`,tag:"RANK"},
+  {n:"04",title:say(lang,"Προορισμοί","Destinations"),text:say(lang,"Μπες σε ξεχωριστές σελίδες προορισμών — όχι σε μία ατελείωτη homepage.","Open dedicated destination pages instead of one endless homepage."),href:destinations,tag:"EXPLORE"},
+  {n:"05",title:say(lang,"Ανά εποχή","Seasonal"),text:say(lang,"Δες πού έχει νόημα να πας ανά μήνα και τύπο ταξιδιού.","See where it makes sense to go by month and trip type."),href:`${prefix}/seasonal`,tag:"WHEN"},
+  {n:"06",title:say(lang,"Οδηγοί","Guides"),text:say(lang,"Πρακτικοί οδηγοί για αποφάσεις, μετακινήσεις, διαμονή και planning.","Practical guides for decisions, transport, stays and planning."),href:`${prefix}/guides`,tag:"LEARN"}
+ ];
  return <V31PageFrame lang={lang}>
-  <section className="wf-hero">
-   <div className="wf-shell wf-hero__frame">
-    <div className="wf-hero__visual" aria-hidden="true"/>
-    <div className="wf-hero__content">
-     <div className="wf-hero__copy">
-      <span className="wf-kicker">AI TRAVEL INTELLIGENCE · GREECE</span>
-      <h1 className="wf-display">{say(lang,"Η Ελλάδα δεν χρειάζεται άλλη μία λίστα.","Greece does not need another list.")}</h1>
-      <p className="wf-lead">{say(lang,"Χρειάζεται τη σωστή επιλογή για εσένα — με βάση εποχή, παρέα, budget, ρυθμό, πρόσβαση και πραγματικά travel signals.","It needs the right choice for you — based on season, company, budget, pace, access and real travel signals.")}</p>
-     </div>
-     <div className="wf-prompt">
-      <span className="wf-kicker">{say(lang,"Πες μου πώς θέλεις να νιώθεις","Tell me how you want to feel")}</span>
-      <div className="wf-prompt__field">{say(lang,"π.χ. 4 μέρες τον Σεπτέμβριο, ζευγάρι, θάλασσα, καλό φαγητό και χωρίς πολύ κόσμο","e.g. 4 days in September, couple, sea, great food and fewer crowds")}</div>
-      <div className="wf-chip-row">
-       {[
-        say(lang,"Θάλασσα","Sea"),say(lang,"Ζευγάρι","Couple"),say(lang,"Οικογένεια","Family"),say(lang,"Φαγητό","Food"),say(lang,"Φύση","Nature"),say(lang,"Πολιτισμός","Culture")
-       ].map(item=><span className="wf-chip" key={item}>{item}</span>)}
-      </div>
-      <a className="wf-btn wf-btn--primary" href={`${prefix}/ai-planner`}>{say(lang,"Βρες τον προορισμό μου →","Find my destination →")}</a>
-     </div>
-    </div>
+  <section className="v32-home-hero">
+   <div className="wf-shell v32-home-hero__grid">
+    <div><span className="wf-kicker">AI GREECE TRAVEL · CONTROL CENTER</span><h1>{say(lang,"Μία πλατφόρμα. Πολλές πραγματικές σελίδες.","One platform. Multiple real pages.")}</h1><p>{say(lang,"Σχεδίασε το ταξίδι, σύγκρινε προορισμούς και άνοιξε πραγματικά προϊόντα διαμονής επάνω στον χάρτη — χωρίς να ψάχνεις μέσα σε μία τεράστια landing page.","Plan the trip, compare destinations and open real accommodation products on the map — without hunting through one giant landing page.")}</p><div className="v32-home-actions"><a className="wf-btn wf-btn--primary" href={`${prefix}/ai-planner`}>{say(lang,"Ξεκίνα με AI →","Start with AI →")}</a><a className="wf-btn wf-btn--secondary" href={`${prefix}/stays-map`}>{say(lang,"Άνοιξε τον χάρτη προϊόντων","Open product map")}</a></div></div>
+    <a className="v32-map-teaser" href={`${prefix}/stays-map`}><div className="v32-map-teaser__grid" aria-hidden="true"><span className="v32-pin p1">€89</span><span className="v32-pin p2">€124</span><span className="v32-pin p3">€176</span><span className="v32-pin p4">€98</span></div><div><span>LIVE STAY INVENTORY</span><strong>{say(lang,"Τα προϊόντα σου πάνω στον χάρτη →","Your products on the map →")}</strong><small>{say(lang,"Google Maps όταν υπάρχει key · OpenStreetMap fallback πάντα διαθέσιμο","Google Maps when configured · OpenStreetMap fallback always available")}</small></div></a>
    </div>
   </section>
 
-  <section className="wf-section wf-section--tight">
-   <div className="wf-shell">
-    <div className="wf-map-preview">
-     <aside className="wf-rank-list">
-      <span className="wf-kicker">{say(lang,"Σήμερα στην Ελλάδα","Today in Greece")}</span>
-      <h2 className="wf-h3">Daily AI ranking</h2>
-      {[
-       ["01",say(lang,"Νάξος","Naxos"),say(lang,"Ισορροπία παραλίας, φαγητού και ρυθμού","Strong balance of beach, food and pace"),"92"],
-       ["02",say(lang,"Χανιά","Chania"),say(lang,"Πόλη, παραλίες και μεγάλη εποχική ευελιξία","City, beaches and a long usable season"),"90"],
-       ["03",say(lang,"Μήλος","Milos"),say(lang,"Ζευγάρι, τοπίο και πιο ήρεμο shoulder season","Couples, scenery and quieter shoulder season"),"88"]
-      ].map(([rank,name,note,score])=><a className="wf-rank" href={`${prefix}/ai-map`} key={rank}><span className="wf-rank__n">{rank}</span><span><strong>{name}</strong><br/><small>{note}</small></span><span className="wf-rank__score">{score}</span></a>)}
-      <a className="wf-btn wf-btn--primary" href={`${prefix}/ai-map`}>{say(lang,"Άνοιξε τον AI Χάρτη","Open AI Map")}</a>
-     </aside>
-     <a className="wf-map-canvas wf-map-canvas--preview" href={`${prefix}/ai-map`} aria-label={say(lang,"Άνοιξε τον διαδραστικό AI χάρτη","Open the interactive AI map")}>
-      <span className="wf-map-island wf-map-island--1">92</span><span className="wf-map-island wf-map-island--2">90</span><span className="wf-map-island wf-map-island--3">88</span><strong>{say(lang,"Ζωντανός χάρτης κατάταξης →","Live ranking map →")}</strong>
-     </a>
-    </div>
-   </div>
-  </section>
+  <section className="wf-section v32-app-section"><div className="wf-shell"><div className="v32-section-head"><div><span className="wf-kicker">CHOOSE A TOOL</span><h2 className="wf-h2">{say(lang,"Τι θέλεις να κάνεις τώρα;","What do you want to do now?")}</h2></div><p>{say(lang,"Κάθε λειτουργία έχει πλέον δικό της route, δική της οθόνη και σαφή δουλειά.","Every function now has its own route, screen and clear job.")}</p></div><div className="v32-app-grid">{apps.map(app=><a className="v32-app-card" href={app.href} key={app.n}><span className="v32-app-card__n">{app.n}</span><span className="wf-kicker">{app.tag}</span><h3>{app.title}</h3><p>{app.text}</p><b>{say(lang,"Άνοιγμα →","Open →")}</b></a>)}</div></div></section>
 
-  <section className="wf-section">
-   <div className="wf-shell">
-    <span className="wf-kicker">Explore by feeling</span>
-    <h2 className="wf-h2">{say(lang,"Τι θέλεις να σου δώσει αυτό το ταξίδι;","What do you want this trip to give you?")}</h2>
-    <div className="wf-grid-3 wf-space-top">
-     <a className="wf-destination-card wf-feel-restore" href={`${destinations}?mood=restore`}><div className="wf-destination-card__content"><span className="wf-destination-card__meta">RESTORE</span><h3 className="wf-h3">{say(lang,"Να ξεκουραστώ πραγματικά","To truly recharge")}</h3></div></a>
-     <a className="wf-destination-card wf-feel-food" href={`${destinations}?mood=food`}><div className="wf-destination-card__content"><span className="wf-destination-card__meta">FOOD + PLACE</span><h3 className="wf-h3">{say(lang,"Να φάω καλά και να νιώσω τον τόπο","To eat well and feel the place")}</h3></div></a>
-     <a className="wf-destination-card wf-feel-discover" href={`${destinations}?mood=discover`}><div className="wf-destination-card__content"><span className="wf-destination-card__meta">DISCOVER</span><h3 className="wf-h3">{say(lang,"Να βρω κάτι που δεν είναι το προφανές","To find something less obvious")}</h3></div></a>
-    </div>
-   </div>
-  </section>
+  <section className="wf-section wf-paper-section"><div className="wf-shell v32-two-maps"><div><span className="wf-kicker">TWO MAPS · TWO JOBS</span><h2 className="wf-h2">{say(lang,"Μην μπερδεύουμε προορισμούς με προϊόντα.","Do not mix destinations with products.")}</h2><p className="wf-lead">{say(lang,"Ο AI Χάρτης κατατάσσει πόλεις και νησιά. Ο Χάρτης Διαμονών δείχνει τα πραγματικά offers σου στο ακριβές σημείο τους.","The AI Map ranks cities and islands. The Stay Map plots your real offers at their actual locations.")}</p></div><div className="v32-map-choice"><a href={`${prefix}/ai-map`}><span>AI DESTINATION MAP</span><strong>{say(lang,"Ποιος προορισμός ταιριάζει;","Which destination fits?")}</strong><small>{say(lang,"AI score · season · access · evidence","AI score · season · access · evidence")}</small></a><a href={`${prefix}/stays-map`}><span>PRODUCT / STAY MAP</span><strong>{say(lang,"Πού είναι τα προϊόντα και πόσο κοστίζουν;","Where are the products and what do they cost?")}</strong><small>{say(lang,"Marker τιμής · offer · image · booking CTA","Price marker · offer · image · booking CTA")}</small></a></div></div></section>
 
-  <section className="wf-section wf-paper-section">
-   <div className="wf-shell">
-    <span className="wf-kicker">COMPARE, DON&apos;T SCROLL</span>
-    <h2 className="wf-h2">{say(lang,"Νάξος, Μήλος ή Χανιά;","Naxos, Milos or Chania?")}</h2>
-    <p className="wf-lead">{say(lang,"Μία απόφαση είναι πιο χρήσιμη από δώδεκα tabs.","One decision is more useful than twelve tabs.")}</p>
-    <div className="wf-compare wf-space-top">
-     <div className="wf-compare__cell"><strong>{say(lang,"Νάξος","Naxos")}</strong><p className="wf-body">{say(lang,"Ισχυρή ισορροπία για παραλία, φαγητό, οικογένεια και value.","Strong balance for beach, food, family and value.")}</p></div>
-     <div className="wf-compare__cell"><strong>{say(lang,"Μήλος","Milos")}</strong><p className="wf-body">{say(lang,"Πιο εικονική και ρομαντική, με μεγαλύτερη εποχική ευαισθησία.","More iconic and romantic, with stronger seasonal sensitivity.")}</p></div>
-     <div className="wf-compare__cell"><strong>{say(lang,"Χανιά","Chania")}</strong><p className="wf-body">{say(lang,"Πόλη + φύση + φαγητό με μεγαλύτερη διάρκεια σεζόν.","City + nature + food with a longer season.")}</p></div>
-    </div>
-    <a className="wf-btn wf-btn--secondary wf-space-top-sm" href={`${prefix}/ai-planner`}>{say(lang,"Σύγκρινέ τα για το δικό μου ταξίδι","Compare them for my trip")}</a>
-   </div>
-  </section>
-
-  <section className="wf-section">
-   <div className="wf-shell wf-trust">
-    <div><span className="wf-kicker">TRUST LAYER</span><h2 className="wf-h2">{say(lang,"Το AI δεν αποφασίζει “στο περίπου”.","The AI does not decide by guesswork.")}</h2><p className="wf-lead">{say(lang,"Κάθε πρόταση περνά από location truth, intent, season, route, stay evidence και έλεγχο συνέπειας.","Every recommendation passes location truth, intent, season, route, stay evidence and consistency checks.")}</p></div>
-    <div className="wf-trust__list">
-     <div className="wf-trust__item"><strong>01 · Location truth</strong><p className="wf-body">{say(lang,"Αν επιλέξεις Νάξο, δεν θα σου επιστρέψει άλλη πόλη επειδή σκοράρει καλύτερα.","If you select Naxos, it will not return another city just because it scores higher.")}</p></div>
-     <div className="wf-trust__item"><strong>02 · Evidence before confidence</strong><p className="wf-body">{say(lang,"Ratings, review counts και rankings εμφανίζονται μόνο όταν υπάρχουν από την πηγή.","Ratings, review counts and rankings appear only when returned by the source.")}</p></div>
-     <div className="wf-trust__item"><strong>03 · Affiliate-independent ranking</strong><p className="wf-body">{say(lang,"Η εμπορική προμήθεια δεν καθορίζει ποιος προορισμός προτείνεται.","Commercial commission never decides which destination is recommended.")}</p></div>
-    </div>
-   </div>
-  </section>
-
-  <section className="wf-section"><div className="wf-shell wf-card wf-card--dark wf-final-cta"><span className="wf-kicker wf-kicker--light">YOUR GREECE, DECIDED</span><h2 className="wf-h2">{say(lang,"Πες μας τι χρειάζεσαι. Το AI θα κάνει τη δύσκολη σύγκριση.","Tell us what you need. The AI will do the hard comparison.")}</h2><div><a className="wf-btn wf-btn--secondary" href={`${prefix}/ai-planner`}>{say(lang,"Ξεκίνα με AI","Start with AI")}</a></div></div></section>
+  <section className="wf-section"><div className="wf-shell wf-trust"><div><span className="wf-kicker">AI THAT RESPECTS LOCATION</span><h2 className="wf-h2">{say(lang,"Πρώτα η σωστή πόλη. Μετά η καλύτερη επιλογή.","Right city first. Best option second.")}</h2><p className="wf-lead">{say(lang,"Αν δώσεις συγκεκριμένη πόλη ή νησί, το location scope παραμένει hard constraint πριν από ranking και recommendations.","When you give a specific city or island, location scope remains a hard constraint before ranking and recommendations.")}</p></div><div className="wf-trust__list"><div className="wf-trust__item"><strong>01 · Location truth</strong><p className="wf-body">{say(lang,"Δεν αλλάζει κρυφά πόλη επειδή ένα άλλο μέρος έχει υψηλότερο score.","It does not silently switch cities because another place scores higher.")}</p></div><div className="wf-trust__item"><strong>02 · Real inventory markers</strong><p className="wf-body">{say(lang,"Τα pins του Stay Map προέρχονται από προϊόντα με πραγματικές συντεταγμένες και tracking URLs.","Stay Map pins come from products with real coordinates and tracking URLs.")}</p></div><div className="wf-trust__item"><strong>03 · Fail-safe maps</strong><p className="wf-body">{say(lang,"Αν το Google Maps key δεν είναι διαθέσιμο, ο χάρτης συνεχίζει με OpenStreetMap αντί να σπάει.","If a Google Maps key is unavailable, the map continues with OpenStreetMap instead of breaking.")}</p></div></div></div></section>
  </V31PageFrame>
 }
