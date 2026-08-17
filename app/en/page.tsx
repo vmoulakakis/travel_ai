@@ -3,6 +3,7 @@ import { AiGreeceHomeV28 } from "@/components/ai-greece-home-v28";
 import { V28AiConciergeBridge } from "@/components/v28-ai-concierge-bridge";
 import { V28DecisionFunnelClient } from "@/components/v28-decision-funnel-client";
 import { V28LanguageBootstrap } from "@/components/v28-language-bootstrap";
+import { V28TravelIntelligence } from "@/components/v28-travel-intelligence";
 import { PostStayTripBuilderV25 } from "@/components/post-stay-trip-builder-v25";
 import { getWeeklyPick } from "@/lib/decision/weekly-pick";
 
@@ -18,6 +19,7 @@ export default async function EnglishHomePage() {
   const weeklyPick = await getWeeklyPick();
   return <>
     <AiGreeceHomeV28 weeklyPick={weeklyPick} initialLang="en" />
+    <V28TravelIntelligence lang="en" />
     <V28AiConciergeBridge initialLang="en" />
     <V28LanguageBootstrap lang="en" />
     <V28DecisionFunnelClient weeklyPick={weeklyPick} />
