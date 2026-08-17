@@ -9,6 +9,7 @@ import "./v28-concierge.css";
 import "./v28-production.css";
 import "./v29-seo.css";
 import "./v31-native.css";
+import "./v32-product-map.css";
 import "leaflet/dist/leaflet.css";
 
 const resolvedSiteUrl = getSiteUrl();
