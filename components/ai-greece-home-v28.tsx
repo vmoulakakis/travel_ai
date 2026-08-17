@@ -122,6 +122,7 @@ export function AiGreeceHomeV28({ weeklyPick, initialLang = "el" }: { weeklyPick
         <nav>
           <a href="#v28-inspire">{say(lang, "Έμπνευση", "Inspire me")}</a>
           <a href="#v28-regions">{say(lang, "Ελλάδα", "Explore Greece")}</a>
+          <a href={lang === "el" ? "/ai-map" : "/en/ai-map"}>{say(lang, "AI Χάρτης", "AI Map")}</a>
           <a href="#v28-how">{say(lang, "Πώς δουλεύει", "How it works")}</a>
         </nav>
         <div className="v28-nav-actions">
