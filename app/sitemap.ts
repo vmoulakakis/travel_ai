@@ -15,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: base, lastModified: new Date(), changeFrequency: "weekly", priority: 1, alternates: languagePair(base, `${base}/en`) },
     { url: `${base}/en`, lastModified: new Date(), changeFrequency: "weekly", priority: 1, alternates: languagePair(base, `${base}/en`) },
     ...pair("/ai-planner","/en/ai-planner","weekly",.98),
+    ...pair("/stays-map","/en/stays-map","daily",.97),
     ...pair("/ai-map","/en/ai-map","daily",.96),
     ...pair("/proorismoi","/en/destinations","weekly",.95),
     ...pair("/seasonal","/en/seasonal","weekly",.88),
