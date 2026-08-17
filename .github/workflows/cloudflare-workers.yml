@@ -14,6 +14,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  OPENNEXT_VERSION: "1.20.2"
+  WRANGLER_VERSION: "4.123.0"
+
 jobs:
   validate:
     name: Workers dry-run
@@ -24,9 +28,13 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - name: Build for Cloudflare Workers without publishing
+      - name: Install pinned Cloudflare build toolchain
+        run: npm install --no-save --package-lock=false @opennextjs/cloudflare@${OPENNEXT_VERSION} wrangler@${WRANGLER_VERSION}
+      - name: Build OpenNext Worker bundle
+        run: npx opennextjs-cloudflare build
+      - name: Validate Worker bundle without publishing
         run: >-
-          npx --yes wrangler@latest deploy --dry-run --name travel-ai
+          npx wrangler deploy --dry-run
           --var DEPLOYMENT_PLATFORM:cloudflare-workers
           --var DEPLOYMENT_ENV:ci
           --var DEPLOYMENT_COMMIT:${GITHUB_SHA}
@@ -45,6 +53,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Install pinned Cloudflare build toolchain
+        run: npm install --no-save --package-lock=false @opennextjs/cloudflare@${OPENNEXT_VERSION} wrangler@${WRANGLER_VERSION}
       - name: Check Cloudflare deployment credentials
         id: credentials
         shell: bash
@@ -55,10 +65,13 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Cloudflare deploy skipped: configure CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in GitHub Actions secrets/variables."
           fi
+      - name: Build OpenNext Worker bundle
+        if: steps.credentials.outputs.ready == 'true'
+        run: npx opennextjs-cloudflare build
       - name: Deploy travel-ai to Cloudflare Workers
         if: steps.credentials.outputs.ready == 'true'
         run: >-
-          npx --yes wrangler@latest deploy --name travel-ai
+          npx wrangler deploy
           --var DEPLOYMENT_PLATFORM:cloudflare-workers
           --var DEPLOYMENT_ENV:production
           --var DEPLOYMENT_COMMIT:${GITHUB_SHA}
