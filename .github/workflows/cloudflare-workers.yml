@@ -1,0 +1,64 @@
+name: Cloudflare Workers
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cloudflare-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Workers dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Build for Cloudflare Workers without publishing
+        run: >-
+          npx --yes wrangler@latest deploy --dry-run --name travel-ai
+          --var DEPLOYMENT_PLATFORM:cloudflare-workers
+          --var DEPLOYMENT_ENV:ci
+          --var DEPLOYMENT_COMMIT:${GITHUB_SHA}
+
+  deploy:
+    name: Workers production deploy
+    needs: validate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Check Cloudflare deployment credentials
+        id: credentials
+        shell: bash
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Cloudflare deploy skipped: configure CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in GitHub Actions secrets/variables."
+          fi
+      - name: Deploy travel-ai to Cloudflare Workers
+        if: steps.credentials.outputs.ready == 'true'
+        run: >-
+          npx --yes wrangler@latest deploy --name travel-ai
+          --var DEPLOYMENT_PLATFORM:cloudflare-workers
+          --var DEPLOYMENT_ENV:production
+          --var DEPLOYMENT_COMMIT:${GITHUB_SHA}
