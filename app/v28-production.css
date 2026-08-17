@@ -1,0 +1,64 @@
+/* Production bridge: V28 owns the visible chrome while V26 remains the decision engine.
+   Use a general sibling because the concierge bridge sits between the V28 home and .guru-v9. */
+.ai-greece-v28 ~ .guru-v9 .guru-nav,
+.ai-greece-v28 ~ .guru-v9 .guru-hero,
+.ai-greece-v28 ~ .guru-v9 .weekly-pick,
+.ai-greece-v28 ~ .guru-v9 .guru-promise {
+  display: none !important;
+}
+
+.ai-greece-v28 ~ .guru-v9 {
+  padding-top: 0 !important;
+  background: var(--v28-cream) !important;
+  color: var(--v28-ink) !important;
+}
+
+.ai-greece-v28 ~ .guru-v9 .discovery {
+  width: min(1180px, calc(100% - 40px));
+  margin: 28px auto 100px;
+  border: 1px solid var(--v28-line) !important;
+  border-radius: 30px !important;
+  background: rgba(255,255,255,.72) !important;
+  box-shadow: 0 26px 70px rgba(11,35,48,.08) !important;
+  overflow: hidden;
+}
+
+.ai-greece-v28 ~ .guru-v9 .discovery.open { animation: v28Reveal .45s ease both; }
+.ai-greece-v28 ~ .guru-v9 .discovery-head {
+  padding: 30px 32px 22px !important;
+  border-bottom: 1px solid var(--v28-line);
+  background: linear-gradient(135deg, rgba(223,246,246,.7), rgba(255,250,240,.9));
+}
+.ai-greece-v28 ~ .guru-v9 .discovery-head h2 { font-family: Georgia, serif !important; color: var(--v28-ink) !important; }
+.ai-greece-v28 ~ .guru-v9 .discovery .eyebrow { color: var(--v28-coral) !important; }
+.ai-greece-v28 ~ .guru-v9 .question-stage { padding: 28px 32px 34px !important; }
+.ai-greece-v28 ~ .guru-v9 .question,
+.ai-greece-v28 ~ .guru-v9 .question-card {
+  border-color: var(--v28-line) !important;
+  background: rgba(255,255,255,.88) !important;
+}
+.ai-greece-v28 ~ .guru-v9 button.primary,
+.ai-greece-v28 ~ .guru-v9 .run-button,
+.ai-greece-v28 ~ .guru-v9 .next-button {
+  background: var(--v28-ink) !important;
+  color: white !important;
+  border-color: var(--v28-ink) !important;
+}
+.ai-greece-v28 ~ .guru-v9 .choice.active,
+.ai-greece-v28 ~ .guru-v9 .mood-grid button.active {
+  border-color: var(--v28-aegean) !important;
+  background: #e4f4f5 !important;
+  color: #075d76 !important;
+}
+
+@media (max-width: 680px) {
+  .ai-greece-v28 ~ .guru-v9 .discovery {
+    width: calc(100% - 28px);
+    border-radius: 22px !important;
+  }
+  .ai-greece-v28 ~ .guru-v9 .discovery-head,
+  .ai-greece-v28 ~ .guru-v9 .question-stage {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+}
