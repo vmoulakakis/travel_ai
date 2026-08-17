@@ -1,16 +1,63 @@
-# Vercel Deployment
+# Final production deployment
 
-1. Import `vmoulakakis/travel_ai` into Vercel.
-2. Use the Next.js framework preset (auto-detected).
-3. Add `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL=https://api.deepseek.com`, `DEEPSEEK_MODEL=deepseek-v4-pro`, and `DEEPSEEK_REASONING_EFFORT=high`.
-4. Optional persistence: add `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, and `LINKWISE_TRAVEL_FEED_URL`, then run `supabase/migrations/0001_initial.sql`.
-5. Deploy the feature branch as Preview and test `/`, `/admin`, and `/api/recommend`.
-6. Merge the PR into `main` for production deployment.
+There is one supported deployment path for this repository:
 
-## Security
+```text
+GitHub main
+  -> GitHub Actions CI
+  -> Vercel project: travel-ai
+  -> production alias
+```
 
-Never expose `DEEPSEEK_API_KEY` or `SUPABASE_SERVICE_ROLE_KEY` through a `NEXT_PUBLIC_` variable. Rotate credentials that have appeared in chats, logs, issues, commits, or other shared surfaces.
+## Rules
 
-## Cron
+- `main` is the only production branch.
+- Vercel branch deployments are disabled for every branch except `main` in `vercel.json`.
+- Do not create additional Vercel projects, temporary production names, bootstrap deployments, Cloudflare workers, or alternate hosting paths for this application.
+- Pull requests are validation only; they must not become production.
+- A production release is valid only when the exact `main` SHA has passed CI and the public production URL is verified.
 
-`vercel.json` calls `/api/jobs/linkwise` daily. The route fails closed unless the request carries `Authorization: Bearer <CRON_SECRET>` and both the feed URL and Supabase server credentials are configured.
+## CI gate
+
+The single CI workflow runs:
+
+```bash
+npm ci --no-audit --no-fund
+npm run typecheck
+npm run test:strict
+npm run build
+```
+
+Only a green `main` build may be deployed.
+
+## Runtime
+
+Framework: Next.js 16 / Node.js 22.
+
+Production relies on the existing Supabase backend and the environment contract documented in `.env.example`. Secrets must stay server-side; never expose service-role or model API credentials through `NEXT_PUBLIC_*` variables.
+
+## Vercel cron jobs
+
+`vercel.json` is the single production scheduler and currently invokes:
+
+- `/api/jobs/linkwise`
+- `/api/jobs/train-matcher`
+- `/api/jobs/seo-audit`
+- `/api/jobs/evidence-audit`
+
+Protected jobs require `CRON_SECRET` and fail closed when credentials are missing.
+
+## Release verification
+
+After every production deployment verify:
+
+1. `/`
+2. `/en`
+3. `/proorismoi`
+4. `/en/destinations`
+5. `/api/health`
+6. one `/api/recommend/stream` request
+7. destination images and one stay flow
+8. `/icon.svg` / browser favicon
+
+Do not label a release FINAL/LIVE until those public checks pass.
