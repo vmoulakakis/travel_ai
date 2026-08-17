@@ -5,6 +5,8 @@ const content = {
     eyebrow: "AI TRAVEL INTELLIGENCE",
     title: "Πριν διαλέξεις ξενοδοχείο, διάλεξε σωστά την Ελλάδα σου.",
     intro: "Το AI Greece Travel δεν ξεκινά από μια λίστα καταλυμάτων. Ξεκινά από την απόφαση που έχει μεγαλύτερη αξία: ποιος ελληνικός προορισμός ταιριάζει πραγματικά στις ημερομηνίες, στην παρέα, στο budget, στον ρυθμό και στις κόκκινες γραμμές σου. Ο AI advisor συγκρίνει διαφορετικές επιλογές, εξηγεί τα trade-offs και μόνο μετά περνά στη διαμονή.",
+    hubHref: "/proorismoi",
+    hubLabel: "Δες όλους τους προορισμούς για διακοπές στην Ελλάδα",
     cards: [
       ["Πώς γίνεται το matching;", "Συνδυάζουμε όσα δηλώνεις — διάθεση, μήνα, διάρκεια, αφετηρία, κόστος, τρόπο μετακίνησης και τύπο ταξιδιώτη — με επαληθευμένα χαρακτηριστικά ελληνικών προορισμών. Η φυσική γλώσσα λειτουργεί συμπληρωματικά στα δομημένα κριτήρια: μπορείς να γράψεις «ήσυχο νησί χωρίς πολύ αυτοκίνητο» ή «παλιά πόλη, φαγητό και θάλασσα κοντά» και το σύστημα μεταφράζει το ζητούμενο σε συγκρίσιμα κριτήρια."],
       ["Γιατί δεν δείχνουμε αμέσως ξενοδοχεία;", "Ένα καλό κατάλυμα δεν διορθώνει έναν λάθος προορισμό. Πρώτα ελέγχουμε εποχή, κόπο μετάβασης, διάρκεια, budget fit, χαρακτήρα τόπου και βασικές ανάγκες της παρέας. Όταν προκύψουν οι ισχυρότερες επιλογές, τότε εξετάζονται διαθέσιμα stays και hard requirements όπως παραλία, parking, πρωινό ή οικογενειακό δωμάτιο."],
@@ -21,6 +23,8 @@ const content = {
     eyebrow: "AI TRAVEL INTELLIGENCE",
     title: "Choose the right Greece before choosing the hotel.",
     intro: "AI Greece Travel does not begin with a wall of accommodation listings. It starts with the decision that matters most: which Greek destination genuinely fits your dates, group, budget, pace and non-negotiables. The AI advisor compares meaningfully different options, explains the trade-offs and only then moves downstream to accommodation.",
+    hubHref: "/en/destinations",
+    hubLabel: "Explore Greece travel and vacation destinations",
     cards: [
       ["How does destination matching work?", "We combine your stated preferences — mood, month, trip length, origin, budget, transport and traveller type — with verified characteristics of Greek destinations. Natural language complements the structured criteria: you can write “a quiet island without much driving” or “old town, excellent food and the sea nearby”, and the system translates the request into criteria that can be compared consistently."],
       ["Why do we not show hotels first?", "A great hotel cannot rescue the wrong destination. The decision engine first checks season, travel effort, duration, budget fit, local character and the group’s core needs. After the strongest destination paths emerge, the stay layer can evaluate available properties and hard requirements such as beachfront location, parking, breakfast or a family room."],
@@ -42,6 +46,7 @@ export function V28TravelIntelligence({ lang }: { lang: Lang }) {
       <span>{copy.eyebrow}</span>
       <h2 id={`v28-intelligence-${lang}`}>{copy.title}</h2>
       <p>{copy.intro}</p>
+      <a className="v29-destination-hub-link" href={copy.hubHref}>{copy.hubLabel} →</a>
     </div>
     <div className="v28-intelligence-grid">
       {copy.cards.map(([title, body]) => <article key={title}><h3>{title}</h3><p>{body}</p></article>)}
