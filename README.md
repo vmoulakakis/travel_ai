@@ -1,69 +1,94 @@
-# AI Greece Travel V29
+# AI Greece Travel V32 — Destination-First Decision Intelligence
 
-Greece-first bilingual AI travel decision platform built with Next.js, Supabase and a deterministic/agentic recommendation engine.
+[![CI](https://github.com/vmoulakakis/travel_ai/actions/workflows/ci.yml/badge.svg)](https://github.com/vmoulakakis/travel_ai/actions/workflows/ci.yml)
 
-## Current production architecture
+> Greece-first bilingual AI travel system that decides **which destination fits the traveller before accommodation inventory enters the ranking**.
 
-- **Product UI:** V28
-- **Decision engine:** V26
-- **SEO/growth layer:** V29
-- **Languages:** Greek (`/`) and English (`/en`)
-- **Destination model:** destination-first; accommodation is evaluated after destination fit
-- **Backend:** Supabase + protected Edge Functions/RPCs
-- **Hosting:** one supported path — GitHub `main` -> Vercel `travel-ai`
+**Canonical source:** this repository  
+**Current public product snapshot:** https://travelaigreece.vercel.app  
+**Portfolio:** https://dealora-ai.com/portfolio
 
-## Core product flow
+> Deployment note: the public snapshot is currently served by the older `travelai_greece` Vercel project. This repository remains the canonical V32 source and should be the target of the next production-lineage consolidation.
+
+## Current architecture
+
+- **Product UI:** V32 multipage application
+- **Decision core:** deterministic / agentic destination-ranking lineage through V26+
+- **Maps:** product/stay markers with Google Maps when configured and OpenStreetMap fallback
+- **Languages:** Greek and English
+- **Backend:** Supabase + protected Edge Functions / RPCs
+- **Quality:** accumulated strict regression gates + build CI
+
+## Decision flow
 
 ```text
 Natural-language or structured trip intent
-  -> semantic intent normalization
-  -> Greek destination knowledge
-  -> season / effort / duration / budget / traveller-fit checks
-  -> criterion-sensitive shortlist
-  -> skeptical result audit
-  -> destination comparison
-  -> user selects destination
-  -> geolocated stay matching
+        ↓
+Semantic intent normalization
+        ↓
+Independent Greek destination knowledge
+        ↓
+Season / effort / duration / budget / traveller-fit constraints
+        ↓
+Criterion-sensitive ranking
+        ↓
+Skeptical result audit
+        ↓
+Diverse destination shortlist + trade-offs
+        ↓
+User selects destination
+        ↓
+Geolocated stay / product matching
 ```
 
-The recommendation engine is intentionally independent from affiliate inventory. Hotel count, commission, discounts and merchant economics do not determine which destination ranks first.
+The destination decision is intentionally independent from affiliate inventory. Hotel count, commission, discounts and merchant economics do **not** determine which destination ranks first.
+
+## Why this is not a booking clone
+
+The system separates two decisions that most travel funnels collapse:
+
+1. **Where should this person go?**
+2. **What should they book there?**
+
+Destination truth comes from the destination knowledge layer and traveller constraints. Accommodation inventory is evaluated only after the destination survives the decision process.
+
+## Reliability principles
+
+- deterministic hard constraints cannot be overridden by model prose
+- unknown inventory is not presented as confirmed availability
+- explicit dislikes / non-negotiables can reject a candidate
+- semantic interpretation can enrich intent but cannot invent destination facts
+- skeptical audit attempts to reject weak recommendations
+- fallback map infrastructure preserves the product when a preferred map provider is unavailable
+- affiliate economics remain downstream from destination fit
 
 ## Main routes
 
-- `/` — Greek AI Greece Travel home
-- `/en` — English home
-- `/proorismoi` — Greek Greece-destination SEO hub
+- `/` — Greek product home
+- `/en` — English product home
+- `/proorismoi` — Greek destination hub
 - `/proorismoi/[slug]` — Greek destination guides
-- `/en/destinations` — English Greece-destination SEO hub
+- `/en/destinations` — English destination hub
 - `/en/destinations/[slug]` — English destination guides
-- `/api/recommend/stream` — progressive V26 recommendation stream
-- `/api/health` — production readiness
-- `/admin` — admin/architecture view
-
-## V29 SEO growth agent
-
-The weekly SEO agent builds Greek and English Greece-travel opportunities from first-party destination data, applies a critical AI review through the existing model router, stores the review/opportunity queue in Supabase, maintains bilingual topical architecture and produces legitimate editorial link-earning ideas.
-
-Guardrails:
-
-- no fabricated search volume
-- no mass low-value AI pages
-- no paid dofollow backlink schemes
-- no automated directory/comment backlink spam
-- human review for new indexable editorial content
-- hreflang and internal-link pairs across EL/EN destination pages
+- `/api/recommend/stream` — progressive recommendation stream
+- `/api/health` — production-readiness contract
+- `/admin` — architecture / readiness surface
 
 ## AI/model policy
 
-Structured scoring does not require an LLM. Model calls are reserved for semantic interpretation, critical review or genuinely ambiguous cases. The existing router prefers cheaper/free paths where configured and only escalates when needed.
+Structured scoring does not require an LLM. Model calls are reserved for semantic interpretation, skeptical review or genuinely ambiguous cases. Model outputs may not override deterministic eligibility, season, route, inventory or other hard evidence.
 
-Model outputs cannot invent destination facts or override deterministic hard constraints.
+This keeps the LLM in the role of **interpreter / critic**, not database and not source of truth.
 
-## Supabase
+## Data + learning
 
-The application uses Supabase for destination knowledge, stay inventory, evidence, production-truth checks, learning data and SEO-agent state. Service-role credentials remain server-side.
+Supabase stores destination knowledge, stay inventory, evidence, production-truth checks, learning state and SEO-agent state. Service-role credentials remain server-side.
 
-Copy `.env.example` for the current environment contract. Never expose private model keys or Supabase service-role credentials through `NEXT_PUBLIC_*` variables.
+Learning influence stays bounded and should activate only after sufficient labelled evidence; a weak learned model must not replace deterministic travel constraints.
+
+## SEO/growth layer
+
+The bilingual SEO architecture uses first-party destination data, critical review and EL/EN topical pairing. Guardrails prohibit fabricated search volume, mass low-value pages and automated backlink spam.
 
 ## Development
 
@@ -74,7 +99,7 @@ npm run dev
 
 ## Release gate
 
-There is one CI workflow and one production branch. Every pull request and every push to `main` runs:
+Every PR and push to `main` is expected to pass:
 
 ```bash
 npm ci --no-audit --no-fund
@@ -83,18 +108,17 @@ npm run test:strict
 npm run build
 ```
 
-`test:strict` includes the accumulated V8-V26 recommendation regression gates plus the V29 bilingual SEO-agent regression test.
+The latest V32 source line includes multipage-app and real stay/product-map regression coverage.
 
-## Deployment
+## Portfolio context
 
-Only `main` is allowed to deploy to production. `vercel.json` disables branch deployments for every other branch.
+AI Greece Travel is the vertical decision product in a wider AI decision-intelligence portfolio:
 
-Supported production path:
+| System | Role |
+| --- | --- |
+| [SocialMarket AI](https://github.com/vmoulakakis/Socialmarket) | market evidence and opportunity intelligence |
+| [Dealora](https://dealora-ai.com) | consumer buying decisions |
+| **AI Greece Travel** | destination decisions |
+| [SocialScheduler](https://github.com/vmoulakakis/socialscheduler) | autonomous validated execution |
 
-```text
-GitHub main -> CI -> Vercel travel-ai -> production alias
-```
-
-Do not create additional hosting providers, temporary production projects, bootstrap deployments or alternate deployment pipelines.
-
-See [`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md) for the final release checklist.
+See [`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md) for the intended final deployment contract.
