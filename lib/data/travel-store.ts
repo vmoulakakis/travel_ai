@@ -50,7 +50,7 @@ function mapDestination(row: DbDestination): DestinationSeed {
 }
 
 export async function loadDestinationSeeds(): Promise<{ destinations: DestinationSeed[]; source: "supabase" | "seed-fallback" }> {
-  const url = process.env.SUPABASE_DECISION_DATA_URL ?? "https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/travel-decision-data";
+  const url = process.env.SUPABASE_DECISION_DATA_URL ?? "https://gqpbskssrvpfjtujwezc.supabase.co/functions/v1/travel-decision-data";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4500);
   try {
