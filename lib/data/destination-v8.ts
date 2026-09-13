@@ -2,8 +2,8 @@ import type { AffiliateOffer } from "@/lib/decision/types";
 import { V8_DIMENSIONS, type V8Destination, type V8StayOffer } from "@/lib/decision/v8-types";
 import { mergeV30DestinationFallbacks } from "@/lib/data/destination-fallback-v30";
 
-const CATALOG_URL=process.env.SUPABASE_DESTINATION_CATALOG_V8_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/destination-catalog-v8";
-const STAYS_URL=process.env.SUPABASE_DESTINATION_STAYS_V8_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/destination-stays-v8";
+const CATALOG_URL=process.env.SUPABASE_DESTINATION_CATALOG_V8_URL??"https://gqpbskssrvpfjtujwezc.supabase.co/functions/v1/destination-catalog-v8";
+const STAYS_URL=process.env.SUPABASE_DESTINATION_STAYS_V8_URL??"https://gqpbskssrvpfjtujwezc.supabase.co/functions/v1/destination-stays-v8";
 const text=(v:unknown)=>typeof v==="string"&&v.trim()?v.trim():null;
 const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
 function vector(v:unknown){if(Array.isArray(v))return v.map(Number).filter(Number.isFinite).slice(0,16);if(typeof v!=="string")return[];return v.replace(/^\[/,"").replace(/\]$/,"").split(",").map(Number).filter(Number.isFinite).slice(0,16)}
