@@ -1,0 +1,14 @@
+import { readFileSync } from "node:fs";
+const read=(p:string)=>readFileSync(p,"utf8"),failures:string[]=[];const expect=(ok:boolean,msg:string)=>{if(!ok)failures.push(msg)};
+const page=read("app/escape/[slug]/page.tsx"),map=read("components/v39-destination-map-workspace.tsx"),stay=read("app/escape/[slug]/stay/[offerId]/page.tsx"),hero=read("components/v39-stay-review-hero.tsx"),reviews=read("lib/data/stay-review-intelligence-v39.ts"),api=read("app/api/escape/stay-reviews/route.ts"),feedback=read("components/v39-stay-feedback.tsx");
+expect(page.includes("V39DestinationMapWorkspace")&&page.includes("loadV8StayOffers(slug,start,end,60)"),"destination route must open V39 map with deep inventory retrieval");
+expect(map.includes("slice(0,10)")&&map.includes("leaflet")&&map.includes("flyTo")&&map.includes("Explore this stay"),"map must expose top-10 cards, pin/card zoom and internal stay CTA");
+expect(map.includes("/api/escape/stay-reviews")&&map.includes("ratings.find")&&map.includes("AI Guest Signal"),"map must request and render review intelligence before stay selection");
+expect(stay.includes("V39StayReviewHero")&&stay.includes("v39-builder-no-external")&&stay.includes("V39StayFeedback"),"selected stay route must own internal cinematic landing, hide provider outbound links and collect feedback");
+expect(stay.includes('a[href^="http"]:not([rel~="sponsored"])'),"selected stay landing must hide non-affiliate external links");
+expect(reviews.includes("Google Places")&&reviews.includes("Tripadvisor")&&reviews.includes("Foursquare")&&reviews.includes("AI Guest Signal"),"review intelligence must support multi-source ratings plus first-party signal");
+expect(reviews.includes("Never invent facts")&&reviews.includes("AI summarizes available evidence and never invents reviews"),"AI review synthesis must explicitly forbid fabricated reviews");
+expect(api.includes("x-travel-review-engine")&&api.includes("v39-truthful-multi-source"),"review API must expose V39 truth provenance");
+expect(feedback.includes('subjectKind:"stay"')&&feedback.includes("tripEnd<=new Date")&&(feedback.includes("at least 3")||feedback.includes("τουλάχιστον 3")),"first-party stay feedback must be post-trip and explain the 3-experience sample gate");
+expect(hero.includes("Disclosure")&&hero.includes("verified ratings")&&hero.includes("#escape-builder"),"stay landing must show review disclosure before itinerary");
+if(failures.length){console.error(`V39 smoke failed (${failures.length})`);for(const x of failures)console.error(`- ${x}`);process.exit(1)}console.log("V39 map/review smoke passed");
