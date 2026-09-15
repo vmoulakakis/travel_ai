@@ -35,7 +35,7 @@ expect(ranking.includes("inventoryScore")&&ranking.includes("combinedScore")&&ra
 expect(ranking.includes("trackingUrl:offer.trackingUrl"),"solution ranking must preserve exact affiliate tracking URL");
 expect(home.includes("ΑΝΤΙΣΤΡΟΦΗ ΣΚΕΨΗ")&&home.includes("REVERSE CHECK"),"reverse-rank explanation is not visible to the user");
 expect(home.includes("mode=aerial"),"cinematic discovery and result imagery must request aerial preference");
-expect(media.includes("AERIAL")&&media.includes("drone panorama")&&media.includes("NON_PHOTO"),"media lookup must prefer aerial photography and reject non-photo assets");
+expect(media.includes("AERIAL")&&media.includes("NON_PHOTO")&&media.includes('String(info.mime||"").toLowerCase()!=="image/jpeg"')&&media.includes("strongPlaceMatch"),"media lookup must prefer aerial JPEG photography, reject non-photo assets and require strong place relevance");
 expect(media.includes("Wikimedia Commons")&&media.includes("attribution"),"media lookup must preserve attribution");
 expect(homeCss.includes("height:100svh")&&homeCss.includes("overflow:hidden"),"desktop funnel must be a viewport app rather than a long scrolling page");
 expect(homeCss.includes("droneCamera")&&homeCss.includes('[data-mood="sea-light"]')&&homeCss.includes('[data-mood="green-reset"]'),"cinematic motion and mood-reactive visual styling must exist");
