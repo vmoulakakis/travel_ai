@@ -11,6 +11,7 @@ const ranking=read("lib/decision/solution-ranking-v35.ts");
 const builder=read("components/v34-escape-builder-client.tsx");
 const research=read("app/api/escape/research/route.ts");
 const escapePage=read("app/escape/[slug]/page.tsx");
+const v39StayPath="app/escape/[slug]/stay/[offerId]/page.tsx",v39Stay=fs.existsSync(v39StayPath)?read(v39StayPath):"";
 const mission=read("lib/data/mission-v34.ts");
 const homeCss=read("components/v34-escape-funnel.module.css");
 const builderCss=read("components/v34-escape-builder.module.css");
@@ -42,7 +43,8 @@ expect(homeCss.includes("droneCamera")&&homeCss.includes('[data-mood="sea-light"
 expect(builder.includes("/api/escape/research"),"destination-first 360 research endpoint missing");
 expect(builder.indexOf("/api/escape/research")<builder.indexOf("/api/trip-builder"),"360 destination research must precede stay-specific trip building");
 expect(research.includes("getLocalIntelligenceV38")||research.includes("hotelName:null"),"destination research must remain independent of stay selection");
-expect(escapePage.includes("preferredOffer")&&/V\d+EscapeBuilderClient/.test(escapePage),"selected inventory-backed stay must carry into the active trip builder");
+const selectedStayContinuity=escapePage.includes("V39DestinationMapWorkspace")?escapePage.includes("preferredOffer")&&v39Stay.includes("selected=loaded.find")&&/V\d+EscapeBuilderClient/.test(v39Stay):escapePage.includes("preferredOffer")&&/V\d+EscapeBuilderClient/.test(escapePage);
+expect(selectedStayContinuity,"selected inventory-backed stay must carry through the active map/stay route into the trip builder");
 expect(escapePage.includes("loadMissionV34")&&escapePage.includes("inferMissionProfileV34"),"destination route must preserve semantic mission context");
 expect(mission.includes("needText")&&mission.includes("escapeDna")&&mission.includes("inferMissionProfileV34"),"semantic mission continuity helper missing");
 expect(homeCss.includes("prefers-reduced-motion")&&builderCss.includes("prefers-reduced-motion"),"legacy cinematic surfaces require reduced-motion equivalents");
