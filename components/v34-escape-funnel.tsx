@@ -112,7 +112,7 @@ export function V34EscapeFunnel({lang="el"}:{lang?:Lang}){
   if(!shortlist.length)return;
   let cancelled=false;
   Promise.all(shortlist.map(async rec=>{
-   try{const response=await fetch(`/api/escape/media?destination=${encodeURIComponent(rec.destinationEn||rec.destination)}`);const data=await response.json() as {items?:Media[]};return[rec.slug,data.items?.slice(0,4)??[]] as const}catch{return[rec.slug,[]] as const}
+   try{const response=await fetch(`/api/escape/media?destination=${encodeURIComponent(rec.destinationEn||rec.destination)}`);const data=await response.json() as {items?:Media[]};return[rec.slug,data.items?.slice(0,4)??[]] as [string,Media[]]}catch{return[rec.slug,[] as Media[]] as [string,Media[]]}
   })).then(entries=>{if(cancelled)return;const next:Record<string,Media[]>={};for(const [slug,items] of entries)next[slug]=items;setMedia(next)});
   return()=>{cancelled=true};
  },[result]);
