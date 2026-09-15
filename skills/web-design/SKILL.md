@@ -1,6 +1,6 @@
 ---
 name: travel-ai-v38-web-design
-version: 4.0.0
+version: 4.0.1
 purpose: Low-friction cinematic AI travel decision product that converts emotional intent into real stay-backed escapes, then into a sourced 360° experience and disclosed affiliate handoff.
 source_method: MyAgenticTeam web-design-intelligence + 2026 Airbnb/Expedia/Hopper travel UX research + live product evidence
 ---
@@ -49,7 +49,7 @@ Visible flow:
 No vertical questionnaire. The optional fine-tune is collapsed by default.
 
 ### B. Results
-Never show ten equal cards. Show one selected solution at cinematic scale with:
+The engine may return **up to 10 ranked real solutions** when evidence and inventory support them. Never show ten equal cards. Show one selected solution at cinematic scale with:
 - destination;
 - real stay;
 - total / destination / stay scores;
@@ -58,7 +58,7 @@ Never show ten equal cards. Show one selected solution at cinematic scale with:
 - provider price only when known and positive;
 - CTA: **Build this 360° escape**.
 
-The other solutions live in a compact horizontally scrollable rail.
+The other ranked solutions live in a compact horizontally scrollable rail so the user retains choice without facing a wall of cards.
 
 ### C. Destination 360° builder
 Sequence:
@@ -117,6 +117,8 @@ Blank, whitespace, null, zero or negative feed price means **unknown**, not `0 E
 UI language:
 - positive verified feed number → show feed price signal;
 - otherwise → `Τιμή στον πάροχο / Price at provider`.
+
+A positive feed price remains a valid price signal even when the feed omits the currency field; the UI must not turn that value into zero or silently discard it. Currency labeling must remain separate from numeric price truth.
 
 Final room, taxes, terms and live availability always require provider confirmation.
 
