@@ -31,21 +31,25 @@ for(let i=0;i<100;i++){
  });
 }
 
-let failures=0,totalSolutions=0,minSolutions=99,totalOffers=0;
-for(let batch=0;batch<scenarios.length;batch+=5){
- const slice=scenarios.slice(batch,batch+5);
- const results=await Promise.all(slice.map(async(request,index)=>{
-  try{
-   const result=await buildEscapeSolutionsV36(request,null,10);
-   return {id:batch+index+1,request,result};
-  }catch(error){return {id:batch+index+1,request,error};}
- }));
- for(const row of results){
-  if("error" in row){failures++;console.error(`FAIL #${row.id}: engine error`,row.error);continue;}
-  const n=row.result.solutionCount;totalSolutions+=n;minSolutions=Math.min(minSolutions,n);totalOffers+=row.result.inventoryOfferCount;
-  if(n<1){failures++;console.error(`FAIL #${row.id}: 0 solutions`,JSON.stringify({start:row.request.startDate,end:row.request.endDate,budget:row.request.budget,moods:row.request.moods,traveler:row.request.travelerType,must:row.request.mustHave,candidates:row.result.candidateCount,offers:row.result.inventoryOfferCount}));}
-  else console.log(`PASS #${row.id}: ${n} solutions / ${row.result.inventoryOfferCount} offers / top=${row.result.solutions[0].recommendation.slug}`);
+async function main(){
+ let failures=0,totalSolutions=0,minSolutions=99,totalOffers=0;
+ for(let batch=0;batch<scenarios.length;batch+=5){
+  const slice=scenarios.slice(batch,batch+5);
+  const results=await Promise.all(slice.map(async(request,index)=>{
+   try{
+    const result=await buildEscapeSolutionsV36(request,null,10);
+    return {id:batch+index+1,request,result};
+   }catch(error){return {id:batch+index+1,request,error};}
+  }));
+  for(const row of results){
+   if("error" in row){failures++;console.error(`FAIL #${row.id}: engine error`,row.error);continue;}
+   const n=row.result.solutionCount;totalSolutions+=n;minSolutions=Math.min(minSolutions,n);totalOffers+=row.result.inventoryOfferCount;
+   if(n<1){failures++;console.error(`FAIL #${row.id}: 0 solutions`,JSON.stringify({start:row.request.startDate,end:row.request.endDate,budget:row.request.budget,moods:row.request.moods,traveler:row.request.travelerType,must:row.request.mustHave,candidates:row.result.candidateCount,offers:row.result.inventoryOfferCount}));}
+   else console.log(`PASS #${row.id}: ${n} solutions / ${row.result.inventoryOfferCount} offers / top=${row.result.solutions[0].recommendation.slug}`);
+  }
  }
+ console.log(JSON.stringify({scenarios:100,failures,minSolutions,avgSolutions:Number((totalSolutions/100).toFixed(2)),avgInventoryOffers:Number((totalOffers/100).toFixed(2))},null,2));
+ if(failures>0)process.exit(1);
 }
-console.log(JSON.stringify({scenarios:100,failures,minSolutions,avgSolutions:Number((totalSolutions/100).toFixed(2)),avgInventoryOffers:Number((totalOffers/100).toFixed(2))},null,2));
-if(failures>0)process.exit(1);
+
+main().catch(error=>{console.error(error);process.exit(1);});
