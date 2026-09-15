@@ -38,7 +38,7 @@ expect(home.includes("mode=aerial"),"cinematic discovery and result imagery must
 expect(media.includes("AERIAL")&&media.includes("drone panorama")&&media.includes("NON_PHOTO"),"media lookup must prefer aerial photography and reject non-photo assets");
 expect(media.includes("Wikimedia Commons")&&media.includes("attribution"),"media lookup must preserve attribution");
 expect(homeCss.includes("height:100svh")&&homeCss.includes("overflow:hidden"),"desktop funnel must be a viewport app rather than a long scrolling page");
-expect(homeCss.includes("droneCamera")&&homeCss.includes("data-mood")===false,"cinematic camera motion must exist while mood remains controlled by component data attributes");
+expect(homeCss.includes("droneCamera")&&homeCss.includes('[data-mood="sea-light"]')&&homeCss.includes('[data-mood="green-reset"]'),"cinematic motion and mood-reactive visual styling must exist");
 expect(builder.includes("/api/escape/research"),"destination-first 360 research endpoint missing");
 expect(builder.indexOf("/api/escape/research")<builder.indexOf("/api/trip-builder"),"360 destination research must precede stay-specific trip building");
 expect(research.includes("hotelName:null"),"destination research must not require a hotel");
