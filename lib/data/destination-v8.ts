@@ -51,6 +51,6 @@ function mapOffer(row:Record<string,unknown>):V8StayOffer|null{
 }
 
 export async function loadV8StayOffers(slug:string,startDate:string,endDate:string,limit=18):Promise<V8StayOffer[]>{
- const url=new URL(STAYS_URL);url.searchParams.set("slug",slug);url.searchParams.set("start_date",startDate);url.searchParams.set("end_date",endDate);url.searchParams.set("limit",String(Math.max(1,Math.min(40,limit))));
+ const url=new URL(STAYS_URL);url.searchParams.set("slug",slug);url.searchParams.set("start_date",startDate);url.searchParams.set("end_date",endDate);url.searchParams.set("limit",String(Math.max(1,Math.min(60,limit))));
  const payload=await fetchJson<{offers?:Array<Record<string,unknown>>}>(url.toString(),7000);return(payload.offers??[]).map(mapOffer).filter((x):x is V8StayOffer=>Boolean(x));
 }
