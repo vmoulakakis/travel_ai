@@ -11,11 +11,21 @@ const AERIAL=/\b(aerial|drone|bird'?s[- ]?eye|birdseye|from above|panorama|panor
 const normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const tokens=(value:string)=>normalize(value).split(/[^a-z0-9]+/).filter(token=>token.length>=4&&!GENERIC.has(token));
 
+function visualSubject(raw:string){
+ const n=normalize(raw);
+ if(n.includes("mediterranean island"))return"Milos Greece";
+ if(n.includes("european old town"))return"Prague Czech Republic";
+ if(n.includes("madeira"))return"Madeira Portugal";
+ if(n.includes("alpine village"))return"Dolomites Italy";
+ if(n.includes("dramatic island"))return"Azores Portugal";
+ if(n.includes("hidden european coast"))return"Kotor Montenegro";
+ return raw;
+}
+
 function strongPlaceMatch(title:string,description:string,anchors:string[]){
- if(!anchors.length)return true;
+ if(!anchors.length)return false;
  const titleText=normalize(title),shortDescription=normalize(description.slice(0,420)),primary=anchors[0];
- if(titleText.includes(primary))return true;
- if(shortDescription.includes(primary))return true;
+ if(titleText.includes(primary)||shortDescription.includes(primary))return true;
  if(anchors.length>1){const hits=anchors.filter(anchor=>titleText.includes(anchor)||shortDescription.includes(anchor)).length;return hits>=2;}
  return false;
 }
@@ -30,8 +40,7 @@ async function searchCommons(query:string,anchors:string[],preferAerial:boolean)
   const info=page.imageinfo?.[0];if(!info||!info.url||String(info.mime||"").toLowerCase()!=="image/jpeg")return[];
   const meta=info.extmetadata??{},license=text(meta.LicenseShortName?.value),artist=text(meta.Artist?.value),credit=text(meta.Credit?.value),description=text(meta.ImageDescription?.value||meta.ObjectName?.value),categories=text(meta.Categories?.value);
   const title=(page.title||"").replace(/^File:/,"");const searchable=normalize(`${title} ${description} ${categories}`);
-  if(NON_PHOTO.test(searchable))return[];
-  if(!strongPlaceMatch(title,description,anchors))return[];
+  if(NON_PHOTO.test(searchable)||!strongPlaceMatch(title,description,anchors))return[];
   const titleText=normalize(title),shortDescription=normalize(description.slice(0,420)),anchorHits=anchors.filter(anchor=>titleText.includes(anchor)||shortDescription.includes(anchor)).length;
   const aerial=AERIAL.test(searchable),visualScore=(preferAerial&&aerial?34:0)+(titleText.includes(anchors[0]??"")?24:0)+anchorHits*8+(searchable.includes("landscape")?7:0)+(searchable.includes("coast")?6:0)+(searchable.includes("view")?4:0);
   return[{imageUrl:info.thumburl||info.url,originalUrl:info.url,sourceUrl:info.descriptionurl||info.url,title,description,license:license||"Wikimedia Commons",attribution:artist||credit||"Wikimedia Commons",visualScore}];
@@ -42,11 +51,11 @@ export async function GET(request:Request){
  const url=new URL(request.url),destination=(url.searchParams.get("destination")||"").trim().slice(0,100),mode=url.searchParams.get("mode")==="aerial"?"aerial":"standard";
  if(destination.length<2)return NextResponse.json({ok:false,error:"destination_required"},{status:400});
  try{
-  const anchors=tokens(destination),primary=anchors.length?anchors.slice(0,3).join(" "):destination,preferAerial=mode==="aerial";
+  const subject=visualSubject(destination),anchors=tokens(subject),primary=anchors.length?anchors.slice(0,3).join(" "):subject,preferAerial=mode==="aerial";
   const queries=preferAerial?[`\"${primary}\" aerial`, `\"${primary}\" panoramic`, `\"${primary}\" landscape photography`, `\"${primary}\" travel photography`]:[`\"${primary}\" travel photography`, `\"${primary}\" landscape photography`, `\"${primary}\" tourism photo`];
   const collected:Candidate[]=[];const seen=new Set<string>();
   for(const query of queries){const rows=await searchCommons(query,anchors,preferAerial).catch(()=>[]);for(const row of rows){if(seen.has(row.originalUrl))continue;seen.add(row.originalUrl);collected.push(row)}if(collected.length>=12)break;}
   const items=collected.sort((a,b)=>b.visualScore-a.visualScore).slice(0,6).map(({visualScore:_,...item})=>item);
-  return NextResponse.json({ok:true,destination,mode,items},{headers:{"Cache-Control":"public, s-maxage=86400, stale-while-revalidate=604800"}});
+  return NextResponse.json({ok:true,destination,visualSubject:subject,mode,items},{headers:{"Cache-Control":"public, s-maxage=86400, stale-while-revalidate=604800"}});
  }catch{return NextResponse.json({ok:true,destination,mode,items:[]},{headers:{"Cache-Control":"public, s-maxage=1800"}})}
 }
