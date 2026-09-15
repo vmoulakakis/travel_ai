@@ -1,129 +1,167 @@
 ---
-name: travel-ai-v33-web-design
-version: 1.0.0
-purpose: Project-specific design contract for the V33 psychology-first AI holiday funnel.
-source_method: vmoulakakis/Myagenticteam skills/web-design-intelligence v1.1.0
+name: travel-ai-v34-web-design
+version: 2.0.0
+purpose: Project-specific design contract for the V34 semantic, psychology-first, cinematic AI travel decision experience.
+source_method: MyAgenticTeam web-design-intelligence v1.1.0 + Travel Guru Master Blueprint
 ---
 
-# V33 Travel AI Web Design
+# V34 Travel AI Web Design
 
 ## Business goal
-Turn an ambiguous need for a break into a confident destination decision, then into a verified 360° escape and finally an outbound affiliate action.
+Turn an ambiguous emotional need for a break into a confident travel decision, then a verified 360-degree trip and transparent affiliate handoff.
 
 Primary conversion path:
-`date opportunity -> emotional need -> 3 matched destinations -> choose destination -> choose stay -> build 360 escape -> save/share/email -> affiliate click`
+`free-text need -> adaptive AI discovery -> editable Escape DNA -> date strategy -> semantic destination matching -> 3 distinct escapes -> cinematic destination commitment -> 360 research -> trip story -> stay match -> Escape Book/trailer -> affiliate click`
 
-The commercial CTA must remain downstream of destination and trip fit.
+Commercial inventory is downstream. The product is the decision system.
 
 ## Audience and decision stage
-Users are not assumed to know a destination. They often know only time available, budget, companions and how they want to feel. The UI therefore optimizes for decision confidence, not search density.
+The user may know neither destination nor dates. The strongest starting signal can simply be “I need to get away.” The product must reduce overwhelm and uncertainty without diagnosing psychology or exploiting vulnerability.
 
 ## Design thesis
-The experience should feel like a calm premium travel concierge, not a booking engine and not a generic AI dashboard. Use cinematic hierarchy, authentic travel imagery, strong editorial typography and visible evidence/trade-offs. Motion should make narrowing and state changes understandable.
+The experience should feel like a warm, intelligent travel editor plus a rigorous decision engine. It should never feel like a booking form, OTA result grid, chatbot wrapper or generic AI SaaS dashboard.
+
+Visual principles:
+- emotion before transaction;
+- one question at a time during discovery;
+- progressively reveal evidence only when it matters;
+- use photography as decision evidence and desire creation, never decorative filler;
+- cinematic motion marks important state transitions, not every scroll;
+- keep the core task calm and legible.
 
 Anti-patterns:
-- hotel search as the first interaction
-- giant card grids
-- fake urgency/countdowns
-- generic AI purple-gradient SaaS design
-- decorative 3D that slows mobile
-- stock imagery unrelated to the chosen destination
-- outbound affiliate CTA before the trip has been evaluated
+- dates as the first mandatory question;
+- destination autocomplete as the first interaction;
+- hotel search before destination fit;
+- fixed 10-question quiz;
+- endless destination cards;
+- fake AI-thinking percentages;
+- generic purple-blue AI gradients;
+- fake scarcity, fake ratings or fabricated hotel claims;
+- autoplay decorative video that competes with the task;
+- heavy 3D where photography/map interaction communicates better.
+
+## Research ledger — V34
+- Mindtrip -> conversational discovery + photos/maps/collaboration -> useful because text-only AI feels incomplete -> transfer: rich destination evidence after conversation -> risk: planning utility can dominate emotion -> use selectively.
+- Layla -> AI + human-style expertise positioning -> useful because recommendations feel interpreted rather than retrieved -> transfer: explain why a trip fits the person -> risk: standard dates/destination/budget framing -> reject as opening flow.
+- Spotify Taste Profile -> user can see and steer how recommendations understand them -> transfer: editable Escape DNA and “not quite” correction -> strong use.
+- Netflix personalization -> recommendation confidence comes from multiple signals, not a single category -> transfer: semantic profile + behaviour + destination attributes -> use as model, not visual reference.
+- premium editorial travel experiences such as Niarra -> large photography, restrained typography, strong negative space -> transfer: cinematic destination reveal -> use.
+- Apple immersive-environment principles -> depth/parallax/motion should make a place feel present, with intent defined before effects -> transfer: subtle photo depth and camera movement -> use with performance guardrails.
+- AI trip-planner map interfaces -> map is valuable after candidate narrowing -> transfer: map in destination reveal/360 plan, not as homepage chrome -> use later.
 
 ## Foundation
-Keep the current Next.js App Router + TypeScript stack. Do not introduce a second full UI system during V33 migration. Existing hand-owned CSS is acceptable; future component expansion may use shadcn/Base UI where it materially improves accessibility and maintainability.
+Keep Next.js App Router + TypeScript and the existing hand-owned CSS. Do not introduce a second full UI framework merely for appearance. Add open dependencies only when they solve a named interaction gap.
 
 ## Motion hierarchy
-1. CSS for hover/focus/micro-transitions.
-2. Motion for React only when functional state transitions require it.
-3. GSAP only for one or two signature cinematic sequences after performance proof.
-4. Three.js/R3F only if a world-elimination map becomes a real decision tool, not decoration.
-5. Respect `prefers-reduced-motion` and keep the full funnel usable without animation.
+1. CSS transitions/keyframes for microinteraction and the first cinematic prototype.
+2. Motion for React for functional state transitions once dependency impact is approved.
+3. GSAP for one or two signature sequences: destination reveal and long-form Escape Story only after performance proof.
+4. HyperFrames for optional rendered/shareable cinematic Travel Trailer after destination commitment; never required for the core web flow.
+5. Three.js/R3F only if a spatial world-elimination tool materially improves decision quality.
+6. Full reduced-motion equivalent is mandatory.
 
-## Exact V33 page architecture
-### Homepage
-1. cinematic promise: “You do not need to know where you want to go”
-2. date opportunity selection
-3. human need / psychology selection
-4. only decision-changing constraints: origin, group, budget, free text
-5. visible agent investigation state
-6. exactly three final escapes
-7. “Build this escape” as the commitment CTA
+## V34 page/state architecture
+### State A — Feel
+Full-screen editorial hero. Primary interaction is one free-text prompt: “What do you need from this escape?” No dates and no destination field.
 
-### Escape route
-1. chosen destination and dates
-2. stay/base candidates that cover the full date range
-3. explicit “Build my escape” trigger
-4. weather and date truth
-5. verified web research / what matters
-6. food/local-life evidence where configured
-7. practical warnings and non-hotel budget
-8. share/save/email surface
-9. affiliate tracking URL only after the trip has been evaluated
+### State B — Adaptive AI discovery
+One question at a time. Questions are selected by expected information gain from bounded travel-decision axes: companions, desired outcome, social energy, novelty, must-have experience and friction tolerance. User never sees internal scores or clinical labels.
 
-## Imagery rules
-- Prefer authentic destination/stay media from verified current sources.
-- Run quality/relevance selection before display.
-- Avoid image mosaics that create noise.
-- One strong hero image is better than six weak thumbnails.
-- Enhancement must never materially falsify a property, beach, room, view or place.
-- Simulated parallax/drone-style movement must not be represented as authentic drone footage.
+### State C — Escape DNA
+Human summary plus 4–6 editable labels. Primary action: confirm. Secondary action: “Not quite” and return to free text. This surface borrows the transparency/control principle of modern taste-profile products.
 
-## Typography and spacing
-- Editorial serif for destination emotion and major headings.
-- Neutral system/sans for controls, evidence and utility copy.
-- Strong negative space and large type at decision moments.
-- Compact evidence labels and clear hierarchy on mobile.
+### State D — Time strategy
+Three user paths:
+- Suggest dates for me;
+- I know my dates;
+- I am flexible.
+When suggesting dates, show multiple concrete windows with a clear trade-off; never imply “best price” without fresh evidence.
+
+### State E — Reality check
+Ask only decision-changing constraints such as origin and comfortable total budget. Keep transactional language minimal.
+
+### State F — Semantic research
+Show meaningful research state labels, not fake percentages. The system is matching trip shapes, not hotels.
+
+### State G — Three escapes
+Exactly three strategically different finalists. Each uses one strong, properly attributed destination photograph, concise explanation, season/access/value context and one honest trade-off.
+
+### State H — Cinematic destination commitment
+Selecting a finalist opens a destination-specific reveal with photography, map motion and narrative. This is the “I want to go there” moment and the gate before expensive 360 research.
+
+### State I — 360 trip story
+Weather, places, food, local life, logistics, hidden costs, pacing, plan B and evidence. Present as a story, not a spreadsheet itinerary.
+
+### State J — Stay and commercial handoff
+Only after destination and neighbourhood fit: one primary stay and two meaningful alternatives. Use original affiliate tracking URL unchanged.
+
+### State K — Ownership/share
+Escape Book, optional cinematic trailer, email/save/share and social-decision flow.
+
+## Photography rules
+- Prefer authentic destination/stay imagery from licensed or clearly attributable current sources.
+- V34 discovery results may use Wikimedia Commons imagery with visible attribution/licence until a first-party destination-media catalog is rebuilt.
+- One excellent image per finalist beats a noisy gallery.
+- Image quality gate: relevance, resolution, composition, factual integrity and mobile crop.
+- Enhancements may improve crop, exposure, denoise and clarity but must not add or materially change property/destination features.
+- AI-generated mood visuals must never masquerade as a specific real hotel, view or facility.
+- Simulated drone/parallax motion must not be labelled as real drone footage.
+
+## Typography / palette / spatial language
+- Dark natural canvas: near-black forest/charcoal, warm sand accents, restrained green depth.
+- Editorial serif for emotion and destination names.
+- Neutral sans for controls/evidence.
+- Large negative space, photographic depth and minimal chrome.
+- Avoid glassmorphism everywhere; use translucency only where it reinforces depth over imagery.
+
+## Multilingual
+The same canonical travel profile powers EL/EN first. DE/FR/IT/ES remain schema-ready. Do not literal-translate SEO intent or emotionally important copy; localize meaning and search language.
 
 ## Conversion psychology
-Use progressive commitment:
-1. low-cost choice: when can I go?
-2. emotional self-identification: what do I need?
-3. small commitment: choose one of three escapes
-4. investment: build the 360 trip
-5. ownership: save/share/email the Escape Book
-6. commercial action: open current provider offer
-
-Persuasion must come from relevance, confidence, loss-of-friction and social decision support; never from deception.
+The ethical persuasion sequence is:
+`felt need -> recognition -> self-correction -> possibility -> confidence -> ownership -> action`.
+Do not sell the vacation at the beginning. Let relevance and evidence create desire.
 
 ## Mobile/adaptive rules
-- one-handed choices
-- no horizontal scrolling for key comparisons
-- no cinematic asset that blocks first interaction
-- image and motion payloads must be adaptive
-- offer/action buttons remain readable without sticky overlays covering content
+- one question per viewport where practical;
+- large tap targets;
+- no horizontal dependency for core choices;
+- destination photography must preserve subject on narrow crops;
+- motion must degrade gracefully;
+- no cinematic intro that delays the first action.
 
 ## SEO/AEO
-Problem pages should behave as interactive solvers, not thin articles. Localized search intent is more important than literal translation. Use semantic headings, concise answer blocks, structured data only when facts support it, and canonical/hreflang consistency.
-
-## Accessibility/performance
-Target WCAG 2.2 AA. Visible focus, semantic buttons/labels, keyboard flow, reduced motion and meaningful alt text are mandatory. Maintain Core Web Vitals discipline; cinematic presentation must not justify oversized blocking media.
+Problem/season pages enter the same semantic discovery experience with contextual prefill, not separate thin articles. Localized intent is more important than literal translation. Use canonical/hreflang consistency and structured data only when facts support it.
 
 ## Measurement
-Track at minimum:
-- funnel_started
+Track:
+- semantic_discovery_started
+- discovery_question_answered
+- escape_dna_confirmed
+- escape_dna_corrected
+- date_strategy_selected
 - date_window_selected
-- travel_need_selected
-- recommendations_completed
+- semantic_match_completed
 - destination_chosen
-- escape_build_started
-- escape_build_completed
+- cinematic_reveal_viewed
+- escape_build_started/completed
 - escape_shared
-- guide_downloaded
-- guide_emailed
+- guide_downloaded/emailed
 - affiliate_offer_opened
 
-North-star diagnostic: percentage of completed recommendation sessions where the user chooses one of the three escapes.
+Primary diagnostic: percentage of users who confirm an Escape DNA and then choose one of the three destination finalists.
 
 ## Verification checklist
-- first-time promise understandable in <=5 seconds
-- three finalists, not endless results
-- destination choice remains independent from affiliate economics
-- 360 research happens after destination commitment
-- explicit uncertainty and data-source truth
-- exact affiliate tracking URL preserved
-- outbound opens in a new tab with sponsored/nofollow/noopener
-- email requires explicit user entry
-- no fake availability, reviews, events, scarcity or weather
-- mobile and reduced-motion flows remain fully usable
-- production typecheck/tests/build pass before merge
+- homepage does not require dates or destination;
+- adaptive interview never uses sensitive/clinical profiling;
+- user can correct the inferred profile;
+- date suggestion is optional and transparent;
+- three finalists are genuinely different;
+- every displayed photo has a legitimate source/attribution path;
+- reduced-motion experience remains complete;
+- destination decision remains independent of affiliate economics;
+- 360 research starts only after destination commitment;
+- exact affiliate tracking URL preserved;
+- no fake availability/reviews/events/weather/scarcity;
+- production typecheck, strict tests, build and browser screenshots pass before merge.
