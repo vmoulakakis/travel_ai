@@ -9,6 +9,6 @@ expect(stay.includes('a[href^="http"]:not([rel~="sponsored"])'),"selected stay l
 expect(reviews.includes("Google Places")&&reviews.includes("Tripadvisor")&&reviews.includes("Foursquare")&&reviews.includes("AI Guest Signal"),"review intelligence must support multi-source ratings plus first-party signal");
 expect(reviews.includes("Never invent facts")&&reviews.includes("AI summarizes available evidence and never invents reviews"),"AI review synthesis must explicitly forbid fabricated reviews");
 expect(api.includes("x-travel-review-engine")&&api.includes("v39-truthful-multi-source"),"review API must expose V39 truth provenance");
-expect(feedback.includes('subjectKind:"stay"')&&feedback.includes("tripEnd<=new Date")&&feedback.includes("sampleSize"),"first-party stay feedback must be post-trip and explain the sample gate");
+expect(feedback.includes('subjectKind:"stay"')&&feedback.includes("tripEnd<=new Date")&&(feedback.includes("at least 3")||feedback.includes("τουλάχιστον 3")),"first-party stay feedback must be post-trip and explain the 3-experience sample gate");
 expect(hero.includes("Disclosure")&&hero.includes("verified ratings")&&hero.includes("#escape-builder"),"stay landing must show review disclosure before itinerary");
 if(failures.length){console.error(`V39 smoke failed (${failures.length})`);for(const x of failures)console.error(`- ${x}`);process.exit(1)}console.log("V39 map/review smoke passed");
