@@ -13,17 +13,19 @@ const normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\
 
 async function searchCommons(query:string,anchors:string[],preferAerial:boolean){
  const endpoint=new URL("https://commons.wikimedia.org/w/api.php");
- endpoint.search=new URLSearchParams({action:"query",format:"json",origin:"*",generator:"search",gsrsearch:query,gsrnamespace:"6",gsrlimit:"24",prop:"imageinfo",iiprop:"url|mime|extmetadata",iiurlwidth:"2200"}).toString();
+ endpoint.search=new URLSearchParams({action:"query",format:"json",origin:"*",generator:"search",gsrsearch:query,gsrnamespace:"6",gsrlimit:"28",prop:"imageinfo",iiprop:"url|mime|extmetadata",iiurlwidth:"2200"}).toString();
  const response=await fetch(endpoint,{headers:{"user-agent":"TravelAI/35 cinematic-aerial-destination-media"},next:{revalidate:86400},signal:AbortSignal.timeout(7000)});
  if(!response.ok)return[] as Candidate[];
  const payload=await response.json() as CommonsPayload;
  return Object.values(payload.query?.pages??{}).flatMap(page=>{
   const info=page.imageinfo?.[0];if(!info||!info.url||String(info.mime||"").toLowerCase()!=="image/jpeg")return[];
   const meta=info.extmetadata??{},license=text(meta.LicenseShortName?.value),artist=text(meta.Artist?.value),credit=text(meta.Credit?.value),description=text(meta.ImageDescription?.value||meta.ObjectName?.value),categories=text(meta.Categories?.value);
-  const title=(page.title||"").replace(/^File:/,"");const searchable=normalize(`${title} ${description} ${categories}`);
-  if(NON_PHOTO.test(searchable))return[];
-  if(anchors.length&&!anchors.some(anchor=>searchable.includes(anchor)))return[];
-  const aerial=AERIAL.test(searchable),visualScore=(preferAerial&&aerial?30:0)+(searchable.includes("landscape")?8:0)+(searchable.includes("coast")?7:0)+(searchable.includes("view")?5:0);
+  const title=(page.title||"").replace(/^File:/,"");
+  const titleNorm=normalize(title),leadNorm=normalize(description.slice(0,320)),visualNorm=normalize(`${title} ${description.slice(0,700)} ${categories}`);
+  if(NON_PHOTO.test(visualNorm))return[];
+  const titleHit=anchors.some(anchor=>titleNorm.includes(anchor)),leadHit=anchors.some(anchor=>leadNorm.includes(anchor));
+  if(anchors.length&&!titleHit&&!leadHit)return[];
+  const aerial=AERIAL.test(visualNorm),visualScore=(titleHit?42:0)+(leadHit?24:0)+(preferAerial&&aerial?30:0)+(visualNorm.includes("landscape")?8:0)+(visualNorm.includes("coast")?7:0)+(visualNorm.includes("view")?5:0);
   return[{imageUrl:info.thumburl||info.url,originalUrl:info.url,sourceUrl:info.descriptionurl||info.url,title,description,license:license||"Wikimedia Commons",attribution:artist||credit||"Wikimedia Commons",visualScore}];
  });
 }
