@@ -8,13 +8,22 @@ type CommonsPayload={query?:{pages?:Record<string,{title?:string;imageinfo?:Arra
 const GENERIC=new Set(["landscape","travel","tourism","coast","coastal","sunset","old","town","evening","europe","european","mountain","mountains","village","winter","night","street","dramatic","island","mediterranean","green","city","photo","photography","aerial","drone","panorama","panoramic","view"]);
 const NON_PHOTO=/\b(map|flag|logo|coat of arms|diagram|poster|ticket|icon|painting|painted|artwork|oil on canvas|watercolou?r|drawing|engraving|illustration|manuscript|pinacoteca|museum collection|sculpture|mosaic|fresco)\b/i;
 const AERIAL=/\b(aerial|drone|bird'?s[- ]?eye|birdseye|from above|panorama|panoramic|elevated view|coastline|cliff|cliffs)\b/i;
-const tokens=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").split(/[^a-z0-9]+/).filter(token=>token.length>=4&&!GENERIC.has(token));
 const normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const tokens=(value:string)=>normalize(value).split(/[^a-z0-9]+/).filter(token=>token.length>=4&&!GENERIC.has(token));
+
+function strongPlaceMatch(title:string,description:string,anchors:string[]){
+ if(!anchors.length)return true;
+ const titleText=normalize(title),shortDescription=normalize(description.slice(0,420)),primary=anchors[0];
+ if(titleText.includes(primary))return true;
+ if(shortDescription.includes(primary))return true;
+ if(anchors.length>1){const hits=anchors.filter(anchor=>titleText.includes(anchor)||shortDescription.includes(anchor)).length;return hits>=2;}
+ return false;
+}
 
 async function searchCommons(query:string,anchors:string[],preferAerial:boolean){
  const endpoint=new URL("https://commons.wikimedia.org/w/api.php");
- endpoint.search=new URLSearchParams({action:"query",format:"json",origin:"*",generator:"search",gsrsearch:query,gsrnamespace:"6",gsrlimit:"24",prop:"imageinfo",iiprop:"url|mime|extmetadata",iiurlwidth:"2200"}).toString();
- const response=await fetch(endpoint,{headers:{"user-agent":"TravelAI/35 cinematic-aerial-destination-media"},next:{revalidate:86400},signal:AbortSignal.timeout(7000)});
+ endpoint.search=new URLSearchParams({action:"query",format:"json",origin:"*",generator:"search",gsrsearch:query,gsrnamespace:"6",gsrlimit:"28",prop:"imageinfo",iiprop:"url|mime|extmetadata",iiurlwidth:"2200"}).toString();
+ const response=await fetch(endpoint,{headers:{"user-agent":"TravelAI/36 strict-place-cinematic-media"},next:{revalidate:86400},signal:AbortSignal.timeout(7000)});
  if(!response.ok)return[] as Candidate[];
  const payload=await response.json() as CommonsPayload;
  return Object.values(payload.query?.pages??{}).flatMap(page=>{
@@ -22,8 +31,9 @@ async function searchCommons(query:string,anchors:string[],preferAerial:boolean)
   const meta=info.extmetadata??{},license=text(meta.LicenseShortName?.value),artist=text(meta.Artist?.value),credit=text(meta.Credit?.value),description=text(meta.ImageDescription?.value||meta.ObjectName?.value),categories=text(meta.Categories?.value);
   const title=(page.title||"").replace(/^File:/,"");const searchable=normalize(`${title} ${description} ${categories}`);
   if(NON_PHOTO.test(searchable))return[];
-  if(anchors.length&&!anchors.some(anchor=>searchable.includes(anchor)))return[];
-  const aerial=AERIAL.test(searchable),visualScore=(preferAerial&&aerial?30:0)+(searchable.includes("landscape")?8:0)+(searchable.includes("coast")?7:0)+(searchable.includes("view")?5:0);
+  if(!strongPlaceMatch(title,description,anchors))return[];
+  const titleText=normalize(title),shortDescription=normalize(description.slice(0,420)),anchorHits=anchors.filter(anchor=>titleText.includes(anchor)||shortDescription.includes(anchor)).length;
+  const aerial=AERIAL.test(searchable),visualScore=(preferAerial&&aerial?34:0)+(titleText.includes(anchors[0]??"")?24:0)+anchorHits*8+(searchable.includes("landscape")?7:0)+(searchable.includes("coast")?6:0)+(searchable.includes("view")?4:0);
   return[{imageUrl:info.thumburl||info.url,originalUrl:info.url,sourceUrl:info.descriptionurl||info.url,title,description,license:license||"Wikimedia Commons",attribution:artist||credit||"Wikimedia Commons",visualScore}];
  });
 }
@@ -33,7 +43,7 @@ export async function GET(request:Request){
  if(destination.length<2)return NextResponse.json({ok:false,error:"destination_required"},{status:400});
  try{
   const anchors=tokens(destination),primary=anchors.length?anchors.slice(0,3).join(" "):destination,preferAerial=mode==="aerial";
-  const queries=preferAerial?[`${primary} aerial photography`,`${primary} drone panorama`,`${primary} panoramic landscape photography`,`${primary} travel photography`]:[`${primary} travel photography`,`${primary} landscape photography`,`${destination} tourism photo`];
+  const queries=preferAerial?[`\"${primary}\" aerial`, `\"${primary}\" panoramic`, `\"${primary}\" landscape photography`, `\"${primary}\" travel photography`]:[`\"${primary}\" travel photography`, `\"${primary}\" landscape photography`, `\"${primary}\" tourism photo`];
   const collected:Candidate[]=[];const seen=new Set<string>();
   for(const query of queries){const rows=await searchCommons(query,anchors,preferAerial).catch(()=>[]);for(const row of rows){if(seen.has(row.originalUrl))continue;seen.add(row.originalUrl);collected.push(row)}if(collected.length>=12)break;}
   const items=collected.sort((a,b)=>b.visualScore-a.visualScore).slice(0,6).map(({visualScore:_,...item})=>item);
