@@ -56,8 +56,10 @@ export interface EscapeSolutionResponseV36 {
   candidateCount:number;
   inventoryChecked:number;
   inventoryOfferCount:number;
+  inventoryLookupSuccesses:number;
+  inventoryLookupFailures:number;
   solutionCount:number;
-  sourceMode:"forward+reverse"|"reverse-recovery";
+  sourceMode:"forward+reverse"|"reverse-recovery"|"constraint-relaxation";
   solutions:EscapeSolutionV36[];
 }
 
@@ -107,6 +109,9 @@ function desiredSignals(request:TripRequest){
   if(request.mustHave==="nature")wanted.add("nature");
   if(request.mustHave==="culture"||request.mustHave==="nightlife")wanted.add("city");
   if(request.travelerType==="family")wanted.add("family");
+  if(request.hotelStyle==="luxury")wanted.add("luxury");
+  if(request.hotelStyle==="boutique")wanted.add("romantic");
+  if(request.hotelStyle==="resort")wanted.add("pool");
   return wanted;
 }
 
@@ -142,48 +147,68 @@ function candidatePool(base:V8RecommendationResponse|null,global:V8Recommendatio
   const map=new Map<string,V8Recommendation>();
   for(const rec of base?.recommendations??[])map.set(rec.slug,rec);
   for(const rec of global)if(!map.has(rec.slug))map.set(rec.slug,rec);
-  return[...map.values()].slice(0,28);
+  return[...map.values()];
 }
 
-async function inventoryFor(rec:V8Recommendation,request:TripRequest){
+type InventoryRow={rec:V8Recommendation;ranked:RankedStayV36[];error?:string};
+
+async function inventoryFor(rec:V8Recommendation,request:TripRequest):Promise<InventoryRow>{
   try{
-    const offers=await loadV8StayOffers(rec.slug,request.startDate,request.endDate,40);
+    const offers=await loadV8StayOffers(rec.slug,request.startDate,request.endDate,60);
     const ranked=offers.map(x=>scoreStay(x,request)).filter((x):x is RankedStayV36=>Boolean(x)).sort((a,b)=>b.score-a.score||(a.price??Number.MAX_SAFE_INTEGER)-(b.price??Number.MAX_SAFE_INTEGER));
     return{rec,ranked};
-  }catch{return{rec,ranked:[] as RankedStayV36[]};}
+  }catch(error){return{rec,ranked:[],error:error instanceof Error?error.message:"inventory_lookup_failed"};}
 }
 
-async function scanWave(candidates:V8Recommendation[],request:TripRequest,from:number,to:number){
-  const selected=candidates.slice(from,to),rows:Array<{rec:V8Recommendation;ranked:RankedStayV36[]}>=[];
-  for(let offset=0;offset<selected.length;offset+=4)rows.push(...await Promise.all(selected.slice(offset,offset+4).map(rec=>inventoryFor(rec,request))));
+async function scanAll(candidates:V8Recommendation[],request:TripRequest){
+  const rows:InventoryRow[]=[];
+  for(let offset=0;offset<candidates.length;offset+=5)rows.push(...await Promise.all(candidates.slice(offset,offset+5).map(rec=>inventoryFor(rec,request))));
   return rows;
 }
 
-export async function buildEscapeSolutionsV36(request:TripRequest,base:V8RecommendationResponse|null,maxSolutions=10):Promise<EscapeSolutionResponseV36>{
-  const[intent,catalog]=await Promise.all([resolveIntent(request,base),loadV8DestinationCatalog()]);
-  const globalRanked=preRankV8(request,intent,catalog,Math.min(28,Math.max(20,catalog.length)));
-  const globalRecommendations=toRecommendationsV8(request,globalRanked).slice(0,24);
-  const candidates=candidatePool(base,globalRecommendations);
-  const first=await scanWave(candidates,request,0,16);
-  let rows=[...first];
-  let viable=rows.filter(row=>row.ranked.length>0).length;
-  if(viable<Math.min(10,maxSolutions)&&candidates.length>16){const second=await scanWave(candidates,request,16,28);rows.push(...second);viable=rows.filter(row=>row.ranked.length>0).length;}
-
+function buildSolutions(request:TripRequest,candidates:V8Recommendation[],rows:InventoryRow[],maxSolutions:number){
   const forwardRank=new Map(candidates.map((rec,index)=>[rec.slug,index+1]));
   const provisional=rows.flatMap(row=>{
     const best=row.ranked[0];if(!best)return[];
-    const inventoryCount=row.ranked.length,inventoryDepth=Math.round(clamp((Math.min(inventoryCount,12)/12)*100));
-    const stayScore=Math.round(clamp(best.score*.78+inventoryDepth*.22));
-    const combinedScore=Math.round(clamp(row.rec.score*.58+stayScore*.42));
-    return[{forwardRank:forwardRank.get(row.rec.slug)??99,combinedScore,destinationScore:Math.round(row.rec.score),stayScore,inventoryDepth,inventoryCount,recommendation:row.rec,stay:best,alternatives:row.ranked.slice(1,5)}];
+    const inventoryCount=row.ranked.length,inventoryDepth=Math.round(clamp((Math.min(inventoryCount,20)/20)*100));
+    const stayScore=Math.round(clamp(best.score*.76+inventoryDepth*.24));
+    const combinedScore=Math.round(clamp(row.rec.score*.56+stayScore*.44));
+    return[{forwardRank:forwardRank.get(row.rec.slug)??99,combinedScore,destinationScore:Math.round(row.rec.score),stayScore,inventoryDepth,inventoryCount,recommendation:row.rec,stay:best,alternatives:row.ranked.slice(1,10)}];
   }).sort((a,b)=>b.combinedScore-a.combinedScore||b.stayScore-a.stayScore||b.destinationScore-a.destinationScore).slice(0,Math.max(1,Math.min(10,maxSolutions)));
 
-  const solutions:EscapeSolutionV36[]=provisional.map((item,index)=>{
+  return provisional.map((item,index):EscapeSolutionV36=>{
     const rank=index+1,delta=item.forwardRank-rank;
     const reverse=delta>0?say(request,`Η διαμονή άλλαξε την απόφαση: ο προορισμός ανέβηκε ${delta} θέση${delta===1?"":"εις"} όταν ελέγξαμε το πραγματικό inventory.`,`The stay inventory changed the decision: this destination moved up ${delta} place${delta===1?"":"s"} after checking real inventory.`):delta<0?say(request,`Ο προορισμός ήταν ισχυρός θεωρητικά, αλλά έπεσε ${Math.abs(delta)} θέση${Math.abs(delta)===1?"":"εις"} επειδή τα πραγματικά καταλύματα είναι πιο αδύναμα από άλλες λύσεις.`,`The destination was strong in theory, but moved down ${Math.abs(delta)} place${Math.abs(delta)===1?"":"s"} because its real stays are weaker than other solutions.`):say(request,"Forward fit και reverse inventory check συμφωνούν — η θέση του προορισμού επιβεβαιώθηκε.","Forward fit and the reverse inventory check agree — the destination kept its position.");
     const stay=item.stay.reasons.length?item.stay.reasons.join(" "):say(request,"Είναι η ισχυρότερη τεκμηριωμένη διαμονή που βρήκα για αυτή τη λύση.","It is the strongest documented stay found for this solution.");
     return{...item,rank,reasoning:{destination:item.recommendation.why,stay,reverse,tradeoff:item.stay.tradeoff}};
   });
+}
 
-  return{version:36,generatedAt:new Date().toISOString(),request,profileSummary:base?.profileSummary??intent.summary,candidateCount:candidates.length,inventoryChecked:rows.length,inventoryOfferCount:rows.reduce((sum,row)=>sum+row.ranked.length,0),solutionCount:solutions.length,sourceMode:base?"forward+reverse":"reverse-recovery",solutions};
+export async function buildEscapeSolutionsV36(request:TripRequest,base:V8RecommendationResponse|null,maxSolutions=10):Promise<EscapeSolutionResponseV36>{
+  const[intent,catalog]=await Promise.all([resolveIntent(request,base),loadV8DestinationCatalog()]);
+  const globalRanked=preRankV8(request,intent,catalog,Math.max(1,catalog.length));
+  const globalRecommendations=toRecommendationsV8(request,globalRanked);
+  let candidates=candidatePool(base,globalRecommendations);
+  let rows=await scanAll(candidates,request);
+  let sourceMode:EscapeSolutionResponseV36["sourceMode"]=base?"forward+reverse":"reverse-recovery";
+
+  let successes=rows.filter(row=>!row.error).length;
+  let failures=rows.filter(row=>Boolean(row.error)).length;
+  if(successes===0&&failures>0)throw new Error(`Stay inventory backend failed for all ${failures} destination lookups`);
+
+  let solutions=buildSolutions(request,candidates,rows,maxSolutions);
+  if(!solutions.length){
+    const relaxedRequest:TripRequest={...request,mustHave:"none",distancePreference:"any",avoid:"none"};
+    const relaxedRanked=preRankV8(relaxedRequest,intent,catalog,Math.max(1,catalog.length));
+    const relaxedRecommendations=toRecommendationsV8(relaxedRequest,relaxedRanked).map(rec=>({...rec,fitStatus:"compromise" as const,why:say(request,`Κοντινή εναλλακτική όταν χαλαρώνουμε μόνο τα σκληρά φίλτρα: ${rec.why}`,`Closest alternative after relaxing only the hard filters: ${rec.why}`)}));
+    candidates=candidatePool(null,relaxedRecommendations);
+    rows=await scanAll(candidates,request);
+    sourceMode="constraint-relaxation";
+    successes=rows.filter(row=>!row.error).length;
+    failures=rows.filter(row=>Boolean(row.error)).length;
+    if(successes===0&&failures>0)throw new Error(`Stay inventory backend failed for all ${failures} relaxed destination lookups`);
+    solutions=buildSolutions(request,candidates,rows,maxSolutions);
+  }
+
+  return{version:36,generatedAt:new Date().toISOString(),request,profileSummary:base?.profileSummary??intent.summary,candidateCount:candidates.length,inventoryChecked:rows.length,inventoryOfferCount:rows.reduce((sum,row)=>sum+row.ranked.length,0),inventoryLookupSuccesses:successes,inventoryLookupFailures:failures,solutionCount:solutions.length,sourceMode,solutions};
 }
