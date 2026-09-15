@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-const Body=z.object({missionId:z.string().uuid(),finalists:z.array(z.object({slug:z.string().min(1).max(120),score:z.number().min(0).max(100),why:z.string().max(1000),seasonNote:z.string().max(500).optional(),budgetLabel:z.string().max(300).optional(),effortLabel:z.string().max(300).optional()})).min(1).max(3)});
+const Body=z.object({missionId:z.string().uuid(),finalists:z.array(z.object({slug:z.string().min(1).max(120),score:z.number().min(0).max(100),why:z.string().max(1800),seasonNote:z.string().max(500).optional(),budgetLabel:z.string().max(300).optional(),effortLabel:z.string().max(300).optional()})).min(1).max(10)});
 
 export async function POST(request:Request){
   const parsed=Body.safeParse(await request.json().catch(()=>null));
@@ -14,5 +14,5 @@ export async function POST(request:Request){
   const response=await fetch(endpoint,{method:"POST",cache:"no-store",headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify(rows)});
   if(!response.ok)return NextResponse.json({ok:false,error:"match_write_failed",detail:await response.text()},{status:502});
   await fetch(new URL(`/rest/v1/travel_missions?id=eq.${parsed.data.missionId}`,base),{method:"PATCH",cache:"no-store",headers:{apikey:key,Authorization:`Bearer ${key}`,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({status:"matched",updated_at:new Date().toISOString()})});
-  return NextResponse.json({ok:true});
+  return NextResponse.json({ok:true,count:rows.length});
 }
