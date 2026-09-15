@@ -1,0 +1,21 @@
+.v33-escape{position:relative;overflow:hidden;padding:72px 0 88px;background:linear-gradient(180deg,#0f1715 0%,#13201d 46%,#efe9dd 46%,#f7f3ea 100%)}
+.v33-escape__backdrop{position:absolute;inset:0 0 auto 0;height:46%;background:radial-gradient(circle at 82% 12%,rgba(238,188,112,.18),transparent 26%),radial-gradient(circle at 18% 22%,rgba(96,150,129,.2),transparent 22%);pointer-events:none}
+.v33-escape__shell{position:relative;display:grid;grid-template-columns:minmax(0,.78fr) minmax(520px,1.22fr);gap:64px;align-items:start}
+.v33-escape__intro{position:sticky;top:110px;color:#f8f4ea;padding-top:28px}
+.v33-escape__intro h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(3rem,5.4vw,6.6rem);line-height:.92;letter-spacing:-.055em;margin:18px 0 26px;max-width:900px}
+.v33-escape__intro p{max-width:620px;font-size:1.08rem;line-height:1.75;color:rgba(248,244,234,.78)}
+.v33-escape__panel{position:relative;background:rgba(255,252,246,.98);border:1px solid rgba(21,42,36,.12);box-shadow:0 28px 80px rgba(10,24,20,.22);border-radius:30px;padding:30px}
+.v33-step{display:grid;grid-template-columns:44px 1fr;gap:14px;padding:22px 0;border-bottom:1px solid rgba(29,45,39,.1)}
+.v33-step__n{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#17352e;color:#fff;font-size:.76rem;font-weight:800;letter-spacing:.08em}
+.v33-step label{display:block;color:#15322c;font-weight:800;font-size:1rem;margin-bottom:14px}
+.v33-chips{display:flex;flex-wrap:wrap;gap:9px}
+.v33-chips button{appearance:none;border:1px solid rgba(24,51,43,.18);background:#fffaf1;color:#243b35;border-radius:999px;padding:10px 14px;font:inherit;font-size:.9rem;cursor:pointer;transition:transform .18s ease,background .18s ease,border-color .18s ease}
+.v33-chips button:hover{transform:translateY(-1px);border-color:#b77738}.v33-chips button.is-active{background:#17352e;color:#fff;border-color:#17352e}
+.v33-step textarea{width:100%;min-height:108px;margin-top:14px;resize:vertical;border:1px solid rgba(24,51,43,.16);background:#fbf7ef;border-radius:18px;padding:15px 16px;color:#1f342e;font:inherit;line-height:1.55}
+.v33-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.v33-mini-grid label{font-size:.82rem;margin:0}.v33-mini-grid input{width:100%;margin-top:7px;border:1px solid rgba(24,51,43,.16);background:#fff;border-radius:14px;padding:12px 13px;font:inherit;color:#1f342e}
+.v33-dna{margin:24px 0 18px;border-radius:20px;padding:18px 20px;background:linear-gradient(135deg,#1c3c34,#244b41);color:#fff;display:grid;gap:5px}.v33-dna span{font-size:.68rem;letter-spacing:.16em;font-weight:800;color:#efc78d}.v33-dna strong{font-size:1rem}.v33-dna small{color:rgba(255,255,255,.68);line-height:1.5}
+.v33-submit{width:100%;border:0;border-radius:16px;background:#d88a3d;color:#181c19;padding:16px 20px;font:inherit;font-weight:900;font-size:1rem;cursor:pointer;box-shadow:0 12px 30px rgba(216,138,61,.22);transition:transform .18s ease,box-shadow .18s ease}.v33-submit:hover{transform:translateY(-1px);box-shadow:0 16px 34px rgba(216,138,61,.3)}.v33-submit:disabled{opacity:.58;cursor:wait;transform:none}
+.v33-footnote{font-size:.78rem;line-height:1.55;color:#66736e;margin:13px 4px 0}.v33-error{color:#9d2d24;font-size:.86rem;margin:12px 0}
+@media (max-width:980px){.v33-escape{padding-top:36px;background:linear-gradient(180deg,#0f1715 0%,#13201d 31%,#efe9dd 31%,#f7f3ea 100%)}.v33-escape__shell{grid-template-columns:1fr;gap:28px}.v33-escape__intro{position:relative;top:auto;padding:10px 4px 0}.v33-escape__intro h1{font-size:clamp(2.8rem,12vw,5.4rem);max-width:760px}.v33-escape__panel{border-radius:24px;padding:22px}}
+@media (max-width:620px){.v33-escape{padding:22px 0 54px}.v33-escape__intro p{font-size:.98rem}.v33-escape__panel{padding:18px 16px;border-radius:22px}.v33-step{grid-template-columns:34px 1fr;gap:9px;padding:18px 0}.v33-step__n{width:29px;height:29px}.v33-chips{gap:7px}.v33-chips button{padding:9px 11px;font-size:.82rem}.v33-mini-grid{grid-template-columns:1fr}.v33-submit{position:sticky;bottom:12px;z-index:2}}
+@media (prefers-reduced-motion:reduce){.v33-chips button,.v33-submit{transition:none}.v33-chips button:hover,.v33-submit:hover{transform:none}}
