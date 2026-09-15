@@ -2,7 +2,7 @@
   "name":"travel-ai-decision-engine",
   "version":"0.8.0",
   "private":true,
-  "engines":{"node":">=22.0.0"},
+  "engines":{"node":"22.x"},
   "scripts":{
     "dev":"node scripts/next-dev.mjs",
     "build":"next build",
