@@ -14,11 +14,11 @@ expect(builder.includes("mode=aerial")&&builder.includes("setInterval")&&builder
 expect(builder.includes('price!=null&&price>0')||builder.includes('offer.price!=null&&offer.price>0'),"UI must show a feed price only when positive");
 expect(builder.includes('stage==="email"')&&builder.includes('stage==="unlocked"')&&builder.indexOf('stage==="unlocked"')<builder.lastIndexOf('affiliate_offer_opened'),"affiliate handoff must stay behind successful email unlock");
 expect(local.includes("Tripadvisor")&&local.includes("Google Places")&&local.includes("Foursquare")&&local.includes("OpenStreetMap"),"360 local intelligence needs multi-source providers plus open-data fallback");
-expect((local.includes("sampleSize")&&local.includes("aiScore")&&local.includes("INSUFFICIENT")&&local.includes("sampleSize>=3"))||local.includes("n>=3"),"first-party AI Guest Signal must be sample-gated");
+expect(local.includes("sampleSize")&&local.includes("aiScore")&&local.includes("INSUFFICIENT")&&local.includes("hidden until at least 3 responses exist")&&builder.includes("signal.sampleSize<3"),"first-party AI Guest Signal must be sample-gated end-to-end");
 expect(research.includes("getLocalIntelligenceV38")&&research.includes('release:"V38"'),"destination research route must return V38 local intelligence");
 expect(guide.includes("QRCode")&&guide.includes("addUriLink")&&guide.includes("offer.trackingUrl")&&guide.includes("360° DISCLOSURE"),"Escape Book PDF must contain QR, clickable exact tracking link and disclosure");
 expect(email.includes("loadV8StayOffers")&&email.includes("affiliate link")&&email.includes("escape-book-"),"email delivery must re-resolve the exact offer and disclose affiliate handoff");
 expect(feedback.includes("trip_not_completed")&&feedback.includes("travel_escape_feedback")&&feedback.includes("went:true"),"first-party feedback must be post-trip and explicit");
 expect(skill.includes("travel-ai-v38-web-design")&&skill.includes("Reference ledger")&&skill.includes("AI Guest Signal")&&skill.includes("Price truth"),"project-specific V38 web-design skill must codify research and truth rules");
 if(failures.length){console.error("V38 cinematic 360 smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log("V38_CINEMATIC_360_OK funnel=3-decisions media=sourced-aerial+stay-motion local=multi-source price=truthful+rpc feedback=sample-gated pdf=clickable-affiliate email=gated");
+console.log("V38_CINEMATIC_360_OK funnel=3-decisions media=sourced-aerial+stay-motion local=multi-source price=truthful+rpc feedback=sample-gated-end-to-end pdf=clickable-affiliate email=gated");
