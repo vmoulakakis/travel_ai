@@ -18,7 +18,7 @@ must(layout.includes("v31-native.css"),"V31 support CSS must stay available for 
 must(planner.includes("V31AiPlannerClient")&&plannerEn.includes("V31AiPlannerClient"),"Both legacy planner routes must keep the streaming planner during funnel evolution");
 must(client.includes('/api/recommend/stream'),"Legacy planner must still call the legacy production recommendation stream");
 must(escapeFunnel.includes('/api/escape/discovery'),"Current escape funnel must understand the traveller before matching");
-must(escapeFunnel.includes("10 πραγματικές λύσεις")||escapeFunnel.includes("10 καλύτερες πραγματικές λύσεις")||escapeFunnel.includes("10 real"),"Current funnel must expose up to ten real ranked solutions without a card wall");
+must(escapeFunnel.includes("resultRail")&&escapeFunnel.includes("solutions.map")&&escapeFunnel.includes("combinedScore"),"Current funnel must expose the real ranked solution set through a compact decision rail");
 must(solver.includes("buildEscapeSolutionsV36")||solver.includes("buildEscapeSolutionsV35"),"Current dual-pass inventory reranking route is missing");
 must(ranking.includes("combinedScore")&&(ranking.includes("stayScore")||ranking.includes("inventoryScore")),"Current solution ranking must combine destination and real stay/inventory evidence");
 must(escapeBuilder.includes('/api/escape/research')&&escapeBuilder.indexOf('/api/escape/research')<escapeBuilder.indexOf('/api/trip-builder'),"Selected escape must research destination before stay-specific trip build");
