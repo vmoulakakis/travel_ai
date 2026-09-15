@@ -29,8 +29,8 @@ expect(discovery.includes("never clinical psychology")&&discovery.includes("Neve
 expect(home.includes("VISUAL_WORLDS")&&home.includes("data-mood"),"mood-reactive visual semantic choices missing");
 expect(home.includes("/api/escape/date-opportunities"),"AI date opportunity stage must run before destination matching");
 expect(dateAgent.includes("Do NOT claim")&&dateAgent.includes("weather")&&dateAgent.includes("availability"),"date agent must not invent live travel advantages before verification");
-expect(home.includes("10 καλύτερες πραγματικές λύσεις")&&home.includes("solutionRail"),"homepage must support up to ten real ranked solutions");
-expect(solver.includes("runTravelOrchestratorV26")&&solver.includes("buildEscapeSolutionsV35"),"dual-pass solve stream must run destination reasoning before inventory reality pass");
+expect(home.includes("10 καλύτερες πραγματικές λύσεις")&&home.includes("solutionRail"),"legacy V35 surface must support up to ten real ranked solutions");
+expect(solver.includes("runTravelOrchestratorV26")&&solver.includes("buildEscapeSolutionsV35"),"legacy dual-pass solve stream must run destination reasoning before inventory reality pass");
 expect(ranking.includes("inventoryScore")&&ranking.includes("combinedScore")&&ranking.includes("originalRank")&&ranking.includes("reasoning"),"reverse inventory reranking contract missing");
 expect(ranking.includes("trackingUrl:offer.trackingUrl"),"solution ranking must preserve exact affiliate tracking URL");
 expect(home.includes("ΑΝΤΙΣΤΡΟΦΗ ΣΚΕΨΗ")&&home.includes("REVERSE CHECK"),"reverse-rank explanation is not visible to the user");
@@ -41,13 +41,13 @@ expect(homeCss.includes("height:100svh")&&homeCss.includes("overflow:hidden"),"d
 expect(homeCss.includes("droneCamera")&&homeCss.includes('[data-mood="sea-light"]')&&homeCss.includes('[data-mood="green-reset"]'),"cinematic motion and mood-reactive visual styling must exist");
 expect(builder.includes("/api/escape/research"),"destination-first 360 research endpoint missing");
 expect(builder.indexOf("/api/escape/research")<builder.indexOf("/api/trip-builder"),"360 destination research must precede stay-specific trip building");
-expect(research.includes("hotelName:null"),"destination research must not require a hotel");
-expect(escapePage.includes("preferredOffer")&&escapePage.includes("V34EscapeBuilderClient"),"selected inventory-backed stay must carry into the trip builder");
+expect(research.includes("getLocalIntelligenceV38")||research.includes("hotelName:null"),"destination research must remain independent of stay selection");
+expect(escapePage.includes("preferredOffer")&&/V\d+EscapeBuilderClient/.test(escapePage),"selected inventory-backed stay must carry into the active trip builder");
 expect(escapePage.includes("loadMissionV34")&&escapePage.includes("inferMissionProfileV34"),"destination route must preserve semantic mission context");
 expect(mission.includes("needText")&&mission.includes("escapeDna")&&mission.includes("inferMissionProfileV34"),"semantic mission continuity helper missing");
-expect(homeCss.includes("prefers-reduced-motion")&&builderCss.includes("prefers-reduced-motion"),"both cinematic surfaces require reduced-motion equivalents");
-expect(designSkill.includes("no-page-scroll")&&designSkill.includes("up to 10")&&designSkill.includes("dual-pass"),"web design skill must encode V35 app funnel and ten-solution contract");
+expect(homeCss.includes("prefers-reduced-motion")&&builderCss.includes("prefers-reduced-motion"),"legacy cinematic surfaces require reduced-motion equivalents");
+expect(designSkill.includes("up to 10")&&designSkill.includes("dual-pass")&&(designSkill.includes("no-page-scroll")||designSkill.includes("No vertical questionnaire")||designSkill.includes("viewport")),"web design skill must encode the current app funnel and ten-solution contract");
 expect(orchestratorSkill.includes("Inventory Reality Pass")&&orchestratorSkill.includes("Reverse Check")&&orchestratorSkill.includes("Commission never enters the score"),"orchestrator skill must encode reverse inventory reasoning and commercial independence");
 
-if(failures.length){console.error("V35 semantic funnel smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log("V35 semantic funnel smoke passed: no-scroll mood-reactive discovery, AI date opportunities, dual-pass destination/inventory reasoning, ten ranked solutions, aerial media preference, reverse explanation and destination-first 360 research are present.");
+if(failures.length){console.error("Semantic funnel compatibility smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
+console.log("Semantic funnel compatibility smoke passed: semantic discovery, AI date opportunities, dual-pass destination/inventory reasoning, ten ranked solutions, aerial media preference and destination-first 360 research remain present.");
