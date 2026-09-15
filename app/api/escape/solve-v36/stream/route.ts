@@ -1,5 +1,5 @@
 import { runTravelOrchestratorV26, TravelDecisionError } from "@/lib/ai/travel-orchestrator-v26";
-import { buildEscapeSolutionsV36 } from "@/lib/decision/solution-ranking-v36";
+import { buildEscapeSolutionsV37 } from "@/lib/decision/solution-ranking-v37";
 import { pendingContinuity, safePublicMessage } from "@/lib/continuity";
 import { parseTripRequest } from "@/lib/validation/trip";
 import type { V8RecommendationResponse } from "@/lib/decision/v8-types";
@@ -19,20 +19,21 @@ export async function POST(request:Request){
    emit("understanding",4,{message:trip.language==="en"?"Understanding the need, not just the destination…":"Καταλαβαίνω την ανάγκη — όχι απλώς τον προορισμό…"});
    let base:V8RecommendationResponse|null=null;
    try{
-    base=await runTravelOrchestratorV26(trip,sessionId,event=>emit(event.type,Math.min(54,Math.max(7,Math.round(event.progress*.54))),event.payload));
-    emit("forward-ready",57,{message:trip.language==="en"?"Forward destination fit is ready. Now I challenge it with real stays…":"Το forward destination fit είναι έτοιμο. Τώρα το αμφισβητώ με πραγματικά καταλύματα…"});
+    base=await runTravelOrchestratorV26(trip,sessionId,event=>emit(event.type,Math.min(52,Math.max(7,Math.round(event.progress*.52))),event.payload));
+    emit("forward-ready",54,{message:trip.language==="en"?"Semantic destination fit is ready. Now I reverse it against the full real stay catalog…":"Το semantic destination fit είναι έτοιμο. Τώρα το γυρίζω ανάποδα πάνω σε όλο το πραγματικό stay catalog…"});
    }catch(error){
-    if(error instanceof TravelDecisionError)emit("forward-recovery",58,{message:trip.language==="en"?"The first pass was too restrictive. Switching to inventory-led recovery across the full catalog…":"Το πρώτο pass ήταν υπερβολικά περιοριστικό. Γυρίζω ανάποδα: πραγματικό inventory σε όλο το catalog…"});
-    else emit("forward-recovery",58,{message:trip.language==="en"?"Forward pass was inconclusive. Recovering from real stay inventory…":"Το forward pass δεν έδωσε ασφαλή λύση. Ανακάμπτω από το πραγματικό stay inventory…"});
+    if(error instanceof TravelDecisionError)emit("forward-recovery",55,{message:trip.language==="en"?"The semantic pass was too restrictive. I am keeping the psychology profile and recovering from real inventory…":"Το semantic pass ήταν υπερβολικά περιοριστικό. Κρατάω το ψυχολογικό profile και ανακάμπτω από το πραγματικό inventory…"});
+    else emit("forward-recovery",55,{message:trip.language==="en"?"The AI interpretation was inconclusive. I am switching to deterministic structured intent plus real inventory…":"Η AI ερμηνεία δεν ήταν αρκετά ασφαλής. Γυρίζω σε deterministic structured intent + πραγματικό inventory…"});
    }
-   emit("inventory",64,{message:trip.language==="en"?"Scanning real stay inventory and checking dates, location, value and mood evidence…":"Σκανάρω πραγματικά καταλύματα και ελέγχω ημερομηνίες, θέση, αξία και mood evidence…"});
-   const result=await buildEscapeSolutionsV36(trip,base,10);
-   emit("reverse-rank",90,{message:trip.language==="en"?"Re-ranking the trip from the accommodation side — weak inventory pushes destinations down…":"Ξανακατατάσσω το ταξίδι από την πλευρά των καταλυμάτων — αδύναμο inventory ρίχνει προορισμούς…"});
-   if(!result.solutions.length){emit("continuity",100,{message:trip.language==="en"?"I found no real stay-backed solution for this exact combination. Widen the dates or budget and I will rerun without inventing availability.":"Δεν βρήκα πραγματική λύση με κατάλυμα για αυτόν ακριβώς τον συνδυασμό. Άνοιξε λίγο ημερομηνίες ή budget και ξανατρέχω χωρίς να εφεύρω διαθεσιμότητα.",continuity:pendingContinuity()});}
-   else emit("final",100,{result});
-  }catch(error){emit("continuity",100,{message:safePublicMessage(error,trip.language==="en"?"en":"el"),continuity:pendingContinuity()});}
-  finally{if(!closed){closed=true;controller.close();}}
+   emit("inventory",62,{message:trip.language==="en"?"Scanning the complete joined Linkwise stay inventory — dates, geography, mood, value and evidence…":"Σκανάρω όλο το joined Linkwise stay inventory — ημερομηνίες, γεωγραφία, mood, αξία και evidence…"});
+   const result=await buildEscapeSolutionsV37(trip,base,10);
+   emit("reverse-rank",90,{message:trip.language==="en"?"Ranking from both directions: traveller → destination and real stays → traveller…":"Κατατάσσω και από τις δύο κατευθύνσεις: ταξιδιώτης → προορισμός και πραγματικά καταλύματα → ταξιδιώτης…"});
+   if(!result.solutions.length)throw new Error("V37_NO_REAL_OPTIONS_AFTER_RECOVERY");
+   emit("final",100,{result});
+  }catch(error){
+   emit("continuity",100,{message:trip.language==="en"?"The real inventory service failed, so I will not pretend there are zero options. Please retry — this is a system error, not a lack of stays.":"Απέτυχε το πραγματικό inventory service, οπότε δεν θα προσποιηθώ ότι υπάρχουν μηδέν επιλογές. Ξαναδοκίμασε — είναι system error, όχι έλλειψη καταλυμάτων.",detail:process.env.NODE_ENV!=="production"?safePublicMessage(error,trip.language==="en"?"en":"el"):undefined,continuity:pendingContinuity()});
+  }finally{if(!closed){closed=true;controller.close();}}
  }});
  const secure=process.env.NODE_ENV==="production"?"; Secure":"";
- return new Response(stream,{headers:{"content-type":"application/x-ndjson; charset=utf-8","cache-control":"no-store, no-transform","x-content-type-options":"nosniff","x-travel-engine":"v36-global-bidirectional","set-cookie":`travel_match_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7776000${secure}`}});
+ return new Response(stream,{headers:{"content-type":"application/x-ndjson; charset=utf-8","cache-control":"no-store, no-transform","x-content-type-options":"nosniff","x-travel-engine":"v37-global-inventory-recovery","set-cookie":`travel_match_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7776000${secure}`}});
 }
