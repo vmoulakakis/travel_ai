@@ -1,6 +1,6 @@
 ---
 name: travel-ai-v38-web-design
-version: 4.0.1
+version: 4.0.2
 purpose: Low-friction cinematic AI travel decision product that converts emotional intent into real stay-backed escapes, then into a sourced 360° experience and disclosed affiliate handoff.
 source_method: MyAgenticTeam web-design-intelligence + 2026 Airbnb/Expedia/Hopper travel UX research + live product evidence
 ---
@@ -45,6 +45,8 @@ Full-viewport cinematic shell. Background visual responds to the selected emotio
 
 Visible flow:
 `FEEL → WHEN → REALITY → DUAL-PASS SOLVE → ONE SELECTED RESULT + RAIL`
+
+The matching contract is explicitly **dual-pass**: traveler need → destination → real stay, then real stay → destination → traveler need before ranking is finalized.
 
 No vertical questionnaire. The optional fine-tune is collapsed by default.
 
