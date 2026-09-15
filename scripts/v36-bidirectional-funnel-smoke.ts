@@ -21,8 +21,10 @@ expect(css.includes("height:100dvh")&&css.includes("overflow:hidden"),"shell mus
 const mobile=css.split("@media(max-width:720px)")[1]??"";
 expect(mobile.includes(".screen")&&mobile.includes("overflow:hidden"),"mobile funnel must not fall back to vertical page scrolling");
 expect(!mobile.includes("overflow-y:auto"),"mobile vertical scrolling must be removed");
-expect(ranker.includes("loadV8DestinationCatalog")&&!ranker.includes('countryCode==="GR"'),"V36 reverse ranker must scan the full verified catalog, not Greece only");
-expect(ranker.includes("loadV8StayOffers")&&ranker.includes("40"),"V36 must scan meaningful real stay inventory");
+expect(ranker.includes("loadV8DestinationCatalog")&&!ranker.includes('countryCode===\"GR\"'),"V36 reverse ranker must scan the full verified catalog, not Greece only");
+expect(ranker.includes("loadV8StayOffers")&&ranker.includes("60"),"V37 must scan meaningful real stay inventory up to 60 offers per destination");
+expect(ranker.includes("catalog.length")&&ranker.includes("scanAll"),"V37 must scan the full allowed destination catalog");
+expect(ranker.includes("inventoryLookupFailures")&&ranker.includes("Stay inventory backend failed"),"V37 must distinguish backend failure from true zero inventory");
 expect(ranker.includes("destinationScore")&&ranker.includes("stayScore")&&ranker.includes("inventoryCount"),"V36 must combine destination and stay evidence");
 expect(ranker.includes("semanticScore")&&ranker.includes("valueScore")&&ranker.includes("locationScore")&&ranker.includes("evidenceScore"),"stay justification needs a score breakdown");
 expect(ranker.includes("trackingUrl:offer.trackingUrl"),"original affiliate tracking URL must be preserved");
@@ -30,4 +32,4 @@ expect(route.includes("forward-recovery")&&route.includes("buildEscapeSolutionsV
 expect(layout.includes("έως 10 πραγματικές λύσεις")&&!layout.includes("3 semantic-matched escapes"),"SEO copy must match the V36 product truth");
 
 if(failures.length){console.error("V36 bidirectional funnel smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log("V36 bidirectional funnel smoke passed: five-screen no-scroll UX, rotating mood cinematography, global inventory recovery, ten stay-backed solutions and evidence-based stay reasoning are wired.");
+console.log("V37 bidirectional funnel smoke passed: five-screen no-scroll UX, rotating mood cinematography, full-catalog inventory recovery, ten stay-backed solutions and evidence-based stay reasoning are wired.");
