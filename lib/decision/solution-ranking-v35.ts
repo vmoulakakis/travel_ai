@@ -53,7 +53,7 @@ export interface EscapeSolutionResponseV35 {
 const clamp=(value:number,min=0,max=100)=>Math.max(min,Math.min(max,value));
 const lang=(request:TripRequest)=>request.language==="en"?"en":"el";
 const say=(request:TripRequest,el:string,en:string)=>lang(request)==="en"?en:el;
-const parseDate=(value:string|null)=>value?Date.parse(`${value.slice(0,10)}T00:00:00Z`):NaN;
+const parseDate=(value:string|null|undefined)=>value?Date.parse(`${value.slice(0,10)}T00:00:00Z`):NaN;
 
 function discountPct(offer:V8StayOffer):number|null{
   if(offer.fullPrice!=null&&offer.price!=null&&offer.fullPrice>offer.price&&offer.fullPrice>0){
@@ -74,7 +74,7 @@ function validForWindow(offer:V8StayOffer,request:TripRequest){
   return true;
 }
 
-function availabilitySignal(value:string|null){
+function availabilitySignal(value:string|null|undefined){
   const text=(value??"").toLowerCase();
   if(/unavailable|sold out|not available|εξαντ|μη διαθέσι/.test(text))return -20;
   if(/available|in stock|διαθέσι/.test(text))return 8;
