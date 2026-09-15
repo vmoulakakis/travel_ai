@@ -1,203 +1,60 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { NextResponse } from "next/server";
 import fontkit from "@pdf-lib/fontkit";
-import { PDFDocument, PDFFont, PDFPage, rgb } from "pdf-lib";
+import { PDFDocument,PDFFont,PDFImage,PDFName,PDFPage,PDFString,rgb } from "pdf-lib";
 import QRCode from "qrcode";
-import { loadV8DestinationCatalog, loadV8StayOffers } from "@/lib/data/destination-v8";
-import { loadDestinationEvidence } from "@/lib/data/evidence-v12";
+import { loadV8DestinationCatalog,loadV8StayOffers } from "@/lib/data/destination-v8";
+import { getLocalIntelligenceV38,type LocalPlaceV38 } from "@/lib/data/local-intelligence-v38";
+import { getDailyTripWeatherV25 } from "@/lib/data/trip-weather-v25";
+import { estimateBeyondHotelBudgetV25 } from "@/lib/decision/trip-budget-v25";
 import { researchDestination } from "@/lib/ai/destination-research";
-import { destinationSeo } from "@/lib/seo/destination-content";
+import { parseTripRequest,type TripRequest } from "@/lib/validation/trip";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-const iso = /^\d{4}-\d{2}-\d{2}$/;
-const slugPattern = /^[a-z0-9-]{2,80}$/;
-const safeId = /^[a-zA-Z0-9:_-]{1,160}$/;
-const A4: [number, number] = [595.28, 841.89];
-const palette = { night: rgb(0.024, 0.078, 0.141), navy: rgb(0.04, 0.125, 0.208), cyan: rgb(0.204, 0.843, 0.91), violet: rgb(0.56, 0.42, 1), paper: rgb(0.973, 0.957, 0.925), white: rgb(1, 0.992, 0.973), ink: rgb(0.063, 0.125, 0.188), muted: rgb(0.36, 0.43, 0.49) };
+export const runtime="nodejs";
+export const dynamic="force-dynamic";
+export const maxDuration=60;
+const iso=/^\d{4}-\d{2}-\d{2}$/,slugPattern=/^[a-z0-9-]{2,80}$/i,safeId=/^[a-zA-Z0-9:_-]{1,180}$/;
+const A4:[number,number]=[595.28,841.89],DAY=86_400_000;
+const c={night:rgb(.025,.067,.057),deep:rgb(.045,.102,.086),panel:rgb(.075,.145,.122),gold:rgb(.875,.735,.486),cyan:rgb(.55,.89,.86),paper:rgb(.967,.948,.902),white:rgb(.99,.985,.96),ink:rgb(.075,.11,.095),muted:rgb(.34,.39,.36),line:rgb(.8,.78,.7)};
+const say=(lang:"el"|"en",el:string,en:string)=>lang==="el"?el:en;
+function wrap(text:string,font:PDFFont,size:number,width:number){const words=text.replace(/\s+/g," ").trim().split(" ").filter(Boolean),out:string[]=[];let line="";for(const word of words){const next=line?`${line} ${word}`:word;if(font.widthOfTextAtSize(next,size)<=width)line=next;else{if(line)out.push(line);line=word}}if(line)out.push(line);return out}
+function block(page:PDFPage,text:string,font:PDFFont,size:number,x:number,y:number,width:number,color=c.ink,lineHeight=size*1.42,maxLines=30){const lines=wrap(text,font,size,width).slice(0,maxLines);lines.forEach((line,i)=>page.drawText(line,{x,y:y-i*lineHeight,size,font,color}));return y-lines.length*lineHeight}
+function base(page:PDFPage,kicker:string,title:string,regular:PDFFont,bold:PDFFont){page.drawRectangle({x:0,y:0,width:A4[0],height:A4[1],color:c.paper});page.drawRectangle({x:0,y:690,width:A4[0],height:151,color:c.night});page.drawText(kicker.toUpperCase(),{x:42,y:797,size:7.5,font:bold,color:c.cyan});wrap(title,bold,29,500).slice(0,2).forEach((line,i)=>page.drawText(line,{x:42,y:758-i*34,size:29,font:bold,color:c.white}));page.drawLine({start:{x:42,y:116},end:{x:553,y:116},thickness:.65,color:c.line});page.drawText("AI ESCAPE STUDIO · 360° SOURCED DOSSIER",{x:42,y:89,size:6.5,font:bold,color:c.muted})}
+function footer(page:PDFPage,no:number,total:number,regular:PDFFont){page.drawText(`${no}/${total}`,{x:520,y:88,size:6.5,font:regular,color:c.muted})}
+function priceLabel(price:number|null|undefined,currency:string|null|undefined,lang:"el"|"en"){return price!=null&&price>0?`${price.toLocaleString(lang==="el"?"el-GR":"en-GB",{maximumFractionDigits:2})} ${currency||"EUR"}`:say(lang,"Τιμή στον πάροχο","Price at provider")}
+function isSummer(start:string,end:string){for(let t=Date.parse(`${start}T00:00:00Z`),last=Date.parse(`${end}T00:00:00Z`);t<=last;t+=DAY){const m=new Date(t).getUTCMonth()+1;if(m>=6&&m<=9)return true}return false}
+function decodeTrip(token:string|null){if(!token)return null;try{const raw=JSON.parse(Buffer.from(token,"base64url").toString("utf8"));const parsed=parseTripRequest(raw);return parsed.success?parsed.data:null}catch{return null}}
+function fallbackTrip(start:string,end:string,lang:"el"|"en"):TripRequest{return{origin:"Athens",startDate:start,endDate:end,month:"flexible",nights:Math.max(1,Math.round((Date.parse(`${end}T00:00:00Z`)-Date.parse(`${start}T00:00:00Z`))/DAY)),budget:900,moods:["relax"],travelerType:"couple",language:lang,distancePreference:"any",pace:"balanced",hotelStyle:"any",avoid:"none",entryMode:"idea",groupSize:2,desiredEnergy:"balanced",socialPreference:"balanced",noveltyPreference:"balanced",mustHave:"none",dateFlexibility:"few-days",transportMode:"any",stayLocationPreference:"balanced"}}
+async function photo(pdf:PDFDocument,url?:string|null):Promise<PDFImage|null>{if(!url)return null;try{const response=await fetch(url,{headers:{"user-agent":"TravelAI/38 EscapeBook"},signal:AbortSignal.timeout(6500)});if(!response.ok)return null;const bytes=new Uint8Array(await response.arrayBuffer()),type=(response.headers.get("content-type")??"").toLowerCase();if(type.includes("png"))return await pdf.embedPng(bytes);return await pdf.embedJpg(bytes)}catch{return null}}
+function drawPhoto(page:PDFPage,image:PDFImage|null,x:number,y:number,w:number,h:number){if(!image){page.drawRectangle({x,y,width:w,height:h,color:c.deep});return}const scale=Math.max(w/image.width,h/image.height),iw=image.width*scale,ih=image.height*scale;page.drawImage(image,{x:x+(w-iw)/2,y:y+(h-ih)/2,width:iw,height:ih})}
+function addUriLink(pdf:PDFDocument,page:PDFPage,url:string,x:number,y:number,w:number,h:number){const annotation=pdf.context.register(pdf.context.obj({Type:"Annot",Subtype:"Link",Rect:[x,y,x+w,y+h],Border:[0,0,0],A:{Type:"Action",S:"URI",URI:PDFString.of(url)}}));page.node.set(PDFName.of("Annots"),pdf.context.obj([annotation]))}
+function placeCard(page:PDFPage,place:LocalPlaceV38,index:number,image:PDFImage|null,regular:PDFFont,bold:PDFFont,x:number,y:number,w:number,h:number,lang:"el"|"en"){page.drawRectangle({x,y,width:w,height:h,color:c.white,borderColor:c.line,borderWidth:.5});drawPhoto(page,image,x,y+h-92,w,92);page.drawText(`${String(index+1).padStart(2,"0")} · ${place.source.toUpperCase()}`,{x:x+12,y:y+h-111,size:6.2,font:bold,color:c.muted});wrap(place.name,bold,12,w-24).slice(0,2).forEach((line,i)=>page.drawText(line,{x:x+12,y:y+h-132-i*15,size:12,font:bold,color:c.ink}));let metaY=y+h-166;if(place.rating!=null){page.drawText(`★ ${place.rating.toFixed(1)}${place.ratingCount?` · ${place.ratingCount.toLocaleString()} ${say(lang,"κριτικές","reviews")}`:""}`,{x:x+12,y:metaY,size:7.5,font:bold,color:c.gold});metaY-=13}if(place.internalSignal?.aiScore!=null&&place.internalSignal.sampleSize>=3)page.drawText(`AI Guest Signal ${place.internalSignal.aiScore}/100 · n=${place.internalSignal.sampleSize}`,{x:x+12,y:metaY,size:6.7,font:bold,color:c.cyan});if(place.address)block(page,place.address,regular,6.7,x+12,y+18,w-24,c.muted,9,2)}
+async function aerialMedia(requestUrl:string,destination:string){try{const url=new URL("/api/escape/media",requestUrl);url.searchParams.set("destination",destination);url.searchParams.set("mode","aerial");const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(8500)});if(!response.ok)return[] as Array<{imageUrl:string;sourceUrl:string;title:string;license:string;attribution:string}>;const payload=await response.json() as {items?:Array<{imageUrl:string;sourceUrl:string;title:string;license:string;attribution:string}>};return(payload.items??[]).slice(0,4)}catch{return[]}}
 
-function wrap(text: string, font: PDFFont, size: number, maxWidth: number) {
-  const words = text.replace(/\s+/g, " ").trim().split(" ");
-  const lines: string[] = [];
-  let line = "";
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) line = candidate;
-    else { if (line) lines.push(line); line = word; }
-  }
-  if (line) lines.push(line);
-  return lines;
-}
+export async function GET(request:Request){
+ const url=new URL(request.url),slug=(url.searchParams.get("slug")??"").toLowerCase(),start=url.searchParams.get("start")??"",end=url.searchParams.get("end")??"",offerId=url.searchParams.get("offer")??"",tripToken=url.searchParams.get("trip"),requestedLang=url.searchParams.get("lang")==="en"?"en":"el";
+ if(!slugPattern.test(slug)||!iso.test(start)||!iso.test(end)||Date.parse(end)<=Date.parse(start)||!safeId.test(offerId))return Response.json({error:"Invalid guide request"},{status:400});
+ const[catalog,offers]=await Promise.all([loadV8DestinationCatalog(),loadV8StayOffers(slug,start,end,60)]).catch(()=>[[],[]] as const),destination=catalog.find(x=>x.slug===slug),offer=offers.find(x=>x.sourceProductId===offerId&&x.trackingUrl.startsWith("https://go.linkwi.se/")&&x.trackingUrl.includes("/CD104/")&&(!x.validFrom||Date.parse(x.validFrom)<=Date.parse(`${start}T23:59:59Z`))&&Boolean(x.validTo)&&Date.parse(x.validTo as string)>=Date.parse(`${end}T00:00:00Z`));
+ if(!destination||!offer)return Response.json({error:"No fully valid stay found for this guide"},{status:404});
+ const tokenTrip=decodeTrip(tripToken),lang=(tokenTrip?.language==="en"?"en":requestedLang) as "el"|"en",trip=tokenTrip??fallbackTrip(start,end,lang),destinationName=lang==="en"?destination.nameEn:destination.nameEl,summer=isSummer(start,end);
+ const[weather,local,research,aerial]=await Promise.all([getDailyTripWeatherV25(trip,destination.latitude,destination.longitude),getLocalIntelligenceV38({destinationSlug:slug,destinationName,hotelName:offer.propertyName,latitude:destination.latitude,longitude:destination.longitude,isSummer:summer,language:lang}),researchDestination({destination:destinationName,latitude:destination.latitude,longitude:destination.longitude,language:lang,travelerType:trip.travelerType,moods:trip.moods,nights:trip.nights}),aerialMedia(request.url,destinationName)]),budget=estimateBeyondHotelBudgetV25(trip,destination.costTier);
+ const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);const[regularBytes,boldBytes]=await Promise.all([readFile(path.join(process.cwd(),"public/fonts/DejaVuSans.ttf")),readFile(path.join(process.cwd(),"public/fonts/DejaVuSans-Bold.ttf"))]),regular=await pdf.embedFont(regularBytes,{subset:true}),bold=await pdf.embedFont(boldBytes,{subset:true});
+ const placeRows=[...local.attractions,...local.restaurants,...local.nightlife,...local.museums,...local.beaches],uniqueImageUrls=[...new Set(placeRows.map(x=>x.imageUrl).filter((x):x is string=>Boolean(x)))].slice(0,8),[coverImage,stayImage,...embeddedPlaces]=await Promise.all([photo(pdf,aerial[0]?.imageUrl??local.attractions[0]?.imageUrl??offer.imageUrl??offer.thumbUrl),photo(pdf,offer.imageUrl??offer.thumbUrl),...uniqueImageUrls.map(x=>photo(pdf,x))]),imageMap=new Map<string,PDFImage>();uniqueImageUrls.forEach((url,index)=>{const img=embeddedPlaces[index];if(img)imageMap.set(url,img)});
+ const qrData=await QRCode.toDataURL(offer.trackingUrl,{errorCorrectionLevel:"H",margin:2,width:460,color:{dark:"#071713",light:"#FFFDF8"}}),qr=await pdf.embedPng(Buffer.from(qrData.split(",")[1],"base64")),total=7,dateFmt=new Intl.DateTimeFormat(lang==="el"?"el-GR":"en-GB",{day:"numeric",month:"long",year:"numeric"}),dateLabel=`${dateFmt.format(new Date(`${start}T12:00:00Z`))} → ${dateFmt.format(new Date(`${end}T12:00:00Z`))}`;
 
-function drawTextBlock(page: PDFPage, text: string, font: PDFFont, size: number, x: number, y: number, width: number, color = palette.ink, lineHeight = size * 1.45) {
-  const lines = wrap(text, font, size, width);
-  lines.forEach((line, index) => page.drawText(line, { x, y: y - index * lineHeight, size, font, color }));
-  return y - lines.length * lineHeight;
-}
+ const cover=pdf.addPage(A4);cover.drawRectangle({x:0,y:0,width:A4[0],height:A4[1],color:c.night});drawPhoto(cover,coverImage,0,300,A4[0],542);cover.drawRectangle({x:0,y:0,width:A4[0],height:A4[1],color:c.night,opacity:.32});cover.drawRectangle({x:0,y:0,width:A4[0],height:390,color:c.night,opacity:.92});cover.drawText("YOUR ESCAPE BOOK · V38",{x:42,y:786,size:8,font:bold,color:c.cyan});wrap(destinationName,bold,51,500).slice(0,2).forEach((line,i)=>cover.drawText(line,{x:42,y:360-i*58,size:51,font:bold,color:c.white}));cover.drawText(dateLabel,{x:44,y:235,size:11,font:regular,color:c.gold});block(cover,research.overview??say(lang,"Μια απόδραση χτισμένη από πραγματικό inventory, καιρό, local signals και πηγές — όχι από generic λίστες.","An escape built from real inventory, weather, local signals and sources — not generic lists."),regular,12,44,202,495,c.white,18,5);cover.drawText(`${offer.propertyName} · ${priceLabel(offer.price,offer.currency,lang)}`,{x:44,y:104,size:9,font:bold,color:c.cyan});cover.drawText(aerial[0]?`${say(lang,"Φωτογραφία προορισμού","Destination image")}: ${aerial[0].attribution} · ${aerial[0].license}`:say(lang,"Εικόνα από τεκμηριωμένη πηγή","Image from sourced content"),{x:44,y:56,size:5.8,font:regular,color:rgb(.72,.75,.7)});footer(cover,1,total,regular);
 
-function drawTitle(page: PDFPage, kicker: string, title: string, font: PDFFont, bold: PDFFont) {
-  page.drawRectangle({ x: 0, y: 0, width: A4[0], height: A4[1], color: palette.paper });
-  page.drawRectangle({ x: 0, y: A4[1] - 155, width: A4[0], height: 155, color: palette.night });
-  page.drawText(kicker.toUpperCase(), { x: 44, y: 790, size: 8, font: bold, color: palette.cyan });
-  const lines = wrap(title, bold, 27, 500).slice(0, 2);
-  lines.forEach((line, index) => page.drawText(line, { x: 44, y: 752 - index * 33, size: 27, font: bold, color: palette.white }));
-}
+ const fit=pdf.addPage(A4);base(fit,"01 · WHY HERE · WHY NOW",say(lang,`Γιατί ${destinationName}`,`Why ${destinationName}`),regular,bold);let y=642;y=block(fit,research.overview??say(lang,"Η πρόταση πέρασε από season, route, inventory και local reality checks.","The choice passed season, route, inventory and local reality checks."),regular,13,44,y,500,c.ink,20,6)-24;fit.drawText(say(lang,"ΚΑΙΡΟΣ ΣΤΙΣ ΗΜΕΡΟΜΗΝΙΕΣ ΣΟΥ","WEATHER FOR YOUR DATES"),{x:44,y,size:7,font:bold,color:c.muted});const weatherY=y-22;weather.days.slice(0,5).forEach((day,i)=>{const x=44+i*102;fit.drawRectangle({x,y:weatherY-65,width:94,height:66,color:c.white,borderColor:c.line,borderWidth:.4});fit.drawText(day.date.slice(5),{x:x+10,y:weatherY-18,size:7,font:bold,color:c.muted});fit.drawText(`${day.temperatureMinC==null?"?":Math.round(day.temperatureMinC)}–${day.temperatureMaxC==null?"?":Math.round(day.temperatureMaxC)}°`,{x:x+10,y:weatherY-41,size:14,font:bold,color:c.ink});fit.drawText(day.source.toUpperCase(),{x:x+10,y:weatherY-56,size:5.2,font:regular,color:c.gold})});fit.drawRectangle({x:44,y:260,width:507,height:210,color:c.deep});fit.drawText("ESCAPE DNA",{x:62,y:442,size:7,font:bold,color:c.cyan});block(fit,trip.moods.map(x=>x.toUpperCase()).join(" · "),bold,19,62,410,455,c.white,25,4);block(fit,say(lang,`Ρυθμός: ${trip.pace}. Ενέργεια: ${trip.desiredEnergy}. Παρέα: ${trip.travelerType}.`,`Pace: ${trip.pace}. Energy: ${trip.desiredEnergy}. Travellers: ${trip.travelerType}.`),regular,9,62,342,455,rgb(.78,.84,.8),14,5);const ds=local.destinationSignal;if(ds?.aiScore!=null&&ds.sampleSize>=3)fit.drawText(`AI GUEST SIGNAL ${ds.aiScore}/100 · n=${ds.sampleSize}`,{x:62,y:287,size:7.5,font:bold,color:c.gold});footer(fit,2,total,regular);
 
-function drawBullet(page: PDFPage, text: string, y: number, font: PDFFont, bold: PDFFont, color = palette.ink) {
-  page.drawCircle({ x: 53, y: y + 4, size: 4, color: palette.violet });
-  const next = drawTextBlock(page, text, font, 11, 68, y, 455, color, 16);
-  return next - 8;
-}
+ const sights=pdf.addPage(A4);base(sights,"02 · DON'T MISS",say(lang,"Ό,τι αξίζει χώρο στο ταξίδι","What deserves space in the trip"),regular,bold);const attractionRows=local.attractions.slice(0,4);if(attractionRows.length)attractionRows.forEach((p,i)=>placeCard(sights,p,i,imageMap.get(p.imageUrl??"")??null,regular,bold,44+(i%2)*256,382-Math.floor(i/2)*252,244,230,lang));else block(sights,say(lang,"Δεν επέστρεψε αρκετή τεκμηρίωση για ranked αξιοθέατα. Δεν συμπληρώνουμε λίστα με εικασίες.","Not enough evidence returned for ranked attractions. We do not fill the list with guesses."),regular,13,48,610,495,c.ink,20,6);if(research.attractions.length){sights.drawText("GROUNDED RESEARCH NOTES",{x:44,y:177,size:7,font:bold,color:c.muted});let ry=157;for(const item of research.attractions.slice(0,3)){ry=block(sights,`${item.name}: ${item.whyItFits??item.summary}`,regular,8,44,ry,500,c.ink,12,2)-8}}footer(sights,3,total,regular);
 
-async function embedPhoto(pdf: PDFDocument, url?: string | null) {
-  if (!url) return null;
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(6000) });
-    if (!response.ok) return null;
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    const contentType = response.headers.get("content-type") ?? "";
-    return contentType.includes("png") ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
-  } catch { return null; }
-}
+ const food=pdf.addPage(A4);base(food,"03 · FOOD · DRINKS · LOCAL LIFE",say(lang,"Πού αξίζει να φας και να βγεις","Where it is worth eating and going out"),regular,bold);const restaurantRows=local.restaurants.slice(0,4),nightRows=local.nightlife.slice(0,2);food.drawText(say(lang,"RESTAURANTS · πραγματικό provider rating όπου υπάρχει","RESTAURANTS · real provider ratings where available"),{x:44,y:650,size:7,font:bold,color:c.muted});restaurantRows.forEach((p,i)=>placeCard(food,p,i,imageMap.get(p.imageUrl??"")??null,regular,bold,44+(i%2)*256,385-Math.floor(i/2)*230,244,210,lang));food.drawText(say(lang,"ΠΟΤΟ / ΒΡΑΔΥ","DRINKS / NIGHTLIFE"),{x:44,y:145,size:7,font:bold,color:c.muted});nightRows.slice(0,2).forEach((p,i)=>food.drawText(`${p.name}${p.rating!=null?` · ★ ${p.rating.toFixed(1)}`:""} · ${p.source}`,{x:44+i*256,y:122,size:7.5,font:bold,color:c.ink}));footer(food,4,total,regular);
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const slug = (url.searchParams.get("slug") ?? "").toLowerCase();
-  const start = url.searchParams.get("start") ?? "";
-  const end = url.searchParams.get("end") ?? "";
-  const offerId = url.searchParams.get("offer") ?? "";
-  if (!slugPattern.test(slug) || !iso.test(start) || !iso.test(end) || Date.parse(end) <= Date.parse(start) || !safeId.test(offerId)) return NextResponse.json({ error: "Invalid guide request" }, { status: 400 });
+ const stay=pdf.addPage(A4);base(stay,"04 · YOUR STAY",say(lang,"Η βάση της απόδρασής σου","The base for your escape"),regular,bold);drawPhoto(stay,stayImage,44,365,507,270);stay.drawRectangle({x:44,y:172,width:507,height:166,color:c.deep});stay.drawText(say(lang,"ΕΠΙΛΕΓΜΕΝΗ ΔΙΑΜΟΝΗ","SELECTED STAY"),{x:62,y:309,size:7,font:bold,color:c.cyan});block(stay,offer.propertyName,bold,23,62,278,430,c.white,28,2);stay.drawText(priceLabel(offer.price,offer.currency,lang),{x:62,y:219,size:11,font:bold,color:c.gold});block(stay,say(lang,"Το feed price είναι signal, όχι τελική τιμή κράτησης. Τελικό δωμάτιο, φόροι, όροι και live διαθεσιμότητα επιβεβαιώνονται στον πάροχο.","Feed price is a signal, not the final booking price. Room, taxes, terms and live availability are confirmed with the provider."),regular,8,62,196,460,rgb(.8,.84,.8),12,4);footer(stay,5,total,regular);
 
-  const [catalog, offers] = await Promise.all([loadV8DestinationCatalog(), loadV8StayOffers(slug, start, end, 25)]).catch(() => [[], []] as const);
-  const destination = catalog.find(item => item.slug === slug);
-  const offer = offers.find(item => item.sourceProductId === offerId && item.trackingUrl.startsWith("https://go.linkwi.se/") && item.trackingUrl.includes("/CD104/") && (!item.validFrom || Date.parse(item.validFrom) <= Date.parse(`${start}T23:59:59Z`)) && Boolean(item.validTo) && Date.parse(item.validTo as string) >= Date.parse(`${end}T00:00:00Z`));
-  if (!destination || !offer) return NextResponse.json({ error: "No fully valid stay found for this guide" }, { status: 404 });
+ const practical=pdf.addPage(A4);base(practical,"05 · KNOW BEFORE YOU GO",say(lang,"Χρήματα, τριβές και πηγές","Money, friction and sources"),regular,bold);practical.drawText(say(lang,"ΕΚΤΙΜΗΣΗ ΕΚΤΟΣ ΔΙΑΜΟΝΗΣ","BEYOND-STAY ESTIMATE"),{x:44,y:644,size:7,font:bold,color:c.muted});practical.drawText(`€${budget.totalLow}–€${budget.totalHigh}`,{x:44,y:596,size:34,font:bold,color:c.ink});block(practical,budget.note,regular,9,44,572,500,c.muted,14,4);let py=505;for(const note of research.practicalNotes.slice(0,7)){practical.drawCircle({x:50,y:py+3,size:3,color:c.gold});py=block(practical,note,regular,9,64,py,470,c.ink,14,3)-10}practical.drawRectangle({x:44,y:145,width:507,height:128,color:c.white,borderColor:c.line,borderWidth:.5});practical.drawText("360° DISCLOSURE",{x:60,y:247,size:7,font:bold,color:c.cyan});block(practical,local.sourceDisclosure,regular,7.5,60,226,475,c.muted,11,6);practical.drawText(`${say(lang,"Πηγές","Providers")}: ${local.providers.join(" + ")||"Open data"}`,{x:60,y:164,size:6.5,font:bold,color:c.ink});footer(practical,6,total,regular);
 
-  const pdf = await PDFDocument.create();
-  pdf.registerFontkit(fontkit);
-  const [regularBytes, boldBytes] = await Promise.all([
-    readFile(path.join(process.cwd(), "public/fonts/DejaVuSans.ttf")),
-    readFile(path.join(process.cwd(), "public/fonts/DejaVuSans-Bold.ttf")),
-  ]);
-  const regular = await pdf.embedFont(regularBytes, { subset: true });
-  const bold = await pdf.embedFont(boldBytes, { subset: true });
-  const qrData = await QRCode.toDataURL(offer.trackingUrl, { errorCorrectionLevel: "H", margin: 2, width: 420, color: { dark: "#061424", light: "#FFFDF8" } });
-  const qr = await pdf.embedPng(Buffer.from(qrData.split(",")[1], "base64"));
-  const [evidence, insights, photo, ...gallery] = await Promise.all([
-    loadDestinationEvidence(slug,start,end),
-    researchDestination({destination:destination.nameEl,latitude:destination.latitude,longitude:destination.longitude,language:"el",nights:Math.max(1,Math.round((Date.parse(end)-Date.parse(start))/86400000))}),
-    embedPhoto(pdf, offer.imageUrl || offer.thumbUrl),
-    ...offers.filter(item=>item.sourceProductId!==offer.sourceProductId).slice(0,3).map(item=>embedPhoto(pdf,item.imageUrl||item.thumbUrl)),
-  ]);
-  const seo = destinationSeo(destination);
-  const dateLabel = `${new Intl.DateTimeFormat("el-GR", { day: "numeric", month: "long" }).format(new Date(`${start}T12:00:00Z`))} - ${new Intl.DateTimeFormat("el-GR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${end}T12:00:00Z`))}`;
+ const ready=pdf.addPage(A4);ready.drawRectangle({x:0,y:0,width:A4[0],height:A4[1],color:c.night});ready.drawText("READY WHEN YOU ARE",{x:44,y:783,size:8,font:bold,color:c.cyan});block(ready,say(lang,"Το Escape Book τελειώνει εδώ. Η εμπορική ενέργεια ξεκινά μόνο αν το επιλέξεις εσύ.","The Escape Book ends here. The commercial action starts only if you choose it."),bold,25,44,718,500,c.white,32,4);ready.drawImage(qr,{x:44,y:385,width:188,height:188});ready.drawText(say(lang,"ΣΚΑΝΑΡΕ ΓΙΑ ΤΗΝ ΤΡΕΧΟΥΣΑ ΠΡΟΣΦΟΡΑ","SCAN FOR THE CURRENT PROVIDER OFFER"),{x:265,y:536,size:7,font:bold,color:c.gold});block(ready,offer.propertyName,bold,18,265,505,280,c.white,22,3);block(ready,priceLabel(offer.price,offer.currency,lang),bold,10,265,432,270,c.cyan,14,2);block(ready,say(lang,"Affiliate disclosure: ο σύνδεσμος είναι affiliate. Αν ολοκληρώσεις αγορά, ενδέχεται να λάβουμε προμήθεια χωρίς επιπλέον κόστος για εσένα.","Affiliate disclosure: this is an affiliate link. If you purchase, we may earn a commission at no extra cost to you."),regular,8,265,397,270,rgb(.74,.8,.76),12,6);ready.drawRectangle({x:44,y:205,width:507,height:54,color:c.gold});ready.drawText(say(lang,"ΑΝΟΙΞΕ ΤΗΝ ΠΡΟΣΦΟΡΑ ΣΤΟΝ ΠΑΡΟΧΟ ↗","OPEN THE PROVIDER OFFER ↗"),{x:69,y:225,size:10,font:bold,color:c.night});addUriLink(pdf,ready,offer.trackingUrl,44,205,507,54);block(ready,offer.trackingUrl,regular,5.2,44,165,507,rgb(.55,.62,.58),8,3);ready.drawText(say(lang,"Ακριβές tracking URL · δεν τροποποιήθηκε","Exact tracking URL · unchanged"),{x:44,y:124,size:6.5,font:bold,color:c.cyan});footer(ready,7,total,regular);
 
-  const footer = (page: PDFPage, pageNo: number) => {
-    page.drawLine({ start: { x: 42, y: 102 }, end: { x: 553, y: 102 }, thickness: .7, color: rgb(.78, .8, .8) });
-    page.drawImage(qr, { x: 43, y: 21, width: 69, height: 69 });
-    page.drawText("ΣΚΑΝΑΡΕ ΤΟ ΑΚΡΙΒΕΣ LINK ΤΗΣ ΕΠΙΛΟΓΗΣ", { x: 126, y: 75, size: 7.4, font: bold, color: palette.violet });
-    page.drawText("Τελική τιμή, δωμάτιο, όροι και διαθεσιμότητα", { x: 126, y: 60, size: 7, font: regular, color: palette.ink });
-    const urlLines = wrap(offer.trackingUrl, regular, 4.6, 375).slice(0, 2);
-    urlLines.forEach((line, index) => page.drawText(line, { x: 126, y: 44 - index * 7, size: 4.6, font: regular, color: palette.muted }));
-    page.drawText(`${pageNo}/10`, { x: 520, y: 29, size: 7, font: bold, color: palette.muted });
-  };
-
-  const cover = pdf.addPage(A4);
-  cover.drawRectangle({ x: 0, y: 0, width: A4[0], height: A4[1], color: palette.night });
-  if (photo) { const scaled = photo.scaleToFit(A4[0], 485); cover.drawImage(photo, { x: (A4[0] - scaled.width) / 2, y: 357, width: scaled.width, height: scaled.height }); cover.drawRectangle({ x: 0, y: 357, width: A4[0], height: 485, color: palette.night, opacity: .35 }); }
-  cover.drawText("TRAVEL DOSSIER · 10 ΣΕΛΙΔΕΣ · ΜΟΝΟ ΓΙΑ ΑΥΤΗ ΤΗΝ ΕΠΙΛΟΓΗ", { x: 42, y: 792, size: 8, font: bold, color: palette.cyan });
-  cover.drawText(destination.nameEl, { x: 42, y: 640, size: Math.min(58, 410 / Math.max(1, destination.nameEl.length) * 1.8), font: bold, color: palette.white });
-  cover.drawText(dateLabel, { x: 44, y: 606, size: 13, font: regular, color: palette.white });
-  drawTextBlock(cover, seo.intro, regular, 14, 44, 300, 470, palette.white, 21);
-  cover.drawRectangle({ x: 42, y: 132, width: 510, height: 92, color: palette.navy, borderColor: palette.cyan, borderWidth: .6 });
-  cover.drawText("Η επιλογή διαμονής που περνά τον έλεγχο ημερομηνιών", { x: 58, y: 198, size: 8, font: bold, color: palette.cyan });
-  drawTextBlock(cover, offer.propertyName, bold, 16, 58, 173, 365, palette.white, 20);
-  footer(cover, 1);
-
-  const fit = pdf.addPage(A4); drawTitle(fit, "01 · Η ΑΠΟΦΑΣΗ", `Γιατί ${destination.nameEl}`, regular, bold);
-  let y = 650; y = drawTextBlock(fit, seo.intro, regular, 15, 46, y, 495, palette.ink, 22) - 26;
-  y = drawBullet(fit, `Καλύτερη διάρκεια: ${seo.idealNights}.`, y, regular, bold);
-  y = drawBullet(fit, `Δυνατά στοιχεία: ${seo.labels.join(", ") || "τοπικός χαρακτήρας και ισορροπημένος ρυθμός"}.`, y, regular, bold);
-  y = drawBullet(fit, seo.crowd, y, regular, bold);
-  y = drawBullet(fit, seo.cost, y, regular, bold);
-  drawTextBlock(fit, "Η σωστή ερώτηση δεν είναι αν ο προορισμός είναι όμορφος. Είναι αν υποστηρίζει το ταξίδι που χρειάζεσαι τώρα.", bold, 17, 46, y - 20, 495, palette.violet, 24);
-  const monthIndex=Math.max(0,Math.min(11,Number(start.slice(5,7))-1));
-  const metrics:[[string,number],[string,number],[string,number],[string,number]]=[["ΕΠΟΧΗ",destination.monthFit[monthIndex]??60],["ΕΥΚΟΛΙΑ ΔΙΑΔΡΟΜΗΣ",Math.round(destination.routeConfidence*100)],["ΙΣΟΡΡΟΠΙΑ ΚΟΣΜΟΥ",Math.max(15,110-destination.crowdLevel*18)],["ΕΛΕΓΧΟΣ BUDGET",Math.max(20,110-destination.costTier*17)]];
-  let metricY=245;for(const[label,value]of metrics){fit.drawText(label,{x:48,y:metricY+12,size:7,font:bold,color:palette.muted});fit.drawRectangle({x:48,y:metricY,width:470,height:7,color:rgb(.84,.84,.84)});fit.drawRectangle({x:48,y:metricY,width:470*Math.max(0,Math.min(100,value))/100,height:7,color:value>=75?palette.cyan:value>=55?palette.violet:rgb(.85,.42,.25)});fit.drawText(`${Math.round(value)}/100`,{x:524,y:metricY-1,size:7,font:bold,color:palette.ink});metricY-=36;}footer(fit, 2);
-
-  const reputation = pdf.addPage(A4); drawTitle(reputation, "02 · Η ΚΟΙΝΩΝΙΚΗ ΑΠΟΔΕΙΞΗ", "Τι γνωρίζουμε πραγματικά", regular, bold);
-  y = 650;
-  if (evidence.tripadvisor.length) {
-    for (const item of evidence.tripadvisor.slice(0,4)) {
-      reputation.drawRectangle({ x: 44, y: y - 60, width: 507, height: 91, color: palette.white, borderColor: rgb(.78,.74,.92), borderWidth: .7 });
-      reputation.drawText(`TRIPADVISOR · ${(item.sourceMonth??item.observedAt).slice(0,7)}`, { x: 58, y: y + 10, size: 7.5, font: bold, color: palette.violet });
-      drawTextBlock(reputation,item.subjectName,bold,15,58,y-11,285,palette.ink,19);
-      if(item.rank!=null)reputation.drawText(`#${item.rank}`,{x:390,y:y-15,size:25,font:bold,color:palette.violet});
-      if(item.rating!=null)reputation.drawText(`${item.rating}/${item.ratingScale??5}`,{x:442,y:y-15,size:18,font:bold,color:palette.ink});
-      drawTextBlock(reputation,item.headline,regular,8.5,58,y-39,450,palette.muted,12);
-      y-=108;
-    }
-  } else {
-    reputation.drawRectangle({x:44,y:390,width:507,height:220,color:rgb(.92,.9,1),borderColor:palette.violet,borderWidth:.8});
-    drawTextBlock(reputation,"Δεν δημοσιεύουμε παλιό ranking για να δανειστούμε αξιοπιστία.",bold,22,68,560,455,palette.ink,30);
-    drawTextBlock(reputation,"Δεν υπάρχει ενεργό, επαληθευμένο Tripadvisor snapshot για αυτή την επιλογή. Η απουσία εμφανίζεται καθαρά αντί να αντικαθίσταται από εικασία ή κατασκευασμένο score.",regular,12,68,470,455,palette.ink,18);
-  }
-  footer(reputation,3);
-
-  const onDates = pdf.addPage(A4); drawTitle(onDates, "03 · ΣΤΙΣ ΗΜΕΡΟΜΗΝΙΕΣ ΣΟΥ", "Γεγονότα, τόπος και πραγματικές εικόνες", regular, bold);
-  y=650;
-  if(evidence.events.length){for(const item of evidence.events.slice(0,3)){onDates.drawText(item.startsAt?new Intl.DateTimeFormat("el-GR",{day:"numeric",month:"short"}).format(new Date(item.startsAt)):"EVENT",{x:48,y,size:10,font:bold,color:palette.violet});y=drawTextBlock(onDates,item.subjectName,bold,16,132,y+3,395,palette.ink,21)-4;y=drawTextBlock(onDates,item.summary||item.headline,regular,9.5,132,y,395,palette.muted,14)-24;}}
-  else {y=drawTextBlock(onDates,"Δεν βρέθηκε ακόμη εκδήλωση που να περνά ταυτόχρονα τον έλεγχο επίσημης πηγής, τοποθεσίας και ημερομηνίας.",bold,15,48,y,495,palette.ink,22)-28;}
-  const galleryImages=gallery.filter((item):item is NonNullable<typeof item>=>Boolean(item));
-  if(galleryImages.length){const cellW=galleryImages.length===1?500:galleryImages.length===2?245:160;galleryImages.forEach((img,index)=>{const scaled=img.scaleToFit(cellW,160);const x=47+index*(cellW+10);onDates.drawImage(img,{x,y:170,width:scaled.width,height:scaled.height});});onDates.drawText("ΠΡΑΓΜΑΤΙΚΕΣ ΕΙΚΟΝΕΣ ΑΠΟ ΕΝΕΡΓΕΣ ΕΠΙΛΟΓΕΣ ΔΙΑΜΟΝΗΣ ΤΗΣ ΒΑΣΗΣ",{x:48,y:150,size:7,font:bold,color:palette.violet});}
-  footer(onDates,4);
-
-  const rhythm = pdf.addPage(A4); drawTitle(rhythm, "04 · Ο ΡΥΘΜΟΣ", "Τέσσερις ημέρες χωρίς πρόγραμμα-μαραθώνιο", regular, bold);
-  const days = [
-    ["Ημέρα 1", "Άφιξη, τακτοποίηση και μία πρώτη βόλτα χωρίς λίστα υποχρεώσεων."],
-    ["Ημέρα 2", destination.tags.includes("nature") ? "Μία ολοκληρωμένη εμπειρία φύσης και αρκετός χρόνος για επιστροφή χωρίς πίεση." : "Η χαρακτηριστική εμπειρία του τόπου, με χρόνο για στάσεις και τοπική ζωή."],
-    ["Ημέρα 3", destination.tags.includes("beach") ? "Θάλασσα στον δικό σου ρυθμό και ένα βράδυ αφιερωμένο στη γεύση." : "Ημέρα επιλογής: πολιτισμός, γεύση ή εξερεύνηση, όχι και τα τρία μαζί."],
-    ["Ημέρα 4", "Μία τελευταία εικόνα που άξιζε και αναχώρηση χωρίς αγχωτικό check-list."],
-  ];
-  y = 650; for (const [label, copy] of days) { rhythm.drawText(label, { x: 48, y, size: 11, font: bold, color: palette.violet }); y = drawTextBlock(rhythm, copy, regular, 12, 145, y, 390, palette.ink, 18) - 24; } footer(rhythm, 5);
-
-  const budget = pdf.addPage(A4); drawTitle(budget, "05 · ΤΟ BUDGET", "Πού αξίζει να δώσεις και πού όχι", regular, bold);
-  y = 650; const budgetItems = [
-    ["Δώσε στη θέση", "Η σωστή περιοχή μειώνει χαμένο χρόνο, μετακινήσεις και αποφάσεις."],
-    ["Πλήρωσε την ηρεμία όταν χρειάζεται", "Ένα ήσυχο δωμάτιο ή ένα καλό πρωινό μπορεί να αξίζει περισσότερο από μία ακόμη παροχή."],
-    ["Μην κυνηγάς κάθε αξιοθέατο", "Το γεμάτο πρόγραμμα δημιουργεί έξτρα κόστη χωρίς ανάλογη εμπειρία."],
-    ["Κράτησε περιθώριο", "Άφησε 10%-15% του ταξιδιωτικού budget ελεύθερο για αυτό που θα ανακαλύψεις εκεί."],
-  ]; for (const [label, copy] of budgetItems) { budget.drawRectangle({ x: 44, y: y - 42, width: 507, height: 72, color: palette.white, borderColor: rgb(.82, .82, .82), borderWidth: .5 }); budget.drawText(label, { x: 59, y: y + 8, size: 11, font: bold, color: palette.violet }); drawTextBlock(budget, copy, regular, 10, 59, y - 12, 470, palette.ink, 14); y -= 91; } footer(budget, 6);
-
-  const experiences = pdf.addPage(A4); drawTitle(experiences, "06 · Ο ΤΟΠΟΣ", "Εμπειρίες που υπηρετούν τον λόγο του ταξιδιού", regular, bold);
-  const experienceList = insights.attractions.length?insights.attractions.slice(0,4).map(item=>`${item.name}: ${item.whyItFits||item.summary||"Χαρακτηριστική εμπειρία του τόπου."}`):[
-    destination.tags.includes("food") ? "Κλείσε μία γευστική εμπειρία που βασίζεται σε τοπική κουζίνα, όχι στο πιο φωτογραφημένο τραπέζι." : "Διάλεξε ένα γεύμα με τοπικό χαρακτήρα και χρόνο, όχι τρία βιαστικά stops.",
-    destination.tags.includes("nature") ? "Προτίμησε μία ολοκληρωμένη διαδρομή στη φύση με ρεαλιστική επιστροφή πριν κουραστείς." : "Άφησε μία διαδρομή εκτός του πιο προβεβλημένου κέντρου.",
-    destination.tags.includes("culture") ? "Συνδύασε ένα πολιτιστικό σημείο με τη γειτονιά γύρω του, ώστε να καταλάβεις τον τόπο και όχι μόνο το μνημείο." : "Βρες το σημείο όπου συναντιούνται η καθημερινή ζωή και η ιστορία του τόπου.",
-    destination.tags.includes("nightlife") ? "Διάλεξε ένα βράδυ με ενέργεια και κράτησε το επόμενο πρωινό ελαφρύ." : "Κράτησε ένα βράδυ ανοιχτό για αυθόρμητη επιλογή.",
-  ]; y = 650; experienceList.forEach((item, index) => { experiences.drawText(`0${index + 1}`, { x: 48, y, size: 27, font: bold, color: palette.cyan }); y = drawTextBlock(experiences, item, regular, 12, 110, y + 4, 425, palette.ink, 18) - 30; }); footer(experiences, 7);
-
-  const risks = pdf.addPage(A4); drawTitle(risks, "07 · Ο ΕΙΛΙΚΡΙΝΗΣ ΕΛΕΓΧΟΣ", "Τι μπορεί να χαλάσει την επιλογή", regular, bold);
-  y = 650; y = drawBullet(risks, seo.crowd, y, regular, bold); y = drawBullet(risks, seo.cost, y, regular, bold); y = drawBullet(risks, "Μην θεωρήσεις ότι μία ωραία πρόγνωση είναι εγγύηση. Έλεγξε ξανά τον καιρό κοντά στην αναχώρηση.", y, regular, bold); y = drawBullet(risks, "Η τελική τιμή, ο τύπος δωματίου και οι όροι επιβεβαιώνονται πάντα στην επόμενη σελίδα πριν προχωρήσεις.", y, regular, bold); risks.drawRectangle({ x: 45, y: 250, width: 505, height: 110, color: rgb(.92, .9, 1), borderColor: palette.violet, borderWidth: .7 }); drawTextBlock(risks, "Κανόνας του Guru: αν ένας συμβιβασμός χτυπά κόκκινη γραμμή σου, η επιλογή απορρίπτεται - ακόμη κι αν είναι δημοφιλής.", bold, 15, 65, 325, 460, palette.ink, 22); footer(risks, 8);
-
-  const packing = pdf.addPage(A4); drawTitle(packing, "08 · Η ΠΡΟΕΤΟΙΜΑΣΙΑ", "Η μικρή λίστα που αποτρέπει τα μεγάλα λάθη", regular, bold);
-  y = 650; const checklist = ["Ταυτότητα, εισιτήρια και επιβεβαίωση ονόματος κράτησης", "Έλεγχος καιρού 72 και 24 ώρες πριν", "Μία δεύτερη επιλογή δραστηριότητας για αλλαγή καιρού", "Παπούτσι που αντέχει τον πραγματικό ρυθμό του ταξιδιού", "Offline αντίγραφο διεύθυνσης και βασικών στοιχείων διαμονής", "Ελεύθερος χώρος στο πρόγραμμα - τουλάχιστον μισή ημέρα"]; checklist.forEach(item => { packing.drawRectangle({ x: 49, y: y - 2, width: 14, height: 14, color: palette.white, borderColor: palette.violet, borderWidth: 1 }); y = drawTextBlock(packing, item, regular, 11, 78, y + 1, 455, palette.ink, 16) - 20; }); footer(packing, 9);
-
-  const final = pdf.addPage(A4); drawTitle(final, "09 · ΤΟ ΕΠΟΜΕΝΟ ΒΗΜΑ", "Η επιλογή σου, χωρίς κρυφή βιασύνη", regular, bold);
-  final.drawText(destination.nameEl, { x: 46, y: 650, size: 36, font: bold, color: palette.violet });
-  final.drawText(dateLabel, { x: 47, y: 615, size: 12, font: regular, color: palette.muted });
-  final.drawRectangle({ x: 44, y: 390, width: 507, height: 170, color: palette.night });
-  final.drawText("Η ΔΙΑΜΟΝΗ ΠΟΥ ΕΠΕΛΕΞΕΣ ΝΑ ΕΛΕΓΞΕΙΣ", { x: 64, y: 525, size: 8, font: bold, color: palette.cyan });
-  drawTextBlock(final, offer.propertyName, bold, 21, 64, 490, 455, palette.white, 28);
-  drawTextBlock(final, "Το QR στο κάτω μέρος σε οδηγεί στην τελική σελίδα ελέγχου. Διάβασε τιμή, δωμάτιο, ακυρωτικά και παροχές πριν ολοκληρώσεις οποιαδήποτε απόφαση.", regular, 11, 64, 430, 455, palette.white, 17);
-  final.drawImage(qr,{x:202,y:170,width:190,height:190});
-  final.drawText("ΣΚΑΝΑΡΕ ΤΗ ΣΥΓΚΕΚΡΙΜΕΝΗ ΕΠΙΛΟΓΗ",{x:185,y:145,size:9,font:bold,color:palette.violet});
-  drawTextBlock(final, "Αν κάτι δεν συμφωνεί με τις ημερομηνίες ή τις ανάγκες σου, γύρισε πίσω. Μία σωστή ταξιδιωτική απόφαση αντέχει και στον τελευταίο έλεγχο.", bold, 13, 46, 125, 500, palette.ink, 19); footer(final, 10);
-
-  pdf.setTitle(`${destination.nameEl} - Προσωπικός ταξιδιωτικός οδηγός`);
-  pdf.setAuthor("Ελληνικός AI Travel Guru");
-  pdf.setSubject("Προσωποποιημένος ταξιδιωτικός οδηγός");
-  const bytes = await pdf.save();
-  return new NextResponse(Buffer.from(bytes), { status: 200, headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="travel-guide-${slug}.pdf"`, "cache-control": "private, no-store", "x-content-type-options": "nosniff" } });
+ const bytes=await pdf.save();return new Response(Buffer.from(bytes),{status:200,headers:{"content-type":"application/pdf","content-disposition":`attachment; filename="escape-book-${slug}.pdf"`,"cache-control":"private, no-store","x-escape-book":"v38"}})
 }

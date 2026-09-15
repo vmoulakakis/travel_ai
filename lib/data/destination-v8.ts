@@ -5,9 +5,18 @@ import { mergeV30DestinationFallbacks } from "@/lib/data/destination-fallback-v3
 const CATALOG_URL=process.env.SUPABASE_DESTINATION_CATALOG_V8_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/destination-catalog-v8";
 const STAYS_URL=process.env.SUPABASE_DESTINATION_STAYS_V8_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/destination-stays-v8";
 const text=(v:unknown)=>typeof v==="string"&&v.trim()?v.trim():null;
-const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
+function num(v:unknown){
+ if(v==null)return null;
+ if(typeof v==="string"){
+  const raw=v.trim();if(!raw)return null;
+  const normalized=/^-?\d{1,3}(?:\.\d{3})*,\d+$/.test(raw)?raw.replace(/\./g,"").replace(",","."):/^-?\d+,\d+$/.test(raw)?raw.replace(",","."):raw;
+  const parsed=Number(normalized);return Number.isFinite(parsed)?parsed:null;
+ }
+ const parsed=Number(v);return Number.isFinite(parsed)?parsed:null;
+}
+const money=(v:unknown)=>{const parsed=num(v);return parsed!=null&&parsed>0?parsed:null};
 function vector(v:unknown){if(Array.isArray(v))return v.map(Number).filter(Number.isFinite).slice(0,16);if(typeof v!=="string")return[];return v.replace(/^\[/,"").replace(/\]$/,"").split(",").map(Number).filter(Number.isFinite).slice(0,16)}
-function cleanHtml(v:string|null){return v?v.replace(/<[^>]*>/g," ").replace(/&nbsp;/gi," ").replace(/\s+/g," ").trim():null}
+function cleanHtml(v:string|null){return v?v.replace(/<[^>]*>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/\s+/g," ").trim():null}
 function readHeaders():Record<string,string>{const headers:Record<string,string>={"user-agent":"travel-guru/1.0"},secret=process.env.SUPABASE_INGEST_SECRET;if(secret)headers["x-app-secret"]=secret;return headers}
 
 async function fetchJson<T>(url:string,timeoutMs:number):Promise<T>{
@@ -44,7 +53,7 @@ export async function loadV8DestinationCatalog():Promise<V8Destination[]>{
 function mapOffer(row:Record<string,unknown>):V8StayOffer|null{
  const trackingUrl=text(row.tracking_url),sourceProductId=text(row.source_product_id),propertyName=text(row.property_name);
  if(!trackingUrl||!sourceProductId||!propertyName||!trackingUrl.startsWith("https://go.linkwi.se/")||!trackingUrl.includes("/CD104/"))return null;
- const base:AffiliateOffer={sourceProductId,propertyName,description:cleanHtml(text(row.description)),category:text(row.source_category),programId:text(row.program_id),trackingUrl,imageUrl:text(row.image_url),thumbUrl:text(row.thumb_url),availability:text(row.availability),validFrom:text(row.valid_from),validTo:text(row.valid_to),currency:text(row.currency),price:num(row.price),fullPrice:num(row.full_price),discount:num(row.discount),demandSignal:num(row.demand_proxy),starLevel:null};
+ const base:AffiliateOffer={sourceProductId,propertyName,description:cleanHtml(text(row.description)),category:text(row.source_category),programId:text(row.program_id),trackingUrl,imageUrl:text(row.image_url),thumbUrl:text(row.thumb_url),availability:text(row.availability),validFrom:text(row.valid_from),validTo:text(row.valid_to),currency:text(row.currency),price:money(row.price),fullPrice:money(row.full_price),discount:num(row.discount),demandSignal:num(row.demand_proxy),starLevel:null};
  const starMatch=propertyName.match(/(?:^|\s)([1-5])\s*\*/);if(starMatch)base.starLevel=Number(starMatch[1]);
  const raw=row.raw&&typeof row.raw==="object"&&!Array.isArray(row.raw)?row.raw as Record<string,unknown>:{};
  return{...base,inStock:typeof row.in_stock==="boolean"?row.in_stock:null,city:text(row.city),address:text(row.address),distanceKm:num(row.distance_km),latitude:num(row.latitude)??num(raw.latitude),longitude:num(row.longitude)??num(raw.longitude),raw};
