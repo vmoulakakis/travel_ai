@@ -19,7 +19,7 @@ const resolvedSiteUrl = getSiteUrl();
 export const metadata: Metadata = {
   metadataBase: new URL(resolvedSiteUrl),
   title: { default: "AI Holiday Solver | Βρες την απόδραση που πραγματικά χρειάζεσαι", template: "%s · AI Travel Escape" },
-  description: "AI travel expert για weekend breaks και διακοπές: ξεκινά από το πώς θέλεις να νιώσεις, δημιουργεί το Escape DNA σου, προτείνει ημερομηνίες όταν χρειάζεται και βρίσκει 3 διαφορετικές αποδράσεις πριν χτίσει το 360° ταξίδι.",
+  description: "AI travel expert για weekend breaks και διακοπές: ξεκινά από το πώς θέλεις να νιώσεις, δημιουργεί το Escape DNA σου, βρίσκει πότε αξίζει να φύγεις και συγκρίνει πραγματικό stay inventory για έως 10 αιτιολογημένες ταξιδιωτικές λύσεις.",
   applicationName: "AI Travel Escape",
   authors: [{ name: SITE_NAME, url: resolvedSiteUrl }],
   creator: SITE_NAME,
@@ -28,15 +28,15 @@ export const metadata: Metadata = {
   alternates: { canonical: "/", languages: { "el-GR": "/", "en-GB": "/en" } },
   robots: { index: true, follow: true },
   openGraph: {
-    title: "AI Travel Escape — πρώτα καταλαβαίνει εσένα, μετά βρίσκει πού να πας",
-    description: "Από πραγματική ανάγκη και Escape DNA σε έξυπνα date windows, 3 semantic-matched escapes και 360° verified trip plan.",
+    title: "AI Travel Escape — πρώτα καταλαβαίνει εσένα, μετά ελέγχει τι υπάρχει πραγματικά",
+    description: "Από ανάγκη και Escape DNA σε date strategy, destination fit, πραγματικό stay inventory και έως 10 αιτιολογημένες λύσεις πριν το 360° trip build.",
     type: "website",
     locale: "el_GR",
     alternateLocale: ["en_GB"],
     siteName: "AI Travel Escape",
     images: [{ url: "/api/og?name=AI%20Travel%20Escape", width: 1200, height: 630, alt: "AI Travel Escape" }],
   },
-  twitter: { card: "summary_large_image", title: "AI Travel Escape", description: "Start with how you want the trip to feel. AI understands your Escape DNA, finds when and where it makes sense, then builds the trip.", images: ["/api/og?name=AI%20Travel%20Escape"] },
+  twitter: { card: "summary_large_image", title: "AI Travel Escape", description: "AI travel decisions from Escape DNA to destination fit, real stay inventory and up to 10 justified solutions.", images: ["/api/og?name=AI%20Travel%20Escape"] },
   verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : undefined,
 };
 
