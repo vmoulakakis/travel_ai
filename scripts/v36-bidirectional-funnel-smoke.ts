@@ -6,6 +6,7 @@ const home=read("components/v36-escape-funnel.tsx");
 const css=read("components/v36-escape-funnel.module.css");
 const ranker=read("lib/decision/solution-ranking-v36.ts");
 const route=read("app/api/escape/solve-v36/stream/route.ts");
+const media=read("app/api/escape/media/route.ts");
 const gr=read("app/page.tsx"),en=read("app/en/page.tsx"),layout=read("app/layout.tsx");
 const failures:string[]=[];
 const expect=(condition:boolean,message:string)=>{if(!condition)failures.push(message)};
@@ -28,6 +29,9 @@ expect(ranker.includes("semanticScore")&&ranker.includes("valueScore")&&ranker.i
 expect(ranker.includes("trackingUrl:offer.trackingUrl"),"original affiliate tracking URL must be preserved");
 expect(route.includes("forward-recovery")&&route.includes("buildEscapeSolutionsV36(trip,base,10)"),"failed forward reasoning must recover through inventory-led reverse search");
 expect(layout.includes("έως 10 πραγματικές λύσεις")&&!layout.includes("3 semantic-matched escapes"),"SEO copy must match the V36 product truth");
+expect(media.includes("strongPlaceMatch")&&media.includes("description.slice(0,420)"),"cinematic media must require strong title or short-description place relevance");
+expect(media.includes('return"Madeira Portugal"')&&media.includes('return"Milos Greece"')&&media.includes('return"Kotor Montenegro"'),"abstract mood searches must map to curated real-place visual anchors");
+expect(media.includes("strict-place-cinematic-media"),"strict V36 media policy marker missing");
 
 if(failures.length){console.error("V36 bidirectional funnel smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log("V36 bidirectional funnel smoke passed: five-screen no-scroll UX, rotating mood cinematography, global inventory recovery, ten stay-backed solutions and evidence-based stay reasoning are wired.");
+console.log("V36 bidirectional funnel smoke passed: five-screen no-scroll UX, rotating mood cinematography, strict visual relevance, global inventory recovery, ten stay-backed solutions and evidence-based stay reasoning are wired.");
