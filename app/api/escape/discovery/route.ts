@@ -4,7 +4,11 @@ import { createLLMRequestBudgetV16, generateJsonWithRoutingV16 } from "@/lib/ai/
 
 const questionIds=["companions","outcome","social","novelty","must_have","friction"] as const;
 const QuestionId=z.enum(questionIds);
-const AnswerSchema=z.object({questionId:QuestionId,value:z.string().trim().min(1).max(80)});
+const AnswerValue=z.union([
+ z.string().trim().min(1).max(160),
+ z.array(z.string().trim().min(1).max(80)).min(1).max(4)
+]).transform(value=>Array.isArray(value)?value.join(", "):value);
+const AnswerSchema=z.object({questionId:QuestionId,value:AnswerValue});
 const InputSchema=z.object({locale:z.enum(["el","en"]).default("el"),initialText:z.string().trim().min(3).max(700),answers:z.array(AnswerSchema).max(6).default([])});
 
 type QuestionId=z.infer<typeof QuestionId>;
@@ -23,12 +27,12 @@ function deterministic(locale:"el"|"en",initialText:string,answers:Array<{questi
  const answerMap=new Map(answers.map(a=>[a.questionId,a.value]));
  const travelerType:Profile["travelerType"]=has(text,/(παιδ|kids|children|family|οικογεν)/)?"family":has(text,/(γυναικ|αντρα|συντροφ|wife|husband|partner|couple|ζευγ)/)?"couple":has(text,/(φιλ|friends|παρεα)/)?"friends":has(text,/(μονος|μόνος|solo|alone)/)?"solo":"couple";
  const moods:Mood[]=[];const addMood=(m:Mood,r:RegExp)=>{if(has(text,r)&&!moods.includes(m))moods.push(m)};
- addMood("relax",/(ηρεμ|ξεκουρ|κουρασ|relax|rest|switch off|quiet|reset)/);addMood("romantic",/(ρομαν|μαζι|μαζί|anniversary|romantic|partner|couple)/);addMood("food",/(φαγη|εστιατορ|food|restaurant|gastr)/);addMood("warmth",/(ηλιο|ζεστ|sun|warm)/);addMood("nature",/(φυση|βουν|nature|mountain|green)/);addMood("culture",/(πολιτισ|μουσει|history|culture|museum)/);addMood("adventure",/(περιπετ|adventure|different|διαφορετ)/);addMood("city",/(πολη|city|urban)/);if(!moods.length)moods.push("relax");
+ addMood("relax",/(ηρεμ|ξεκουρ|κουρασ|relax|rest|switch off|quiet|reset)/);addMood("romantic",/(ρομαν|μαζι|μαζί|anniversary|romantic|partner|couple|ζευγ)/);addMood("food",/(φαγη|εστιατορ|food|restaurant|gastr)/);addMood("warmth",/(ηλιο|ζεστ|sun|warm)/);addMood("nature",/(φυση|βουν|nature|mountain|green)/);addMood("culture",/(πολιτισ|μουσει|history|culture|museum)/);addMood("adventure",/(περιπετ|adventure|different|διαφορετ)/);addMood("city",/(πολη|city|urban)/);if(!moods.length)moods.push("relax");
  const outcome=answerMap.get("outcome")||"";const desiredEnergy:Profile["desiredEnergy"]=/(stimulat|ζωνταν|ενεργ|adventure)/i.test(outcome+text)?"stimulating":/(rest|ηρεμ|reset|ξεκουρ|κουρασ)/i.test(outcome+text)?"restore":"balanced";
  const socialRaw=answerMap.get("social")||"";const socialPreference:Profile["socialPreference"]=/(quiet|ήσυχ|ησυχ)/i.test(socialRaw+text)?"quiet":/(lively|ζωνταν|nightlife|κοσμο|κόσμο)/i.test(socialRaw+text)?"lively":"balanced";
  const noveltyRaw=answerMap.get("novelty")||"";const noveltyPreference:Profile["noveltyPreference"]=/(surprise|έκπλη|εκπλη|different|διαφορετ)/i.test(noveltyRaw+text)?"surprise":/(familiar|σίγουρ|σιγουρ|γνωστ)/i.test(noveltyRaw+text)?"familiar":"balanced";
  const mustRaw=answerMap.get("must_have")||"";const mustHave:Profile["mustHave"]=/(sea|θαλασσ|beach)/i.test(mustRaw+text)?"sea":/(nature|φυση|βουν)/i.test(mustRaw+text)?"nature":/(culture|history|μουσει|πολιτισ)/i.test(mustRaw+text)?"culture":/(night|club|nightlife)/i.test(mustRaw+text)?"nightlife":"none";
- const frictionRaw=answerMap.get("friction")||"";const avoid:Profile["avoid"]=/(short|easy|λιγη ταλαιπωρ|λίγη ταλαιπωρ|no long|κουραστικ)/i.test(frictionRaw+text)?"long-travel":/(cheap|budget|οικονομ)/i.test(frictionRaw+text)?"high-cost":/(crowd|κοσμο|κόσμο|τουριστ)/i.test(frictionRaw+text)?"crowds":"none";
+ const frictionRaw=answerMap.get("friction")||"";const avoid:Profile["avoid"]=/(short|easy|λιγη ταλαιπωρ|λίγη ταλαιπωρ|no long|κουραστικ|οδήγ|driv)/i.test(frictionRaw+text)?"long-travel":/(cheap|budget|οικονομ|κόστος|κοστος)/i.test(frictionRaw+text)?"high-cost":/(crowd|κοσμο|κόσμο|τουριστ)/i.test(frictionRaw+text)?"crowds":"none";
  const pace:Profile["pace"]=desiredEnergy==="restore"?"slow":desiredEnergy==="stimulating"?"full":"balanced";
  const answered=new Set<QuestionId>(answers.map(a=>a.questionId));if(/παιδ|kids|children|wife|husband|partner|couple|ζευγ|friends|φιλ|solo|μονος|μόνος/i.test(initialText))answered.add("companions");if(/κουρασ|ηρεμ|relax|rest|switch off|adventure|περιπετ|ζωνταν/i.test(initialText))answered.add("outcome");
  const next=questionIds.find(q=>!answered.has(q))??null;
@@ -48,7 +52,7 @@ function validateModel(raw:Record<string,unknown>,fallback:Parsed):Parsed|null{
 }
 
 export async function POST(request:Request){
- const parsed=InputSchema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({ok:false,error:"invalid_discovery"},{status:400});const {locale,initialText,answers}=parsed.data,fallback=deterministic(locale,initialText,answers),budget=createLLMRequestBudgetV16();
+ const parsed=InputSchema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({ok:false,error:"invalid_discovery",issues:parsed.error.issues.map(issue=>({path:issue.path.join("."),code:issue.code}))},{status:400});const {locale,initialText,answers}=parsed.data,fallback=deterministic(locale,initialText,answers),budget=createLLMRequestBudgetV16();
  const system=`You are the Traveler Understanding Agent for an AI travel decision system. Infer only travel-decision preferences, never clinical psychology or sensitive traits. Understand what the traveller needs emotionally and practically BEFORE destinations and dates. Choose the single next question with the highest expected information gain from this fixed list: companions,outcome,social,novelty,must_have,friction. Do not ask something already answered explicitly. After 4 useful answers, prefer completing unless a missing axis could materially change destination choice. Return JSON only: {"summary":"warm human summary max 260 chars","profile":{"travelerType":"solo|couple|family|friends","moods":["relax|romantic|food|warmth|city|nature|adventure|culture"],"pace":"slow|balanced|full","desiredEnergy":"restore|balanced|stimulating","socialPreference":"quiet|balanced|lively","noveltyPreference":"familiar|balanced|surprise","avoid":"long-travel|high-cost|crowds|none","mustHave":"sea|nature|culture|nightlife|none","dnaLabels":["short human label"]},"answered":["question ids"],"nextQuestionId":"one allowed id or null","confidence":0..1}. Write summary and dnaLabels in ${locale==="el"?"Greek":"English"}. Never recommend a destination.`;
  const routed=await generateJsonWithRoutingV16<Parsed>({context:{task:"intent",text:initialText,deterministicConfidence:fallback.confidence,forceSemantic:true},budget,system,prompt:JSON.stringify({initialText,answers,fallbackProfile:fallback.profile}),preference:"critical",validate:raw=>validateModel(raw,fallback)});const result=routed?.value??fallback;return NextResponse.json({ok:true,...result,complete:result.nextQuestionId===null||result.answered.length>=4});
 }
