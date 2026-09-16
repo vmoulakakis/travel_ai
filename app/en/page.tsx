@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { V38EscapeFunnel } from "@/components/v38-escape-funnel";
+import { V40DiscoveryExperience } from "@/components/v40-discovery-experience";
 
 export const dynamic="force-dynamic";
-export const metadata:Metadata={title:{absolute:"AI Travel Escape | Decide Less. Experience More."},description:"Tell the AI what you need to feel, choose a useful travel window and budget, then get real stay-backed escapes and a sourced 360° destination experience.",alternates:{canonical:"/en",languages:{"el-GR":"/","en-GB":"/en"}}};
+export const metadata:Metadata={title:{absolute:"AI Travel Escape | Decide Less. Experience More."},description:"Talk to a travel agent that learns what you need, then compare real destination and stay options before building a sourced 360° itinerary.",alternates:{canonical:"/en",languages:{"el-GR":"/","en-GB":"/en"}}};
 
 export default function EnglishHomePage(){
- return <V38EscapeFunnel lang="en"/>;
+ return <V40DiscoveryExperience lang="en"/>;
 }
