@@ -40,8 +40,10 @@ async function inventory(start:string,end:string){
 }
 
 function semanticStayScore(text:string,weights:Record<string,number>){
- let weighted=0,total=0,matched:string[]=[];
- for(const [d,re] of Object.entries(concept) as [V8Dimension,RegExp][]{const w=Math.max(0,Number(weights[d]??0));if(w<=0)continue;total+=w;if(re.test(text)){weighted+=w;matched.push(d);}}
+ let weighted=0,total=0;const matched:string[]=[];
+ for(const [d,re] of Object.entries(concept) as [V8Dimension,RegExp][]) {
+  const w=Math.max(0,Number(weights[d]??0));if(w<=0)continue;total+=w;if(re.test(text)){weighted+=w;matched.push(d)}
+ }
  return {score:total?clamp(38+(weighted/total)*62):50,matched};
 }
 
