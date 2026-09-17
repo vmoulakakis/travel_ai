@@ -38,7 +38,8 @@ expect(v40?(home.includes("Real inventory")&&home.includes("AI + REAL INVENTORY"
 expect(home.includes("mode=aerial"),"cinematic discovery imagery must request aerial preference");
 expect(media.includes("AERIAL")&&media.includes("NON_PHOTO")&&media.includes("minWidth:1800")&&media.includes("minAspect:1.35"),"media lookup must prefer aerial high-resolution photography and reject non-photo assets");
 expect(media.includes("Wikimedia Commons")&&media.includes("attribution"),"media lookup must preserve attribution");
-expect(v40?(homeCss.includes("min-height:100svh")&&homeCss.includes("overflow:hidden")&&homeCss.includes("min-height:calc(100svh - 72px)")):(homeCss.includes("height:100svh")&&homeCss.includes("overflow:hidden")),"desktop funnel must behave as a focused app rather than an endless questionnaire");
+const focusedDesktop=v40?(homeCss.includes("min-height:100svh")&&homeCss.includes("overflow:hidden")&&(homeCss.includes("min-height:calc(100svh - 72px)")||homeCss.includes("min-height:calc(100svh - 74px)"))):(homeCss.includes("height:100svh")&&homeCss.includes("overflow:hidden"));
+expect(focusedDesktop,"desktop funnel must behave as a focused app rather than an endless questionnaire");
 expect(builder.includes("/api/trip-builder")&&(builder.includes("/api/escape/stay-local")||builder.includes("/api/escape/research")),"selected stay must retain grounded 360 research and trip building");
 expect(research.includes("getLocalIntelligenceV38")||research.includes("hotelName:null"),"destination research must remain grounded in local intelligence");
 const selectedStayContinuity=escapePage.includes("V39DestinationMapWorkspace")?escapePage.includes("preferredOffer")&&stayRoute.includes("selected=loaded.find")&&(stayRoute.includes("V40StayWorkspace")||/V\d+EscapeBuilderClient/.test(stayRoute)):escapePage.includes("preferredOffer")&&/V\d+EscapeBuilderClient/.test(escapePage);
@@ -46,8 +47,10 @@ expect(selectedStayContinuity,"selected inventory-backed stay must carry through
 expect(escapePage.includes("loadMissionV34")&&escapePage.includes("inferMissionProfileV34"),"destination route must preserve semantic mission context");
 expect(mission.includes("needText")&&mission.includes("escapeDna")&&mission.includes("inferMissionProfileV34"),"semantic mission continuity helper missing");
 expect(homeCss.includes("@media")&&builderCss.includes("@media"),"active consumer surfaces require responsive equivalents");
-expect(designSkill.includes("up to 10")&&designSkill.includes("dual-pass"),"web design skill must preserve the real solution and dual-pass contracts");
-expect(orchestratorSkill.includes("Inventory Reality Pass")&&orchestratorSkill.includes("Reverse Check")&&orchestratorSkill.includes("Commission never enters the score"),"orchestrator skill must encode reverse inventory reasoning and commercial independence");
+const designContract=(designSkill.includes("up to 10")&&designSkill.includes("dual-pass"))||(designSkill.includes("public initial choice count: **3**")&&designSkill.includes("Internal candidate/ranking sets may be larger"));
+expect(designContract,"web design skill must preserve the real solution and bounded-choice contracts");
+const orchestratorContract=(orchestratorSkill.includes("Inventory Reality Pass")&&orchestratorSkill.includes("Reverse Check")&&orchestratorSkill.includes("Commission never enters the score"))||(orchestratorSkill.includes("Dual-pass reasoning")&&orchestratorSkill.includes("real stay inventory")&&orchestratorSkill.includes("commission")&&orchestratorSkill.includes("never raises destination/user-fit score"));
+expect(orchestratorContract,"orchestrator skill must encode reverse inventory reasoning and commercial independence");
 
 if(failures.length){console.error("Semantic funnel compatibility smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log(`Semantic funnel compatibility smoke passed for ${v40?"V42-on-V40-shell":"legacy"}: adaptive discovery, semantic single-fetch inventory, high-res aerial media, mission continuity and grounded selected-stay research remain present.`);
+console.log(`Semantic funnel compatibility smoke passed for ${v40?"V44-on-V40-shell":"legacy"}: adaptive discovery, semantic single-fetch inventory, high-res aerial media, mission continuity and grounded selected-stay research remain present.`);
