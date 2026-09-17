@@ -23,3 +23,27 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:strict
       - run: npm run build
+
+  deploy-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: team_jt3jd1HJUB4sK1oZdl9MUYGs
+      VERCEL_PROJECT_ID: prj_wGO5Tq3kQxrUMi7WA3lvTHxTNGhn
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify deploy credentials
+        run: test -n "$VERCEL_TOKEN"
+      - name: Pull production environment
+        run: npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build for Vercel
+        run: npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy production
+        run: npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
