@@ -53,7 +53,7 @@ expect(homeCss.includes("@media")&&builderCss.includes("@media"),"active consume
 const v45DesignContract=designSkill.includes("travel-ai-v45-holiday-finder-web-design")
  && designSkill.includes("up to **3** defensible matches")
  && designSkill.includes("real offer inventory")
- && designSkill.includes("Never manufacture")
+ && designSkill.includes("fake filler result")
  && designSkill.includes("Commercial payout cannot lift traveller fit");
 const designContract=(designSkill.includes("up to 10")&&designSkill.includes("dual-pass"))||(designSkill.includes("public initial choice count: **3**")&&designSkill.includes("Internal candidate/ranking sets may be larger"))||v45DesignContract;
 expect(designContract,"web design skill must preserve real offer grounding, bounded choices, no filler and commercial independence");
