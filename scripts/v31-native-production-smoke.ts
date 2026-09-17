@@ -18,7 +18,16 @@ must(layout.includes("v31-native.css"),"V31 support CSS must stay available for 
 must(planner.includes("V31AiPlannerClient")&&plannerEn.includes("V31AiPlannerClient"),"Both legacy planner routes must keep the streaming planner during funnel evolution");
 must(client.includes('/api/recommend/stream'),"Legacy planner must still call the legacy production recommendation stream");
 must(escapeFunnel.includes('/api/escape/discovery'),"Current escape experience must understand the traveller before matching");
-const cinematicDestinationFirst=isV40&&escapeFunnel.includes("solutions=result?.solutions.slice(0,3)")&&escapeFunnel.includes("destinationUrl")&&escapeFunnel.includes("/proorismoi/")&&escapeFunnel.includes("/en/destinations/")&&escapeFunnel.includes("Destination reveal")&&escapeFunnel.includes("Real inventory")&&!escapeFunnel.includes("/stay/${encodeURIComponent(s.stay.sourceProductId)}");
+const cinematicDestinationFirst=isV40
+ && escapeFunnel.includes("result?.solutions")
+ && escapeFunnel.includes("slice(0,3)")
+ && escapeFunnel.includes("destinationUrl")
+ && escapeFunnel.includes("/proorismoi/")
+ && escapeFunnel.includes("/en/destinations/")
+ && escapeFunnel.includes("Destination reveal")
+ && escapeFunnel.includes("Real stay")
+ && escapeFunnel.includes("propertyName")
+ && !escapeFunnel.includes("href={`/escape/${slug}/stay/");
 must(isV40?cinematicDestinationFirst:(escapeFunnel.includes("resultRail")&&escapeFunnel.includes("solutions.map")&&escapeFunnel.includes("combinedScore")),"Current discovery experience must expose real ranked destinations before stay selection");
 must(isV40?(solver.includes("escape-inventory-v42")&&solver.includes("semanticStayScore")&&solver.includes("intentSource")):(solver.includes("buildEscapeSolutionsV36")||solver.includes("buildEscapeSolutionsV35")),"Current inventory reranking route is missing");
 must(isV40?(solver.includes("destinationScore")&&solver.includes("stayScore")&&solver.includes("valueScore")&&solver.includes("locationScore")):(ranking.includes("combinedScore")&&(ranking.includes("stayScore")||ranking.includes("inventoryScore"))),"Current solution ranking must combine destination and real stay/inventory evidence");
