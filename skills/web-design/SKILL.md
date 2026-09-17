@@ -1,210 +1,192 @@
 ---
-name: travel-ai-v38-web-design
-version: 4.0.2
-purpose: Low-friction cinematic AI travel decision product that converts emotional intent into real stay-backed escapes, then into a sourced 360° experience and disclosed affiliate handoff.
-source_method: MyAgenticTeam web-design-intelligence + 2026 Airbnb/Expedia/Hopper travel UX research + live product evidence
+name: travel-ai-v44-web-design
+version: 5.0.0
+purpose: Premium dark AI-first travel decision experience that converts natural intent into three real inventory-backed escapes, then into an evidence-aware 360° trip and disclosed provider handoff.
+source_method: MyAgenticTeam web-design-intelligence + agent-runtime-2026 + solution-first-product + live TravelAI product evidence
 ---
 
-# V38 Travel AI Web Design
+# TravelAI V44 Web Design Contract
 
-## Business goal
-Primary conversion is not an affiliate click. It is successful progression through:
-`felt need → date commitment → real solution chosen → 360 experience built → Escape Book saved/emailed → disclosed provider handoff`.
+## Canonical status
+This is the project-local design contract that implementation agents must follow for the current TravelAI redesign. Older V38/V40 design documents remain historical references only when they do not conflict with this file.
 
-The affiliate click is the final implementation action after confidence exists.
+The current runtime compatibility names stay unchanged unless a separate migration is justified:
+- home experience component: `V40DiscoveryExperience`;
+- main inventory matcher: `/api/escape/solve-v42`;
+- public initial choice count: **3**.
 
-## Audience / decision stage
-The user often does not know the destination. They know only that they need a break, have limited time/budget and want to avoid a bad decision. The interface must reduce decision fatigue rather than expose every travel filter.
+Version numbers are not a reason to churn working interfaces.
 
-## Design thesis
-This is not an OTA form, a card wall or a destination blog. It is a cinematic decision studio.
+## Product objective
+Primary success is a traveller progressing through:
 
-Three decisions only before matching:
-1. **FEEL** — one visual world + one optional sentence + who is travelling.
-2. **WHEN** — one of three intelligent date windows or explicit dates.
-3. **REALITY** — origin + comfortable total budget.
+`felt need -> useful understanding -> real-world frame -> 3 defensible matches -> one choice -> stay/360 experience -> disclosed provider handoff`
 
-Everything else is inferred and shown as optional fine-tuning. Never force six sequential questions when the semantic agent already has sufficient information.
+An affiliate click is downstream of confidence. It is not the ranking objective.
 
-## Reference ledger
-Use transferable principles only; never copy distinctive layouts, brand artwork or trade dress.
+## Audience
+The user often does not know where to go. They know how they feel, how much time/budget they have, who is travelling and what would ruin the trip. TravelAI should absorb complexity rather than force destination-first search behavior.
 
-| Source | Observation | Transferable principle | Use / reject |
-|---|---|---|---|
-| Airbnb 2026 homepage | Personalized recommendations and contextual discovery move the user beyond destination-first search | Lead with recognition and relevance, not a giant form | USE |
-| Airbnb AI review highlights / comparison | AI compresses large evidence sets into decision-ready signals | Summarize evidence but keep source/confidence visible | USE |
-| Airbnb neighborhood maps | Spatial context reduces uncertainty before booking | Show local-life context after destination selection | USE |
-| Expedia conversational travel experience | Conversation can produce rich dynamic result surfaces followed by external booking handoff | AI understanding first, transactional provider handoff last | USE |
-| Hopper / HTS agentic UI | Selection-based dynamic cards outperform text-only agent responses for high-choice tasks | Use one primary visual choice + compact alternate rail | USE |
-| Traditional OTA filter walls | High filter density makes an undecided user do the ranking work | Do not recreate filter walls | REJECT |
-| Fake urgency / countdown travel pages | Can generate clicks but damages trust and long-term conversion | No invented scarcity, timers or fake social proof | REJECT |
+## V44 art-direction thesis — Option 2
+The product should feel like a premium international travel-intelligence studio: dark, immersive, precise and quietly futuristic.
 
-## Product architecture
-### A. Discovery funnel
-Full-viewport cinematic shell. Background visual responds to the selected emotional world.
+- deep midnight/ocean-black canvas;
+- cyan/aqua as the intelligence/action signal;
+- modern sans typography with strong weight contrast;
+- sourced travel media used cinematically behind controlled dark layers;
+- thin luminous borders and selective translucent panels;
+- compact evidence signals and deliberate negative space;
+- subtle aurora/atmospheric depth rather than generic AI gradients;
+- no decorative metric theatre;
+- no travel-blog beige/white default;
+- no generic card-wall SaaS composition.
 
-Visible flow:
-`FEEL → WHEN → REALITY → DUAL-PASS SOLVE → ONE SELECTED RESULT + RAIL`
+The signature element is the **AI Trip Planner workbench**: natural language on the left, visible `understand -> match -> explain` intelligence on the right.
 
-The matching contract is explicitly **dual-pass**: traveler need → destination → real stay, then real stay → destination → traveler need before ranking is finalized.
+## Discovery architecture
+### State 1 — Welcome
+First viewport includes:
+- TravelAI premium wordmark/navigation;
+- benefit-led hero;
+- natural-language AI Trip Planner composer;
+- optional prompt chips that prefill the brief;
+- real-intelligence panel using sourced media;
+- capability rail: personalization, real stays, explainable fit, low friction.
 
-No vertical questionnaire. The optional fine-tune is collapsed by default.
+The interface must not imply that fake agents are working. Any dynamic status corresponds to a real runtime state.
 
-### B. Results
-The engine may return **up to 10 ranked real solutions** when evidence and inventory support them. Never show ten equal cards. Show one selected solution at cinematic scale with:
+### State 2 — Clarify
+Ask only a question that materially changes the recommendation. Current product contract caps adaptive clarification at two extra questions.
+
+### State 3 — Practical setup
+Collect dates, total budget and origin together on one screen. Do not restore the old multi-screen practical-constraint funnel.
+
+### State 4 — Solve
+Show semantic intent, destination fit, real inventory and trade-off checking as understandable process states. Do not expose model/provider internals.
+
+### State 5 — Results
+Present exactly **3 strongest distinct solutions**. Internal candidate/ranking sets may be larger.
+
+Each card exposes:
+- rank;
 - destination;
 - real stay;
-- total / destination / stay scores;
-- short reason;
-- one honest trade-off;
-- provider price only when known and positive;
-- CTA: **Build this 360° escape**.
+- fit;
+- concise matched signals;
+- reason;
+- known price signal when truthful;
+- next action.
 
-The other ranked solutions live in a compact horizontally scrollable rail so the user retains choice without facing a wall of cards.
+No filler card is created merely to reach three.
 
-### C. Destination 360° builder
-Sequence:
-`CINEMATIC DESTINATION REVEAL → 360 LOCAL INTELLIGENCE → STAY CINEMA → VERIFICATION → EMAIL GATE → ESCAPE BOOK + PROVIDER LINK`
+## Information and trust hierarchy
+The user should understand, in order:
+1. what TravelAI does for them;
+2. what input is needed now;
+3. what the system understood;
+4. what real-world constraints remain;
+5. which three choices survive;
+6. why #1 differs from #2/#3;
+7. what remains uncertain;
+8. what action comes next.
 
-The destination must be understood before the accommodation is sold.
+Fit, evidence confidence and commercial performance are separate concepts. Commercial performance never determines user suitability.
 
-360° categories:
-- Don't miss;
-- Eat;
-- Drinks / nightlife;
-- Culture;
-- Sea / beaches when relevant;
-- Weather;
-- Know before you go;
-- beyond-stay budget.
+## Media rules
+- destination backgrounds use sourced high-resolution landscape/aerial media;
+- property imagery comes from the actual property/feed or another explicitly sourced provider;
+- image relevance matters more than visual drama;
+- dark overlays protect contrast across every frame;
+- heavy media must have mobile/reduced-motion fallbacks;
+- do not AI-reconstruct a specific real hotel/room/view and present it as evidence.
 
-### D. Stay cinema
-Use only sourced property images from the affiliate feed and its extra-image fields. Animate still images with subtle Ken Burns / push-pan motion. Never AI-reconstruct a specific room, pool, view or property and present it as evidence.
+## Typography
+Use a modern sans system for the discovery product. The current V44 experience intentionally moves away from the previous Georgia-led editorial look.
 
-Destination visuals prefer authentic aerial/drone/elevated photography where source metadata supports it. Otherwise label the treatment as cinematic motion from sourced photography, not real drone footage.
+Required behavior:
+- very strong hero weight with tight but readable tracking;
+- compact uppercase intelligence labels;
+- restrained body widths;
+- clear Greek glyph rendering;
+- mobile scaling that preserves the headline impact without clipping.
 
-### E. Email gate and handoff
-The user receives the Escape Book before the final commercial handoff. After successful one-off email delivery:
-- unlock the PDF;
-- unlock the exact original affiliate tracking URL;
-- show affiliate disclosure adjacent to the action;
-- open provider in a new tab;
-- preserve tracking URL exactly.
+## Motion
+Named jobs only: orient, reveal hierarchy, show state, focus a selected solution, or provide feedback.
 
-Never expose a fake or fallback commercial URL if email/PDF generation fails.
+Default hierarchy:
+1. CSS transitions/keyframes;
+2. Motion for React only when layout/state choreography materially benefits;
+3. GSAP only for complex justified sequences;
+4. no 3D/WebGL by default.
 
-## External evidence and first-party signal
-External place ratings may be shown only with a named source and only when returned by that provider.
-
-Supported hierarchy:
-1. Tripadvisor Content API when configured;
-2. Google Places when configured;
-3. Foursquare Places when configured;
-4. OpenStreetMap as unrated discovery fallback.
-
-Do not convert unrated open data into a rating.
-
-### AI Guest Signal
-First-party signal is not a synthetic review score. It may appear only when:
-- a mission exists;
-- the trip window has ended;
-- the user explicitly confirms they went;
-- at least 3 responses exist for the subject.
-
-Show sample size and confidence with the score. Never call it a verified booking unless booking verification actually exists.
-
-## Price truth
-Blank, whitespace, null, zero or negative feed price means **unknown**, not `0 EUR`.
-
-UI language:
-- positive verified feed number → show feed price signal;
-- otherwise → `Τιμή στον πάροχο / Price at provider`.
-
-A positive feed price remains a valid price signal even when the feed omits the currency field; the UI must not turn that value into zero or silently discard it. Currency labeling must remain separate from numeric price truth.
-
-Final room, taxes, terms and live availability always require provider confirmation.
-
-## Escape Book
-PDF is a product artifact, not a printout of the webpage.
-
-Required sections:
-1. cinematic sourced cover;
-2. why here / why now;
-3. weather for selected dates;
-4. don't-miss local evidence;
-5. restaurants + nightlife with named ratings source;
-6. selected stay + availability truth;
-7. budget / practical friction / source disclosure;
-8. final provider handoff with QR, visible exact URL, clickable affiliate action and disclosure.
-
-The exact page count may vary as long as the information hierarchy remains intact.
-
-## Visual system
-- dark cinematic base;
-- editorial serif for emotion/destination;
-- neutral sans for evidence and controls;
-- restrained gold for commitment/commercial action;
-- cyan for evidence/source/AI-state signals;
-- full-bleed sourced photography;
-- glass / translucent controls only where text contrast remains WCAG-friendly;
-- generous negative space around the primary decision.
-
-No generic SaaS gradient-card wall.
-
-## Motion hierarchy
-1. CSS transitions/keyframes for state and camera push/pan;
-2. introduce Motion only if layout/state choreography materially improves the experience;
-3. no required 3D;
-4. no animation may block input or hide evidence;
-5. `prefers-reduced-motion` removes camera motion and spinning agent visuals.
+`prefers-reduced-motion` disables ambient camera/aurora motion without removing content.
 
 ## Mobile
-- two-column emotional-world deck;
-- no tiny filter controls;
-- horizontal result rail;
-- one dominant selected result;
-- date windows stack vertically;
-- touch targets >=44 CSS px where practical;
-- sticky source/category rail may scroll horizontally;
-- email gate becomes one column.
+At phone widths:
+- header simplifies;
+- composer becomes one column;
+- CTA becomes full width;
+- prompt chips stack;
+- intelligence media remains secondary to task completion;
+- practical inputs stack;
+- result cards stack vertically;
+- no horizontal overflow;
+- important touch targets are approximately 44 CSS px or larger.
 
-## SEO / AEO
-Public discovery pages retain semantic destination content, crawlable destination URLs, canonical/hreflang and structured metadata. The interactive funnel is the conversion product; SEO pages are acquisition surfaces, not duplicated funnel content.
+## Truth and commerce rules
+Never fabricate:
+- availability;
+- room inventory;
+- final trip price;
+- star rating;
+- reviews;
+- customer counts;
+- urgency/scarcity;
+- savings;
+- certifications;
+- route facts.
 
-## Measurement
-Instrument:
-- `cinematic_discovery_started`;
-- `visual_world_selected`;
-- `escape_shape_confirmed`;
-- `date_window_selected`;
-- `dual_pass_started`;
-- `solution_selected`;
-- `v38_360_research_started`;
-- `v38_360_research_completed`;
-- `source_rating_seen`;
-- `stay_cinema_selected`;
-- `email_gate_completed`;
-- `escape_book_opened`;
-- `affiliate_offer_opened`;
-- `post_trip_feedback_submitted`.
+Positive feed price is a price signal, not necessarily a trip total. Blank/null/zero/negative values remain unknown. Final provider terms must be confirmed at handoff.
 
-North-star diagnostic:
-`% of started missions that select a real stay-backed escape`.
-Secondary conversion:
-`% of selected escapes that reach email-gate completion and disclosed provider handoff`.
+Affiliate tracking URL is preserved exactly. Commercial payout cannot lift traveller fit.
 
-## Quality / truth gates
-Before release:
-- blank feed values never become zero price;
-- external rating always has provider label;
-- AI Guest Signal hidden below sample threshold;
-- no fake reviews/scarcity/weather/availability;
-- exact affiliate URL preserved;
-- destination media relevant to destination;
-- property media sourced from property/feed only;
-- reduced-motion works;
-- mobile/desktop primary flows checked;
+## Current engineering invariants
+- preserve Next.js/React architecture;
+- preserve current working APIs and data contracts;
+- `V40DiscoveryExperience` remains on Greek and English home routes;
+- `/api/escape/discovery` learns the brief before the solve;
+- `/api/escape/solve-v42` remains the active fast single-fetch semantic inventory solver;
+- `solutions=result?.solutions.slice(0,3)` remains the bounded discovery presentation;
+- sourced `/api/escape/media?...mode=aerial` remains the discovery media path;
+- current downstream map/stay/guide workflows remain intact unless separately redesigned.
+
+## Agent implementation method — MyAgenticTeam 2026
+Before material UI changes:
+1. inspect repo + production evidence;
+2. read current canonical project skill and relevant MyAgenticTeam skills;
+3. turn the design objective into acceptance criteria;
+4. use the smallest capable implementation/review team;
+5. prefer deterministic inspection/tests over model speculation;
+6. implement on a reviewable branch;
+7. run typecheck, strict tests and production build;
+8. inspect actual browser output at desktop/mobile widths;
+9. verify accessibility, runtime errors and deployment health;
+10. merge only after evidence supports GREEN.
+
+Do not fan out agents merely because agents exist. Use specialized subagents only for clearly isolated work and synthesize/review their outputs before acceptance.
+
+## Release acceptance
+- first viewport communicates value within ~5 seconds;
+- user can start from natural intent, not a destination;
+- at most two clarifications before practical setup;
+- practical constraints remain one screen;
+- exactly three defensible initial matches;
+- no fake facts or commission-biased fit;
+- keyboard and visible focus work;
+- responsive layout works at 360/390/768/1024/desktop;
+- reduced motion works;
 - typecheck passes;
 - strict regression suite passes;
 - production build passes;
-- V37 100-scenario non-empty regression remains green.
+- preview/runtime is visually inspected before merge;
+- production is verified after merge before status GREEN.

@@ -1,95 +1,133 @@
-# Travel Web Design Skill
+# Travel Web Design — V44 Premium AI Travel Skill
 
 ## Purpose
-Design premium travel-decision products that help people choose confidently before they enter a booking funnel. The experience should feel like an editorial travel product with product-design discipline: immersive but fast, emotional but evidence-aware, and visually calm under decision pressure.
+Design TravelAI as a premium decision product, not an OTA search form, destination blog or generic AI landing page. The experience should combine cinematic travel emotion with disciplined product UX: dark, precise, confident, fast and evidence-aware.
 
-## Research basis
-Use these principles as primary references:
-- Nielsen Norman Group — Helping Users Make Decisions: reduce choice overload, structure comparisons, expose the information needed to decide without overwhelming the user.
-- Google Design — Predictably Smart: personalization and recommendation zones should be predictable so the interface remains learnable even when recommendations change.
-- Google Design — Airbnb: Communicating Clarity and Charm: let photography lead, use whitespace, strong type hierarchy, clear language and conversational interaction.
-- Google Design — Material Design Awards / momondo: use visual data cues and purposeful motion to make travel search comprehensible, not decorative.
-- Awwwards creative-development guidance: distinctive brand expression, craftsmanship, accessibility and immersive storytelling should coexist; never trade core usability for visual novelty.
+This skill supersedes older warm/editorial visual guidance where it conflicts with the current V44 design contract.
 
-Reference URLs:
-- https://www.nngroup.com/reports/make-decisions/
-- https://design.google/library/predictably-smart
-- https://design.google/library/airbnb-invites-you-in
-- https://design.google/library/material-design-awards-2017/
-- https://conference.awwwards.com/valencia-developers/speakers/cyd-stumpel
+## Current design thesis — Option 2
+TravelAI should feel like an international premium travel-intelligence product.
 
-## Non-negotiable UX rules
-1. **One coherent decision journey.** Use five short steps when psychology and hard constraints cannot be collected honestly in one canvas; keep progress visible and each step focused.
-2. **Exactly one clear outcome objective.** For Travel AI that is: rank six distinct realistic paths, help the traveler compare, then guide one choice to an eligible stay.
-3. **Progressive disclosure.** Let the user touch a criterion to edit it. Reveal detail only when it is needed.
-4. **Predictable recommendation zone.** Dynamic AI output belongs in a stable visual region; navigation and controls should not move unpredictably.
-5. **Photography leads emotion; structured graphics explain confidence.** Use large authentic travel imagery with small, soft data graphics for fit, effort, season, budget and evidence.
-6. **Fit and confidence are different objects.** Never visually collapse them into one score.
-7. **Commerce follows the trip decision.** No merchant logo wall, outbound CTA or EPC-biased ranking before a destination is selected.
-8. **Mobile is the default stress test.** Criteria, recommendation comparison and decision CTA must be usable with one hand and without horizontal scrolling.
-9. **Accessible motion.** Motion explains state change; it never hides required information or becomes the primary navigation mechanism.
-10. **No fake live facts.** Planning estimates, observed feed prices and verified evidence must be visually distinguishable.
+Visual language:
+- deep ink / midnight / ocean-black foundation;
+- restrained cyan/aqua intelligence accent;
+- high-contrast modern sans typography;
+- large immersive sourced travel media, heavily controlled by dark overlays;
+- thin luminous borders rather than decorative card chrome;
+- selective glass only where it improves hierarchy;
+- compact data/evidence signals;
+- one dominant action per state;
+- motion that communicates transition, ranking or focus.
 
-## Visual language
-- Editorial serif for destination emotion; neutral sans serif for controls and evidence.
-- Palette: warm mineral/ivory base, deep forest/ink text, restrained clay/sun accent. Avoid generic AI purple gradients.
-- Use 1–3 high-quality destination images per major viewport, not decorative stock mosaics everywhere.
-- Use rounded geometry sparingly. Large cards may be soft; data labels should stay compact.
-- Infographic signals: thin progress lines, soft rings, small confidence chips, route/orbit diagrams, restrained map cues.
-- Strong negative space. A premium travel product should feel curated, not filled.
+Avoid:
+- generic purple AI gradients;
+- pale travel-blog styling;
+- endless destination card walls;
+- rounded-card-everywhere SaaS templates;
+- decorative metrics, fake ratings or fake scarcity;
+- UI that exposes internal agent/model names as theatre.
 
-## Travel decision canvas pattern
-Express the trip as a readable sentence with editable tokens, for example:
-`I can leave from [Athens] in [October] for [3 nights] with about [€500 pp] and I want [romantic + food], going as a [couple].`
+## Product journey
+The discovery contract is:
 
-Each token opens a local edit tray. Do not navigate to another screen. Keep the decision CTA visible after edits.
+`natural need -> at most 2 useful clarifications -> one practical setup screen -> AI + real inventory solve -> 3 strongest solutions -> one selected destination -> stay/360 experience`
 
-Under the answers, show a concise profile summary with four signals:
-- Time shape
-- Budget posture
-- Intent / feel
-- Friction / effort preference
+The user should feel that TravelAI is doing the work. Do not push ranking work back onto the traveller through a filter wall.
 
-These are explanatory signals, not destination scores.
+## Home / discovery
+The first viewport must communicate in seconds:
+1. this is an AI travel decision product;
+2. the user can describe what they want naturally;
+3. the system uses real inventory/evidence rather than hallucinated trips;
+4. the result is a small, explained set of choices.
 
-## Results pattern
-- Result 1: full editorial feature card.
-- Results 2–3: visually equal finalists below it.
-- Results 4–6: progressively disclosed alternatives, never an endless list.
-- Always show: role, destination, Fit, Confidence, planning budget label, evidence state, concise why, and soft factor breakdown.
-- Refinement actions should move the decision: cheaper, warmer, closer, shorter, more romantic, more adventurous.
-- Let the traveler compare up to three destinations on season, travel effort and trade-off before choosing.
+Recommended structure:
+- premium top navigation;
+- strong benefit-led headline;
+- natural-language AI Trip Planner composer;
+- optional inspiration prompts that populate the composer rather than bypass the reasoning flow;
+- a visual intelligence panel explaining `understand -> match -> explain`;
+- a compact capability rail for personalization, real inventory, explainability and low friction.
 
-## Supply / affiliate pattern
-After destination selection, open a contextual Trip Basket:
-1. GET THERE
-2. STAY
-3. PACK
-4. EXPERIENCE
-5. optional PROTECT / CONNECT
+## Choice architecture
+The discovery UI exposes **3 strongest distinct solutions**. Internal engines may maintain more candidates.
 
-For feed-derived stay data:
-- show observed property, location, image, current observed price range and freshness;
-- never describe feed presence as verified affiliate permission;
-- tracking URL is available only when program approval, property approval, traffic-source permission and tracking verification are all true;
-- unknown eligibility => no outbound CTA.
+Do not show 5, 6 or 10 equal cards on the initial decision surface. If deeper exploration is later added, it must remain secondary to the bounded top-three decision.
 
-## Engineering checklist
-- Server-controlled UI state; LLM never chooses arbitrary component layout.
-- Deterministic ranking before LLM explanation.
-- Stable fallback when AI or evidence services time out.
-- Read-only public endpoints expose no service-role keys or secrets.
-- Cache evidence/supply reads with short stale-while-revalidate windows.
-- Use database ingestion jobs for large feeds; do not download multi-megabyte catalogs into the browser.
-- Add structured observability: health endpoint, ingestion-run table, data-source indicator and error-safe fallbacks.
+Each solution needs:
+- destination;
+- real stay/inventory state;
+- fit signal;
+- concise reason;
+- material trade-off/uncertainty;
+- clear next action.
 
-## Design review questions
-Before shipping, answer yes to all:
-- Can a first-time user understand the promise in five seconds?
-- Can they change any trip constraint without feeling they are in a form?
-- Are three finalists immediately visible, with three more clearly optional?
-- Can they understand why #1 beat #2 without opening a modal?
-- Is uncertainty explicit?
-- Is stay/merchant supply separated from destination ranking?
-- Does the experience still work with AI disabled?
-- Is the mobile experience calmer than the desktop version, not merely smaller?
+## Trust architecture
+Truth must be visible through product behavior rather than marketing claims.
+
+- fit and evidence confidence are conceptually separate;
+- commission cannot decide suitability;
+- observed feed price is not automatically a trip total;
+- unknown availability/price remains unknown;
+- sourced photography represents destinations/properties honestly;
+- dynamic progress text maps to work the backend actually performs;
+- no invented urgency, popularity, review score, savings or stock.
+
+## Motion system
+Use the lightest mechanism that serves a real job:
+1. CSS for hover, focus, fades and background camera drift;
+2. Motion for React only when state/layout choreography materially improves comprehension;
+3. GSAP only for a clearly justified complex sequence;
+4. no 3D/WebGL by default.
+
+All important motion has a `prefers-reduced-motion` equivalent. Motion never delays input or hides evidence.
+
+## Responsive/mobile
+Mobile is a first-class product, not a compressed desktop.
+
+- single-column primary journey;
+- no tiny filter controls;
+- composer CTA becomes full width;
+- inspiration prompts stack cleanly;
+- intelligence panel remains readable without decorative excess;
+- minimum practical touch target ~44 CSS px;
+- no horizontal overflow;
+- long Greek labels wrap safely;
+- result cards become vertically scannable while preserving rank and action.
+
+## Accessibility
+Release gates include:
+- semantic headings and landmarks;
+- programmatic labels;
+- keyboard operation;
+- visible focus;
+- adequate contrast across background imagery;
+- reduced motion;
+- errors associated with the relevant flow state;
+- meaningful action text, not icon-only critical controls.
+
+## Engineering contract
+Preserve the current application architecture unless a migration has independent justification.
+
+Current compatibility invariants:
+- Greek and English home routes use `V40DiscoveryExperience`;
+- current discovery solver is `/api/escape/solve-v42`;
+- discovery continues to use sourced `mode=aerial` media;
+- practical setup captures date range, budget and origin together;
+- adaptive clarification remains bounded;
+- top-three decision output remains intact.
+
+Versioned component names are compatibility identifiers, not a reason to rewrite working runtime architecture.
+
+## Review questions
+Before release, all answers should be yes:
+- Does the first viewport look like a premium product rather than a travel template?
+- Can a new user understand what to type within five seconds?
+- Is the AI value visible without technical theatre?
+- Are exactly three defensible solutions presented after matching?
+- Can the user tell why one option fits better than another?
+- Is commercial bias structurally separated from traveller fit?
+- Does the product remain useful when optional AI enrichment fails?
+- Does mobile feel deliberately designed?
+- Are sourced media, price and evidence states honest?
+- Do typecheck, strict regression tests, build and runtime checks pass?

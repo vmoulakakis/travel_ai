@@ -20,7 +20,7 @@ expect(v42.includes("escape-inventory-v42")&&v42.includes("interpretIntentV8")&&
 expect(home.includes("Real inventory")&&home.includes("Destination reveal"),"active discovery surface must preserve real-inventory decision truth");
 expect(home.includes("mode=aerial"),"destination media must remain cinematic and sourced");
 expect(home.includes("slice(0,3)")||home.includes("slice(0, 3)"),"active discovery must expose multiple bounded options");
-expect(css.includes("min-height:100svh")&&css.includes("overflow:hidden")&&css.includes("min-height:calc(100svh - 72px)"),"active shell must behave as a focused app instead of an endless questionnaire");
+expect(css.includes("min-height:100svh")&&css.includes("overflow:hidden")&&css.includes("min-height:calc(100svh - 74px)"),"active shell must behave as a focused app instead of an endless questionnaire");
 expect(css.includes("@media"),"active experience must retain a mobile-specific layout");
 expect(!home.includes("Πρακτικό constraint 1/3")&&!home.includes("Πρακτικό constraint 2/3")&&!home.includes("Πρακτικό constraint 3/3"),"old three-screen practical funnel must stay removed");
 expect(v42.includes("inventoryChecked")&&v42.includes("valueScore")&&v42.includes("locationScore")&&v42.includes("semanticScore"),"V42 ranking must expose real inventory volume and score breakdown");
@@ -29,4 +29,4 @@ expect(legacyRanker.includes("loadV8StayOffers")&&legacyRoute.includes("forward-
 expect(layout.includes("έως 10 πραγματικές λύσεις")&&!layout.includes("3 semantic-matched escapes"),"SEO copy must not overclaim the visible shortlist as the whole engine");
 
 if(failures.length){console.error("Bidirectional funnel compatibility smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log("Bidirectional funnel compatibility smoke passed: active=V42 single-fetch semantic solver, bounded three-option UX, legacy V36 fallback retained.");
+console.log("Bidirectional funnel compatibility smoke passed: active=V44 shell + V42 single-fetch semantic solver, bounded three-option UX, legacy V36 fallback retained.");
