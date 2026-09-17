@@ -18,14 +18,15 @@ must(layout.includes("v31-native.css"),"V31 support CSS must stay available for 
 must(planner.includes("V31AiPlannerClient")&&plannerEn.includes("V31AiPlannerClient"),"Both legacy planner routes must keep the streaming planner during funnel evolution");
 must(client.includes('/api/recommend/stream'),"Legacy planner must still call the legacy production recommendation stream");
 must(escapeFunnel.includes('/api/escape/discovery'),"Current escape experience must understand the traveller before matching");
-must(isV40?(escapeFunnel.includes("solutions.map")&&escapeFunnel.includes("3 προορισμοί")&&escapeFunnel.includes("/escape/${escape(s.recommendation.slug)}")):(escapeFunnel.includes("resultRail")&&escapeFunnel.includes("solutions.map")&&escapeFunnel.includes("combinedScore")),"Current discovery experience must expose real ranked destinations before stay selection");
+const cinematicDestinationFirst=isV40&&escapeFunnel.includes("solutions=result?.solutions.slice(0,4)")&&escapeFunnel.includes("Πρώτα ο τόπος")&&escapeFunnel.includes("/escape/${s.recommendation.slug}?")&&!escapeFunnel.includes("/stay/${encodeURIComponent(s.stay.sourceProductId)}");
+must(isV40?cinematicDestinationFirst:(escapeFunnel.includes("resultRail")&&escapeFunnel.includes("solutions.map")&&escapeFunnel.includes("combinedScore")),"Current discovery experience must expose real ranked destinations before stay selection");
 must(solver.includes("buildEscapeSolutionsV36")||solver.includes("buildEscapeSolutionsV35"),"Current dual-pass inventory reranking route is missing");
 must(ranking.includes("combinedScore")&&(ranking.includes("stayScore")||ranking.includes("inventoryScore")),"Current solution ranking must combine destination and real stay/inventory evidence");
 must(isV40?(selectedExperience.includes('/api/trip-builder')&&selectedExperience.includes('/api/escape/stay-local')&&selectedExperience.includes('/api/escape/stay-reviews')):(selectedExperience.includes('/api/escape/research')&&selectedExperience.indexOf('/api/escape/research')<selectedExperience.indexOf('/api/trip-builder')),"Selected escape must preserve grounded 360 research and stay-specific trip building");
 must(selectedExperience.includes('/api/guide/email'),"Selected escape must retain Escape Book email delivery");
 must(selectedExperience.includes('sponsored nofollow noopener'),"Affiliate outbound must open safely and remain explicitly sponsored");
 if(v39Map){
- must(escapePage.includes("V39DestinationMapWorkspace")&&escapePage.includes("preferredOffer")&&escapePage.includes("loadV8StayOffers(slug,start,end,60)"),"Destination route must preserve the selected stay while entering the real-inventory map workspace");
+ must(escapePage.includes("V39DestinationMapWorkspace")&&escapePage.includes("preferredOffer")&&escapePage.includes("loadV8StayOffers(slug,start,end,60)"),"Destination route must preserve real-inventory map workspace");
  must(stayRoute.includes("selected=loaded.find")&&stayRoute.includes("offerId")&&(stayRoute.includes("V40StayWorkspace")||stayRoute.includes("V38EscapeBuilderClient")),"Selected-stay route must pin the exact offer before entering the active 360 workspace");
 }else must(/V\d+EscapeBuilderClient/.test(escapePage)&&escapePage.includes("preferredOffer"),"Destination route must use the active builder and preserve the selected stay");
 for(const path of ["/ai-planner","/ai-map","/seasonal","/guides","/how-ai-works"]){must(shell.includes(path),`Navigation missing ${path}`)}
