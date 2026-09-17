@@ -14,19 +14,22 @@ type Media={imageUrl:string;sourceUrl:string;title:string;description?:string;li
 type Solution={rank:number;score:number;destination:{slug:string;name:string;nameEn:string;tags:string[]};stay:{sourceProductId:string;propertyName:string;trackingUrl:string;imageUrl:string|null;price:number|null;currency:string|null;distanceKm:number|null;availability:string|null;semanticScore:number;valueScore:number};matchedSignals:string[];reason:string};
 type SolveResult={ok:boolean;version:number;intentSource:string;intentSummary:string;inventoryChecked:number;solutionCount:number;solutions:Solution[]};
 type Phase="welcome"|"clarify"|"setup"|"thinking"|"results";
+type SearchWindow={start:string;end:string;shiftDays:number};
 
 const DAY=86_400_000;
 const say=(l:Lang,el:string,en:string)=>l==="el"?el:en;
 const iso=(d:Date)=>d.toISOString().slice(0,10);
+const shiftIso=(value:string,days:number)=>iso(new Date(Date.parse(`${value}T00:00:00Z`)+days*DAY));
 function nextFriday(){const now=new Date(),d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())),delta=(5-d.getUTCDay()+7)%7||7;return new Date(d.getTime()+delta*DAY)}
+function shortDate(value:string,lang:Lang){try{return new Intl.DateTimeFormat(lang==="el"?"el-GR":"en-GB",{day:"numeric",month:"short"}).format(new Date(`${value}T12:00:00Z`))}catch{return value}}
 
 const questions:Record<QuestionId,{el:string;en:string;choices:{v:string;el:string;en:string}[]}>= {
- companions:{el:"Με ποιον ταξιδεύεις;",en:"Who are you travelling with?",choices:[{v:"solo",el:"Μόνος/η",en:"Solo"},{v:"couple",el:"Ζευγάρι",en:"Couple"},{v:"family",el:"Οικογένεια",en:"Family"},{v:"friends",el:"Φίλοι",en:"Friends"}]},
- outcome:{el:"Τι θέλεις να σου αφήσει αυτό το ταξίδι;",en:"What should this trip give you?",choices:[{v:"rest reset quiet",el:"Ξεκούραση",en:"Reset"},{v:"reconnect romantic",el:"Σύνδεση",en:"Reconnect"},{v:"stimulating adventure energy",el:"Ενέργεια",en:"Energy"},{v:"culture inspiration",el:"Έμπνευση",en:"Inspiration"}]},
- social:{el:"Πόσο ζωντανά το θέλεις;",en:"How lively should it feel?",choices:[{v:"quiet",el:"Ήσυχα",en:"Quiet"},{v:"balanced",el:"Ισορροπημένα",en:"Balanced"},{v:"lively nightlife",el:"Ζωντανά",en:"Lively"}]},
- novelty:{el:"Σίγουρη επιλογή ή κάτι που δεν θα σκεφτόσουν μόνος σου;",en:"Familiar or something you would not have picked yourself?",choices:[{v:"familiar",el:"Στα σίγουρα",en:"Familiar"},{v:"balanced",el:"Ισορροπία",en:"Balanced"},{v:"surprise different",el:"Έκπληξέ με",en:"Surprise me"}]},
- must_have:{el:"Ποιο είναι το ένα must-have;",en:"What is the one must-have?",choices:[{v:"sea beach",el:"Θάλασσα",en:"Sea"},{v:"nature mountain",el:"Φύση",en:"Nature"},{v:"culture history",el:"Πολιτισμός",en:"Culture"},{v:"nightlife",el:"Βραδινή ζωή",en:"Nightlife"},{v:"none",el:"Δεν έχω",en:"None"}]},
- friction:{el:"Τι θέλεις οπωσδήποτε να αποφύγεις;",en:"What do you definitely want to avoid?",choices:[{v:"short easy no long travel",el:"Μεγάλη ταλαιπωρία",en:"Long travel"},{v:"budget cheap",el:"Υψηλό κόστος",en:"High cost"},{v:"avoid crowds",el:"Πολυκοσμία",en:"Crowds"},{v:"none",el:"Τίποτα συγκεκριμένο",en:"Nothing specific"}]}
+ companions:{el:"Με ποιον θα μοιραστείς αυτό το ταξίδι;",en:"Who are you sharing this trip with?",choices:[{v:"solo",el:"Μόνος/η",en:"Solo"},{v:"couple",el:"Ζευγάρι",en:"Couple"},{v:"family",el:"Οικογένεια",en:"Family"},{v:"friends",el:"Φίλοι",en:"Friends"}]},
+ outcome:{el:"Αν το ταξίδι πετύχει, πώς θέλεις να γυρίσεις;",en:"If the trip works, how do you want to come back?",choices:[{v:"rest reset quiet",el:"Ξεκουρασμένος/η",en:"Reset"},{v:"reconnect romantic",el:"Πιο κοντά",en:"Reconnected"},{v:"stimulating adventure energy",el:"Γεμάτος/η ενέργεια",en:"Energised"},{v:"culture inspiration",el:"Με νέες εικόνες",en:"Inspired"}]},
+ social:{el:"Πόση ενέργεια θέλεις γύρω σου;",en:"How much energy do you want around you?",choices:[{v:"quiet",el:"Ήσυχα",en:"Quiet"},{v:"balanced",el:"Ισορροπία",en:"Balanced"},{v:"lively nightlife",el:"Ζωντανά",en:"Lively"}]},
+ novelty:{el:"Να παίξω στα σίγουρα ή να σε εκπλήξω;",en:"Play it safe or surprise you?",choices:[{v:"familiar",el:"Στα σίγουρα",en:"Familiar"},{v:"balanced",el:"Λίγο απ’ όλα",en:"Balanced"},{v:"surprise different",el:"Έκπληξέ με",en:"Surprise me"}]},
+ must_have:{el:"Ποιο είναι το ένα πράγμα που δεν διαπραγματεύεσαι;",en:"What is the one non-negotiable?",choices:[{v:"sea beach",el:"Θάλασσα",en:"Sea"},{v:"nature mountain",el:"Φύση",en:"Nature"},{v:"culture history",el:"Πολιτισμός",en:"Culture"},{v:"nightlife",el:"Βραδινή ζωή",en:"Nightlife"},{v:"none",el:"Κανένα",en:"None"}]},
+ friction:{el:"Τι πρέπει να σου γλιτώσω;",en:"What should I save you from?",choices:[{v:"short easy no long travel",el:"Ταλαιπωρία",en:"Travel friction"},{v:"budget cheap",el:"Υψηλό κόστος",en:"High cost"},{v:"avoid crowds",el:"Πολυκοσμία",en:"Crowds"},{v:"none",el:"Τίποτα συγκεκριμένο",en:"Nothing specific"}]}
 };
 
 export function V45HolidayFinder({lang="el"}:{lang?:Lang}){
@@ -45,23 +48,30 @@ export function V45HolidayFinder({lang="el"}:{lang?:Lang}){
  const[busy,setBusy]=useState(false);
  const[error,setError]=useState<string|null>(null);
  const[result,setResult]=useState<SolveResult|null>(null);
+ const[resultWindow,setResultWindow]=useState<SearchWindow|null>(null);
+ const[recoveryNote,setRecoveryNote]=useState<string|null>(null);
+ const[searchStep,setSearchStep]=useState(0);
  const[heroMedia,setHeroMedia]=useState<Media[]>([]);
  const[frame,setFrame]=useState(0);
+ const[activeIndex,setActiveIndex]=useState(0);
  const solutions=result?.solutions.slice(0,3)??[];
+ const active=solutions[activeIndex]??solutions[0]??null;
  const q=nextQuestion?questions[nextQuestion]:null;
- const preview=heroMedia[frame%Math.max(1,heroMedia.length)]?.imageUrl||"";
+ const preview=active?.stay.imageUrl||heroMedia[frame%Math.max(1,heroMedia.length)]?.imageUrl||"";
+ const secondary=heroMedia[(frame+1)%Math.max(1,heroMedia.length)]?.imageUrl||preview;
+ const tertiary=heroMedia[(frame+2)%Math.max(1,heroMedia.length)]?.imageUrl||secondary;
  const destinationHref=lang==="en"?"/en/destinations":"/proorismoi";
  const guidesHref=lang==="en"?"/en/guides":"/guides";
  const howHref=lang==="en"?"/en/how-ai-works":"/how-ai-works";
  const languageHref=lang==="en"?"/":"/en";
  const prompts=[
-  {label:say(lang,"Ζευγάρι · 3 βράδια","Couple · 3 nights"),value:say(lang,"Είμαστε ζευγάρι και θέλουμε 3 βράδια για χαλάρωση, ωραίο φαγητό και όμορφο κατάλυμα χωρίς πολλή ταλαιπωρία","We are a couple looking for 3 nights of relaxation, great food and a beautiful stay without much travel friction")},
-  {label:say(lang,"Οικογένεια · θάλασσα","Family · sea"),value:say(lang,"Θέλω οικογενειακές διακοπές κοντά στη θάλασσα, πρακτικό κατάλυμα και καλή σχέση αξίας","I want a family holiday near the sea, a practical stay and good value")},
-  {label:say(lang,"Weekend reset","Weekend reset"),value:say(lang,"Χρειάζομαι ένα σύντομο weekend reset με φύση, ησυχία και καλό ξενοδοχείο, χωρίς πολυκοσμία","I need a short weekend reset with nature, quiet and a good hotel, without crowds")}
+  {label:say(lang,"Ήσυχο 3ήμερο για δύο","Quiet 3-night escape for two"),value:say(lang,"Είμαστε ζευγάρι και θέλουμε τρεις ήσυχες νύχτες, καλό φαγητό, όμορφο κατάλυμα και όσο γίνεται λιγότερη ταλαιπωρία","We are a couple looking for three quiet nights, great food, a beautiful stay and as little travel friction as possible")},
+  {label:say(lang,"Οικογένεια κοντά στη θάλασσα","Family by the sea"),value:say(lang,"Θέλω οικογενειακές διακοπές κοντά στη θάλασσα, πρακτικό κατάλυμα, εύκολη πρόσβαση και καλή σχέση αξίας","I want a family holiday near the sea, a practical stay, easy access and good value")},
+  {label:say(lang,"Nature reset","Nature reset"),value:say(lang,"Χρειάζομαι ένα σύντομο reset με φύση, ησυχία και καλό ξενοδοχείο, χωρίς πολυκοσμία","I need a short reset with nature, quiet and a good hotel, without crowds")}
  ];
 
- useEffect(()=>{const id=window.setTimeout(()=>{fetch("/api/escape/media?destination=Greece&mode=aerial").then(r=>r.ok?r.json():null).then((p:{items?:Media[]}|null)=>{if(p?.items?.length)setHeroMedia(p.items.slice(0,4))}).catch(()=>null)},250);return()=>window.clearTimeout(id)},[]);
- useEffect(()=>{const id=window.setInterval(()=>setFrame(v=>v+1),10000);return()=>window.clearInterval(id)},[]);
+ useEffect(()=>{const id=window.setTimeout(()=>{fetch("/api/escape/media?destination=Greece&mode=aerial").then(r=>r.ok?r.json():null).then((p:{items?:Media[]}|null)=>{if(p?.items?.length)setHeroMedia(p.items.slice(0,6))}).catch(()=>null)},180);return()=>window.clearTimeout(id)},[]);
+ useEffect(()=>{const id=window.setInterval(()=>setFrame(v=>v+1),8500);return()=>window.clearInterval(id)},[]);
 
  async function discover(nextAnswers=answers){
   const r=await fetch("/api/escape/discovery",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({locale:lang,initialText:need.trim(),answers:nextAnswers})});
@@ -69,76 +79,179 @@ export function V45HolidayFinder({lang="el"}:{lang?:Lang}){
   const data=await r.json() as Discovery;
   setProfile(data.profile);setSummary(data.summary);setNextQuestion(data.nextQuestionId);setTraveler(data.profile.travelerType);return data;
  }
- async function begin(e:FormEvent){e.preventDefault();if(need.trim().length<8){setError(say(lang,"Πες μου με μία πρόταση τι θέλεις από αυτές τις διακοπές.","Tell me in one sentence what you want from this holiday."));return}setBusy(true);setError(null);try{const d=await discover();setPhase(d.complete||!d.nextQuestionId?"setup":"clarify")}catch{setError(say(lang,"Γράψε το όπως θα το έλεγες σε έναν καλό travel agent.","Write it as you would tell a good travel agent."))}finally{setBusy(false)}}
- async function answer(value:string){if(!nextQuestion)return;const updated=[...answers.filter(a=>a.questionId!==nextQuestion),{questionId:nextQuestion,value}];setAnswers(updated);setBusy(true);try{const d=await discover(updated);if(updated.length>=2||d.complete||!d.nextQuestionId)setPhase("setup")}catch{setPhase("setup")}finally{setBusy(false)}}
- function quickWeekend(){const f=nextFriday();setStart(iso(f));setEnd(iso(new Date(f.getTime()+3*DAY)))}
- async function solve(){
-  const learned=profile??(await discover());const p="profile" in learned?learned.profile:learned;if(!p)return;
-  const nights=Math.max(1,Math.round((Date.parse(`${end}T00:00:00Z`)-Date.parse(`${start}T00:00:00Z`))/DAY));
-  const trip={origin,startDate:start,endDate:end,month:"flexible",nights,budget,moods:p.moods,travelerType:traveler,language:lang,distancePreference:"any",pace:p.pace,hotelStyle:"any",avoid:p.avoid,entryMode:"idea",groupSize:traveler==="solo"?1:traveler==="couple"?2:4,desiredEnergy:p.desiredEnergy,socialPreference:p.socialPreference,noveltyPreference:p.noveltyPreference,mustHave:p.mustHave,dateFlexibility:"few-days",transportMode:"any",stayLocationPreference:"balanced",tripText:[need,summary].filter(Boolean).join(". ").slice(0,1200)};
-  setPhase("thinking");setBusy(true);setError(null);
-  try{const r=await fetch("/api/escape/solve-v42",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(trip)});if(!r.ok)throw new Error();const data=await r.json() as SolveResult;if(!data.solutions?.length)throw new Error();setResult(data);setPhase("results")}catch{setPhase("setup");setError(say(lang,"Δεν βρήκα αρκετά ασφαλή offer matches. Άλλαξε λίγο ημερομηνίες ή budget και ξαναψάχνω.","I did not find enough safe offer matches. Adjust dates or budget slightly and I will search again."))}finally{setBusy(false)}
+
+ async function begin(e:FormEvent){
+  e.preventDefault();
+  if(need.trim().length<8){setError(say(lang,"Πες μου με μία πρόταση πώς θέλεις να νιώσεις σε αυτές τις διακοπές.","Tell me in one sentence how you want this holiday to feel."));return}
+  setBusy(true);setError(null);
+  try{const d=await discover();setPhase(d.complete||!d.nextQuestionId?"setup":"clarify")}
+  catch{setError(say(lang,"Πες το όπως θα το έλεγες σε έναν καλό travel agent — φυσικά, χωρίς φίλτρα.","Say it as you would tell a good travel agent — naturally, without filters."))}
+  finally{setBusy(false)}
  }
- function destinationUrl(s:Solution){return `${lang==="en"?"/en/destinations/":"/proorismoi/"}${s.destination.slug}?start=${start}&end=${end}&budget=${budget}&origin=${encodeURIComponent(origin)}`}
+
+ async function answer(value:string){
+  if(!nextQuestion)return;
+  const updated=[...answers.filter(a=>a.questionId!==nextQuestion),{questionId:nextQuestion,value}];
+  setAnswers(updated);setBusy(true);setError(null);
+  try{const d=await discover(updated);if(updated.length>=2||d.complete||!d.nextQuestionId)setPhase("setup")}
+  catch{setPhase("setup")}
+  finally{setBusy(false)}
+ }
+
+ function quickWeekend(){const f=nextFriday();setStart(iso(f));setEnd(iso(new Date(f.getTime()+3*DAY)))}
+
+ function buildTrip(p:Profile,startDate:string,endDate:string){
+  const nights=Math.max(1,Math.round((Date.parse(`${endDate}T00:00:00Z`)-Date.parse(`${startDate}T00:00:00Z`))/DAY));
+  return {origin,startDate,endDate,month:"flexible",nights,budget,moods:p.moods,travelerType:traveler,language:lang,distancePreference:"any",pace:p.pace,hotelStyle:"any",avoid:p.avoid,entryMode:"idea",groupSize:traveler==="solo"?1:traveler==="couple"?2:4,desiredEnergy:p.desiredEnergy,socialPreference:p.socialPreference,noveltyPreference:p.noveltyPreference,mustHave:p.mustHave,dateFlexibility:"few-days",transportMode:"any",stayLocationPreference:"balanced",tripText:[need,summary].filter(Boolean).join(". ").slice(0,1200)};
+ }
+
+ async function requestSolve(p:Profile,startDate:string,endDate:string){
+  try{
+   const r=await fetch("/api/escape/solve-v42",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(buildTrip(p,startDate,endDate))});
+   if(!r.ok)return null;
+   const data=await r.json() as SolveResult;
+   return data?.solutions?.length?data:null;
+  }catch{return null}
+ }
+
+ async function findNearbyWindows(p:Profile,shifts:number[]){
+  const attempts=await Promise.all(shifts.map(async shiftDays=>{
+   const shiftedStart=shiftIso(start,shiftDays),shiftedEnd=shiftIso(end,shiftDays);
+   const data=await requestSolve(p,shiftedStart,shiftedEnd);
+   return {data,start:shiftedStart,end:shiftedEnd,shiftDays};
+  }));
+  return attempts.filter((x):x is {data:SolveResult;start:string;end:string;shiftDays:number}=>Boolean(x.data?.solutions?.length)).sort((a,b)=>b.data.solutions.length-a.data.solutions.length||b.data.inventoryChecked-a.data.inventoryChecked)[0]??null;
+ }
+
+ async function solve(){
+  const learned=profile??(await discover());
+  const p="profile" in learned?learned.profile:learned;
+  if(!p)return;
+  setPhase("thinking");setBusy(true);setError(null);setResult(null);setRecoveryNote(null);setResultWindow(null);setSearchStep(0);
+  try{
+   const exact=await requestSolve(p,start,end);
+   if(exact){setResult(exact);setResultWindow({start,end,shiftDays:0});setActiveIndex(0);setPhase("results");return}
+   setSearchStep(1);
+   const nearby=await findNearbyWindows(p,[7,14,21,28]);
+   if(nearby){
+    setResult(nearby.data);setResultWindow({start:nearby.start,end:nearby.end,shiftDays:nearby.shiftDays});setActiveIndex(0);
+    setRecoveryNote(say(lang,`Δεν σε έστειλα πίσω στα φίλτρα. Δεν υπήρχε αρκετό verified inventory στις αρχικές ημερομηνίες, οπότε βρήκα το κοντινότερο δυνατό παράθυρο ${shortDate(nearby.start,lang)}–${shortDate(nearby.end,lang)}.`,`I did not send you back to filters. There was not enough verified inventory for the original dates, so I found the closest workable window: ${shortDate(nearby.start,lang)}–${shortDate(nearby.end,lang)}.`));
+    setPhase("results");return;
+   }
+   setSearchStep(2);setPhase("results");
+   setError(say(lang,"Έλεγξα τις αρχικές ημερομηνίες και τέσσερα κοντινά παράθυρα στις επόμενες εβδομάδες. Δεν υπάρχει αρκετό verified inventory για να σου δείξω έντιμη πρόταση — δεν θα γεμίσω την οθόνη με ψεύτικα matches.","I checked the original dates and four nearby windows over the following weeks. There is not enough verified inventory for an honest recommendation — I will not fill the screen with fake matches."));
+  }finally{setBusy(false)}
+ }
+
+ async function broadenSearch(){
+  const p=profile??(await discover()).profile;
+  setPhase("thinking");setBusy(true);setError(null);setSearchStep(2);
+  try{
+   const wider=await findNearbyWindows(p,[35,42,49,56]);
+   if(wider){setResult(wider.data);setResultWindow({start:wider.start,end:wider.end,shiftDays:wider.shiftDays});setActiveIndex(0);setRecoveryNote(say(lang,`Άνοιξα αυτόματα τον ορίζοντα και βρήκα verified επιλογές για ${shortDate(wider.start,lang)}–${shortDate(wider.end,lang)}.`,`I widened the horizon automatically and found verified options for ${shortDate(wider.start,lang)}–${shortDate(wider.end,lang)}.`));setPhase("results");return}
+   setPhase("results");setError(say(lang,"Δεν υπάρχει επαρκές verified offer inventory ούτε στον επόμενο μήνα. Κρατάω το brief σου — άλλαξε μόνο ένα πράγμα όταν θέλεις και ξαναδοκιμάζω.","There is not enough verified offer inventory even across the next month. I am keeping your brief — change only one thing when you want and I will retry."));
+  }finally{setBusy(false)}
+ }
+
+ function destinationUrl(s:Solution){const window=resultWindow??{start,end,shiftDays:0};return `${lang==="en"?"/en/destinations/":"/proorismoi/"}${s.destination.slug}?start=${window.start}&end=${window.end}&budget=${budget}&origin=${encodeURIComponent(origin)}`}
+ function priceLabel(s:Solution){if(s.stay.price==null||s.stay.price<=0)return say(lang,"Τιμή στον πάροχο","Price at provider");const n=new Intl.NumberFormat(lang==="el"?"el-GR":"en-GB",{maximumFractionDigits:0}).format(s.stay.price);return s.stay.currency?`${n} ${s.stay.currency}`:`${n} · feed price`}
 
  return <main className={styles.shell}>
   <header className={styles.nav}>
-   <a className={styles.brand} href={lang==="en"?"/en":"/"}><span>✦</span><div><b>TravelAI</b><small>Holiday Finder</small></div></a>
+   <a className={styles.brand} href={lang==="en"?"/en":"/"}><span className={styles.brandMark}>✦</span><div><b>TravelAI</b><small>Holiday Finder</small></div></a>
    <nav className={styles.navLinks}><a href={destinationHref}>{say(lang,"Προορισμοί","Destinations")}</a><a href={guidesHref}>{say(lang,"Εμπειρίες","Experiences")}</a><a href={howHref}>{say(lang,"Πώς δουλεύει","How it works")}</a></nav>
    <div className={styles.navActions}><a className={styles.lang} href={languageHref}>{lang==="en"?"EL":"EN"}</a><span className={styles.live}><i/>Travel Agent</span></div>
   </header>
 
   <section className={styles.stage}>
-   {phase==="welcome"&&<div className={styles.heroGrid}>
-    <section className={styles.heroCopy}>
-     <p className={styles.kicker}>AI HOLIDAY FINDER · REAL OFFER PRODUCTS</p>
-     <h1>{say(lang,"Πες μου τι διακοπές χρειάζεσαι. Θα βρω τι αξίζει να κλείσεις.","Tell me the holiday you need. I’ll find what is worth booking.")}</h1>
-     <p className={styles.lead}>{say(lang,"Ο agent καταλαβαίνει το brief σου, ελέγχει τα πραγματικά offer products μας για τις ημερομηνίες σου και κρατά μόνο όσα ταιριάζουν πραγματικά.","The agent understands your brief, checks our real offer products for your dates and keeps only the options that truly fit.")}</p>
-     <form className={styles.composer} onSubmit={begin}>
-      <div className={styles.composerTitle}><span>AI</span><div><b>{say(lang,"Μίλα στον Holiday Agent","Talk to your Holiday Agent")}</b><small>{say(lang,"Χωρίς φίλτρα. Πες το φυσικά.","No filter maze. Say it naturally.")}</small></div></div>
-      <textarea value={need} onChange={e=>setNeed(e.target.value)} placeholder={say(lang,"π.χ. Θέλουμε 4 μέρες σαν ζευγάρι, κοντά στη θάλασσα, καλό φαγητό και budget έως 900€…","e.g. We want 4 days as a couple, near the sea, great food and a budget up to €900…")}/>
-      <button disabled={busy}>{busy?say(lang,"Καταλαβαίνω…","Understanding…"):say(lang,"Βρες μου διακοπές","Find my holiday")}<span>→</span></button>
-     </form>
-     <div className={styles.promptRow}>{prompts.map(p=><button key={p.label} type="button" onClick={()=>setNeed(p.value)}>{p.label}<span>＋</span></button>)}</div>
-     <div className={styles.trust}><span>✓ Real inventory</span><span>✓ Product-aware matching</span><span>✓ No fake urgency</span></div>
-     {error&&<div className={styles.error}>{error}</div>}
+   <div className={styles.workspace} data-phase={phase}>
+    <section className={styles.chatPane}>
+     <div className={styles.agentBar}><span className={styles.agentAvatar}>AI</span><div><b>{say(lang,"Holiday Agent","Holiday Agent")}</b><small>{say(lang,"μαθαίνει · ψάχνει · εξηγεί","learns · searches · explains")}</small></div><i/></div>
+
+     {phase==="welcome"&&<div className={styles.panelIn}>
+      <p className={styles.kicker}>AI HOLIDAY FINDER · REAL OFFER PRODUCTS</p>
+      <h1>{say(lang,"Πες μου πώς θέλεις να νιώσεις. Τα υπόλοιπα θα τα ψάξω εγώ.","Tell me how you want to feel. I’ll search the rest.")}</h1>
+      <p className={styles.lead}>{say(lang,"Όχι άλλο ψάξιμο σε tabs. Περιέγραψε τις διακοπές που έχεις στο μυαλό σου και θα μετατρέψω το brief σε πραγματικά offer-backed matches.","No more tab juggling. Describe the holiday in your head and I’ll turn the brief into real offer-backed matches.")}</p>
+      <form className={styles.composer} onSubmit={begin}>
+       <textarea autoFocus value={need} onChange={e=>setNeed(e.target.value)} placeholder={say(lang,"π.χ. Είμαστε κουρασμένοι, θέλουμε 4 μέρες με φύση, ωραίο φαγητό και καθόλου τρέξιμο…","e.g. We are tired and want four days of nature, great food and zero rushing…")}/>
+       <div className={styles.composerBottom}><span>{say(lang,"Γράψε όπως μιλάς","Write naturally")}</span><button disabled={busy}>{busy?say(lang,"Καταλαβαίνω…","Understanding…"):say(lang,"Βρες το ταξίδι μου","Find my trip")}<b>↗</b></button></div>
+      </form>
+      <div className={styles.promptRow}>{prompts.map(p=><button key={p.label} type="button" onClick={()=>setNeed(p.value)}>{p.label}<span>＋</span></button>)}</div>
+      <div className={styles.trust}><span>Real inventory</span><span>Product-aware matching</span><span>No fake urgency</span></div>
+      {error&&<div className={styles.error}>{error}</div>}
+     </div>}
+
+     {phase==="clarify"&&q&&<div className={styles.panelIn}>
+      <p className={styles.microLabel}>{say(lang,"Μία ερώτηση ακόμη","One more useful question")}</p>
+      <div className={styles.userBubble}>{need}</div>
+      <div className={styles.agentBubble}><span>✦</span><p>{summary||say(lang,"Έχω το βασικό brief. Θέλω μόνο μία λεπτομέρεια που αλλάζει πραγματικά το αποτέλεσμα.","I have the core brief. I only need one detail that genuinely changes the result.")}</p></div>
+      <h2>{say(lang,q.el,q.en)}</h2>
+      <div className={styles.choiceGrid}>{q.choices.map(c=><button key={c.v} type="button" disabled={busy} onClick={()=>answer(c.v)}><span>{say(lang,c.el,c.en)}</span><i>→</i></button>)}</div>
+      <button className={styles.textButton} type="button" onClick={()=>answer("none")}>{say(lang,"Δεν με νοιάζει — αποφάσισε εσύ","No preference — you decide")}</button>
+     </div>}
+
+     {phase==="setup"&&<div className={styles.panelIn}>
+      <p className={styles.microLabel}>{say(lang,"Το brief είναι έτοιμο","Your brief is ready")}</p>
+      <div className={styles.agentBubble}><span>✦</span><p>{summary||say(lang,"Κατάλαβα τι ψάχνεις. Δεν χρειάζομαι άλλη ανάκριση — μόνο το πραγματικό πλαίσιο για να ελέγξω offers.","I understand what you want. No more interrogation — I only need the real-world frame to check offers.")}</p></div>
+      <h2>{say(lang,"Δώσε μου το πλαίσιο. Θα κάνω εγώ το matching.","Give me the frame. I’ll do the matching.")}</h2>
+      <div className={styles.tripGrid}>
+       <label><span>{say(lang,"Από","From")}</span><input value={origin} onChange={e=>setOrigin(e.target.value)}/></label>
+       <label><span>{say(lang,"Αναχώρηση","Leave")}</span><input type="date" value={start} onChange={e=>setStart(e.target.value)}/></label>
+       <label><span>{say(lang,"Επιστροφή","Return")}</span><input type="date" value={end} min={start} onChange={e=>setEnd(e.target.value)}/></label>
+       <label><span>{say(lang,"Συνολικό budget","Total budget")}</span><div className={styles.money}><b>€</b><input type="number" min={150} step={50} value={budget} onChange={e=>setBudget(Number(e.target.value)||0)}/></div></label>
+      </div>
+      <div className={styles.travellerRow}><span>{say(lang,"Ποιοι πάτε;","Who’s going?")}</span><div>{(["solo","couple","family","friends"] as Traveler[]).map(t=><button key={t} type="button" className={traveler===t?styles.selectedChip:""} onClick={()=>setTraveler(t)}>{say(lang,t==="solo"?"Μόνος/η":t==="couple"?"Ζευγάρι":t==="family"?"Οικογένεια":"Φίλοι",t==="solo"?"Solo":t==="couple"?"Couple":t==="family"?"Family":"Friends")}</button>)}</div></div>
+      <div className={styles.setupActions}><button className={styles.secondary} type="button" onClick={quickWeekend}>{say(lang,"Βάλε επόμενο weekend","Use next weekend")}</button><button className={styles.primary} type="button" disabled={busy||!start||!end||budget<=0} onClick={solve}>{say(lang,"Βρες τα 3 καλύτερα matches","Find my best matches")}<span>→</span></button></div>
+      <p className={styles.recoveryPromise}>{say(lang,"Αν δεν υπάρχει exact match, δεν θα σε πετάξω πίσω στα φίλτρα — θα δοκιμάσω αυτόματα κοντινά verified παράθυρα.","If there is no exact match, I won’t throw you back to filters — I’ll automatically test nearby verified windows.")}</p>
+     </div>}
+
+     {phase==="thinking"&&<div className={styles.panelIn}>
+      <p className={styles.microLabel}>{searchStep===0?say(lang,"Exact search","Exact search"):searchStep===1?say(lang,"Smart recovery","Smart recovery"):say(lang,"Wider recovery","Wider recovery")}</p>
+      <h2>{searchStep===0?say(lang,"Ψάχνω το δικό σου ταξίδι — όχι έναν δημοφιλή προορισμό.","I’m searching for your trip — not a popular destination."):say(lang,"Δεν βγήκε το πρώτο παράθυρο. Συνεχίζω μόνος μου.","The first window did not work. I’m continuing automatically.")}</h2>
+      <div className={styles.scanSteps}>
+       <div className={styles.done}><span>✓</span><p><b>{say(lang,"Intent understood","Intent understood")}</b><small>{say(lang,"mood, must-have, friction","mood, must-have, friction")}</small></p></div>
+       <div className={styles.activeStep}><span>⌁</span><p><b>{say(lang,"Scanning real offer products","Scanning real offer products")}</b><small>{say(lang,"dates, stay fit, value, evidence","dates, stay fit, value, evidence")}</small></p></div>
+       <div><span>3</span><p><b>{say(lang,"Ranking only defensible matches","Ranking only defensible matches")}</b><small>{say(lang,"fit before commercial signal","fit before commercial signal")}</small></p></div>
+      </div>
+      <div className={styles.thinkingNote}><i/><span>{say(lang,"AI + REAL INVENTORY · Το commission δεν ανεβάζει το traveller fit.","AI + REAL INVENTORY · Commission never raises traveller fit.")}</span></div>
+     </div>}
+
+     {phase==="results"&&<div className={styles.panelIn}>
+      <p className={styles.microLabel}>{solutions.length?say(lang,"Shortlist ready","Shortlist ready"):say(lang,"Truth before filler","Truth before filler")}</p>
+      {solutions.length?<>
+       <h2>{say(lang,`${solutions.length} πραγματικά holiday matches. Κανένα filler.`,`${solutions.length} real holiday matches. No filler.`)}</h2>
+       <div className={styles.agentBubble}><span>✦</span><p>{recoveryNote||say(lang,`Έλεγξα ${result?.inventoryChecked??0} offer rows και κράτησα μόνο τις επιλογές που στέκονται απέναντι στο brief σου.`,`I checked ${result?.inventoryChecked??0} offer rows and kept only the choices that stand up to your brief.`)}</p></div>
+       {active&&<div className={styles.activeSummary}><small>{say(lang,"Η επιλογή που κοιτάς τώρα","You are viewing")}</small><b>{active.destination.name}</b><span>{active.stay.propertyName}</span></div>}
+       <button className={styles.textButton} type="button" onClick={()=>setPhase("setup")}>{say(lang,"Αλλαγή πλαισίου","Adjust trip frame")}</button>
+      </>:<>
+       <h2>{say(lang,"Δεν θα εφεύρω διακοπές για να γεμίσω τρεις κάρτες.","I will not invent holidays just to fill three cards.")}</h2>
+       {error&&<div className={styles.agentBubble}><span>✦</span><p>{error}</p></div>}
+       <div className={styles.setupActions}><button className={styles.primary} type="button" disabled={busy} onClick={broadenSearch}>{say(lang,"Ψάξε αυτόματα τον επόμενο μήνα","Search the next month automatically")}<span>→</span></button><button className={styles.secondary} type="button" onClick={()=>setPhase("setup")}>{say(lang,"Άλλαξε ένα στοιχείο","Change one detail")}</button></div>
+      </>}
+     </div>}
     </section>
 
-    <aside className={styles.agentCard}>
-     <div className={styles.agentHead}><div><span className={styles.avatar}>AI</span><p><b>{say(lang,"Ο Holiday Agent σου","Your Holiday Agent")}</b><small>offer-aware · live inventory</small></p></div><span className={styles.livePill}><i/>LIVE</span></div>
-     <div className={styles.media} style={preview?{backgroundImage:`url(${preview})`}:undefined}><div><small>{say(lang,"Από την ανάγκη σου","From your need")}</small><strong>{say(lang,"σε πραγματικό offer που μπορείς να εξετάσεις","to a real offer you can evaluate")}</strong></div></div>
-     <div className={styles.flow}><div><span>1</span><p><b>{say(lang,"Καταλαβαίνω","Understand")}</b><small>mood + constraints</small></p></div><div><span>2</span><p><b>{say(lang,"Σκανάρω offers","Scan offers")}</b><small>dates + stay + value</small></p></div><div><span>3</span><p><b>{say(lang,"Κρατάω 3","Keep 3")}</b><small>fit + trade-offs</small></p></div></div>
-     <div className={styles.truthBox}><b>AI + REAL INVENTORY</b><p>{say(lang,"Το commission δεν ανεβάζει μια επιλογή αν δεν ταιριάζει στον ταξιδιώτη.","Commission cannot lift an option that does not fit the traveler.")}</p></div>
-    </aside>
-   </div>}
-
-   {phase==="clarify"&&q&&<div className={styles.panelWrap}>
-    <div className={styles.progress}><span style={{width:`${Math.min(66,33+answers.length*33)}%`}}/></div>
-    <section className={styles.panel}>
-     <div className={styles.agentCue}><span>AI</span><p><small>{say(lang,"Μία ερώτηση ακόμη","One more question")}</small>{summary||say(lang,"Έχω το βασικό brief. Θέλω μόνο αυτό για να κόψω άσχετα offers.","I have the core brief. I only need this to remove irrelevant offers.")}</p></div>
-     <p className={styles.kicker}>{say(lang,"Βήμα","Step")} {Math.min(2,answers.length+1)} / 2</p>
-     <h2>{say(lang,q.el,q.en)}</h2>
-     <div className={styles.choiceGrid}>{q.choices.map(c=><button key={c.v} onClick={()=>answer(c.v)} disabled={busy}>{say(lang,c.el,c.en)}<span>→</span></button>)}</div>
-     <button className={styles.skip} onClick={()=>setPhase("setup")}>{say(lang,"Προχώρα με όσα ξέρεις","Continue with what you know")}</button>
+    <section className={styles.canvas} aria-live="polite" aria-busy={phase==="thinking"}>
+     {phase==="results"&&solutions.length>0?<div className={styles.resultsCanvas}>
+      <div className={styles.canvasHead}><div><span>Destination reveal</span><h3>{say(lang,"Τα matches σου, πάνω σε πραγματικά offers.","Your matches, grounded in real offers.")}</h3></div><p>{resultWindow&&resultWindow.shiftDays>0?`${shortDate(resultWindow.start,lang)} — ${shortDate(resultWindow.end,lang)}`:say(lang,"Ακριβείς ημερομηνίες","Exact dates")}</p></div>
+      <div className={styles.resultGrid}>{solutions.map((s,i)=><article key={`${s.destination.slug}-${s.stay.sourceProductId}`} className={`${styles.resultCard} ${i===activeIndex?styles.activeCard:""}`} onMouseEnter={()=>setActiveIndex(i)} onFocusCapture={()=>setActiveIndex(i)}>
+       <div className={styles.resultImage} style={s.stay.imageUrl?{backgroundImage:`url(${s.stay.imageUrl})`}:undefined}><span className={styles.rank}>#{s.rank}</span><b className={styles.score}>{Math.round(s.score)}% fit</b></div>
+       <div className={styles.resultBody}><div className={styles.resultTop}><div><small>REAL OFFER PRODUCT</small><h4>{s.destination.name}</h4></div><strong>{priceLabel(s)}</strong></div><p className={styles.property}>{s.stay.propertyName}</p><p className={styles.reason}>{s.reason}</p><div className={styles.signalRow}>{s.matchedSignals.slice(0,3).map(x=><span key={x}>{x}</span>)}</div><div className={styles.cardFoot}><span>{s.stay.distanceKm!=null?`${Math.round(s.stay.distanceKm)} km · `:""}{say(lang,"τελικοί όροι στον πάροχο","final terms at provider")}</span><a href={destinationUrl(s)}>{say(lang,"Δες γιατί ταιριάζει","See why it fits")} <b>↗</b></a></div></div>
+      </article>)}</div>
+     </div>:phase==="thinking"?<div className={styles.scanCanvas} style={preview?{backgroundImage:`linear-gradient(rgba(6,45,50,.25),rgba(6,45,50,.25)),url(${preview})`}:undefined}>
+      <div className={styles.scanOverlay}/><div className={styles.scanLine}/><div className={styles.scanCard}><span className={styles.scannerDot}/><small>{say(lang,"LIVE OFFER MATCHING","LIVE OFFER MATCHING")}</small><h3>{searchStep===0?say(lang,"Συνδέω το brief σου με πραγματικό inventory.","Connecting your brief to real inventory."):say(lang,"Το exact δεν έφτανε. Δοκιμάζω κοντινά παράθυρα.","Exact was not enough. Testing nearby windows.")}</h3><div className={styles.skeleton}><i/><i/><i/></div></div>
+     </div>:<div className={styles.discoveryCanvas}>
+      <div className={styles.canvasTitle}><span>LIVE MATCHING CANVAS</span><h3>{phase==="welcome"?say(lang,"Το ταξίδι εμφανίζεται καθώς ο agent σε καταλαβαίνει.","Your trip takes shape as the agent understands you."):say(lang,"Το brief σου ήδη μετατρέπεται σε match profile.","Your brief is already becoming a match profile.")}</h3></div>
+      <div className={styles.mediaStage}>
+       <div className={styles.mediaPrimary} style={preview?{backgroundImage:`url(${preview})`}:undefined}><span>{say(lang,"Εμπειρία","Experience")}</span><strong>{say(lang,"όχι απλώς προορισμός","not just a destination")}</strong></div>
+       <div className={styles.mediaFloatOne} style={secondary?{backgroundImage:`url(${secondary})`}:undefined}><span>{say(lang,"Stay fit","Stay fit")}</span></div>
+       <div className={styles.mediaFloatTwo} style={tertiary?{backgroundImage:`url(${tertiary})`}:undefined}><span>{say(lang,"Real inventory","Real inventory")}</span></div>
+       <div className={styles.matchPreview}><small>TRAVEL INTELLIGENCE</small><div><span>01</span><p><b>{say(lang,"Καταλαβαίνω","Understand")}</b><small>intent</small></p></div><div><span>02</span><p><b>{say(lang,"Σκανάρω","Scan")}</b><small>offers</small></p></div><div><span>03</span><p><b>{say(lang,"Εξηγώ","Explain")}</b><small>fit</small></p></div></div>
+      </div>
+      <div className={styles.canvasProof}><span>AI + REAL INVENTORY</span><p>{say(lang,"Ο agent μπορεί να εκπλαγεί από το inventory. Δεν μπορεί να αγνοήσει το brief σου.","The agent may be surprised by inventory. It cannot ignore your brief.")}</p></div>
+     </div>}
     </section>
-   </div>}
-
-   {phase==="setup"&&<section className={`${styles.panel} ${styles.setup}`}>
-    <p className={styles.kicker}>ΤΟ ΜΟΝΟ ΠΡΑΚΤΙΚΟ ΒΗΜΑ</p>
-    <div className={styles.setupTop}><div><h2>{say(lang,"Δώσε μου ημερομηνίες και budget.","Give me dates and budget.")}</h2><p>{say(lang,"Με αυτά μπορώ να ελέγξω πραγματικά offers αντί να σου δώσω απλές ιδέες.","With these I can check real offers instead of giving you generic ideas.")}</p></div><div className={styles.brief}><span>✦</span>{summary||need}</div></div>
-    <div className={styles.tripGrid}><label><span>{say(lang,"Αναχώρηση από","Leaving from")}</span><input value={origin} onChange={e=>setOrigin(e.target.value)}/></label><label><span>{say(lang,"Από","From")}</span><input type="date" value={start} onChange={e=>setStart(e.target.value)}/></label><label><span>{say(lang,"Έως","To")}</span><input type="date" value={end} onChange={e=>setEnd(e.target.value)}/></label><label><span>{say(lang,"Συνολικό budget","Total budget")}</span><div className={styles.money}><b>€</b><input type="number" min={150} step={50} value={budget} onChange={e=>setBudget(Number(e.target.value)||0)}/></div></label></div>
-    <div className={styles.travelerRow}><span>{say(lang,"Ποιοι ταξιδεύουν;","Who is travelling?")}</span>{(["solo","couple","family","friends"] as Traveler[]).map(t=><button key={t} className={traveler===t?styles.selected:""} onClick={()=>setTraveler(t)}>{say(lang,t==="solo"?"Μόνος/η":t==="couple"?"Ζευγάρι":t==="family"?"Οικογένεια":"Φίλοι",t)}</button>)}</div>
-    <div className={styles.actions}><button className={styles.secondary} onClick={quickWeekend}>{say(lang,"Επόμενο weekend","Next weekend")}</button><button className={styles.primary} onClick={solve} disabled={busy}>{say(lang,"Ψάξε τα offer products μου","Search my offer products")}<span>→</span></button></div>
-    {error&&<div className={styles.error}>{error}</div>}
-   </section>}
-
-   {phase==="thinking"&&<section className={`${styles.panel} ${styles.thinking}`}><div className={styles.scan}>✦<i/></div><p className={styles.kicker}>HOLIDAY AGENT WORKING</p><h2>{say(lang,"Ταιριάζω το brief σου με πραγματικά offers.","Matching your brief to real offers.")}</h2><p>{say(lang,"Ξεκινώ από το τι θέλεις και ελέγχω ποια offer products μπορούν πράγματι να στηρίξουν αυτό το ταξίδι.","I start from what you want and check which offer products can actually support that trip.")}</p><div className={styles.steps}><span>Brief</span><i>→</i><span>Offer inventory</span><i>→</i><span>Dates + value</span><i>→</i><span>Traveler fit</span><i>→</i><span>Top 3</span></div></section>}
-
-   {phase==="results"&&result&&<section className={styles.results}>
-    <div className={styles.resultsTop}><div><p className={styles.kicker}>Destination reveal · 3 HOLIDAY MATCHES</p><h2>{say(lang,"Αυτά είναι τα 3 που αξίζει να δεις.","These are the 3 worth looking at.")}</h2><p>{say(lang,`Έλεγξα ${result.inventoryChecked.toLocaleString("el-GR")} offer rows και κράτησα τις ισχυρότερες διαφορετικές λύσεις.`,`I checked ${result.inventoryChecked.toLocaleString("en-GB")} offer rows and kept the strongest distinct matches.`)}</p></div><button className={styles.secondary} onClick={()=>{setPhase("welcome");setResult(null);setAnswers([]);setProfile(null);setSummary("");setNextQuestion(null)}}>{say(lang,"Νέο ψάξιμο","New search")}</button></div>
-    <div className={styles.resultGrid}>{solutions.map((s,i)=><article key={s.stay.sourceProductId} className={styles.resultCard}><div className={styles.photo} style={s.stay.imageUrl?{backgroundImage:`url(${s.stay.imageUrl})`}:undefined}><span>#{i+1}</span><b>{s.score}% match</b></div><div className={styles.cardBody}><small>{i===0?say(lang,"ΚΑΛΥΤΕΡΟ FIT","BEST FIT"):i===1?say(lang,"ΙΣΧΥΡΗ ΕΝΑΛΛΑΚΤΙΚΗ","STRONG ALTERNATIVE"):say(lang,"ΔΙΑΦΟΡΕΤΙΚΗ ΕΠΙΛΟΓΗ","DIFFERENT PATH")}</small><h3>{s.destination.name}</h3><div className={styles.offer}><span>{say(lang,"Πραγματικό offer","Real offer")}</span><strong>{s.stay.propertyName}</strong></div><p>{s.reason}</p><div className={styles.signals}>{s.matchedSignals.slice(0,3).map(x=><span key={x}>{x}</span>)}</div><div className={styles.offerMeta}><small>{s.stay.sourceProductId}</small>{s.stay.price!=null&&s.stay.price>0&&<b>{s.stay.currency?`${s.stay.price} ${s.stay.currency}`:`${s.stay.price} feed price`}</b>}</div><a href={destinationUrl(s)}>{say(lang,"Δες γιατί ταιριάζει + το stay","See why it fits + the stay")}<span>→</span></a></div></article>)}</div>
-    <div className={styles.resultTruth}><b>Real inventory</b><p>{say(lang,"Το match χρησιμοποιεί destination fit + semantic product profile + traveler fit + value + evidence. Το commission δεν αυξάνει το fit.","The match uses destination fit + semantic product profile + traveler fit + value + evidence. Commission does not increase fit.")}</p></div>
-   </section>}
+   </div>
   </section>
  </main>
 }
