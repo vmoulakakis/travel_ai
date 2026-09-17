@@ -20,7 +20,7 @@ const boundedExperience=v40
  ? home.includes("Travel Agent")&&home.includes("progress")&&home.includes("solutions=result?.solutions.slice(0,3)")
  : home.includes('type Stage="mood"|"dna"|"time"|"reality"|"solve"|"results"');
 const decisionTruth=v40
- ? home.includes("real stay inventory")&&home.includes("3 προορισμοί")
+ ? home.includes("real stay inventory")&&home.includes("solutions=result?.solutions.slice(0,3)")&&home.includes("Destination reveal")
  : home.includes("Βρες 10 πραγματικές λύσεις")&&home.includes("Find 10 real solutions");
 const bidirectionalVisible=v40
  ? home.includes("destination")&&home.includes("stay")&&home.includes("inventory")
@@ -29,7 +29,7 @@ const cinematic=v40
  ? home.includes("mode=aerial")
  : home.includes("setInterval")&&home.includes("6200");
 const focusedShell=v40
- ? css.includes("max-height:calc(100vh")||css.includes("min-height:calc(100vh")
+ ? css.includes("min-height:100svh")&&css.includes("overflow:hidden")&&css.includes("height:calc(100svh - 72px)")
  : css.includes("height:100dvh")&&css.includes("overflow:hidden");
 
 expect(ownsHome,"current escape experience must own both home routes");
@@ -52,4 +52,4 @@ expect(route.includes("forward-recovery")&&route.includes("buildEscapeSolutionsV
 expect(layout.includes("έως 10 πραγματικές λύσεις")&&!layout.includes("3 semantic-matched escapes"),"SEO copy must match the underlying ten-solution engine truth");
 
 if(failures.length){console.error("Bidirectional funnel compatibility smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log(`Bidirectional funnel compatibility smoke passed: active=${v40?"V40":"V36"}, full-catalog inventory recovery, ten-solution engine and evidence-based stay reasoning remain wired.`);
+console.log(`Bidirectional funnel compatibility smoke passed: active=${v40?"V41-on-V40-shell":"V36"}, full-catalog inventory recovery, ten-solution engine and evidence-based stay reasoning remain wired.`);
