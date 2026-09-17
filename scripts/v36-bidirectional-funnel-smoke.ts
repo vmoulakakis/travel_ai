@@ -29,7 +29,7 @@ const cinematic=v40
  ? home.includes("mode=aerial")
  : home.includes("setInterval")&&home.includes("6200");
 const focusedShell=v40
- ? css.includes("min-height:100svh")&&css.includes("overflow:hidden")&&css.includes("height:calc(100svh - 72px)")
+ ? css.includes("min-height:100svh")&&css.includes("overflow:hidden")&&css.includes("height:calc(100svh - 76px)")
  : css.includes("height:100dvh")&&css.includes("overflow:hidden");
 
 expect(ownsHome,"current escape experience must own both home routes");
