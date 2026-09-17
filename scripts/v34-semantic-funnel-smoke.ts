@@ -24,13 +24,13 @@ const expect=(condition:boolean,message:string)=>{if(!condition)failures.push(me
 
 expect(home.includes("/api/escape/discovery"),"homepage must begin with semantic understanding rather than direct booking");
 expect(home.indexOf("/api/escape/discovery")<home.indexOf(v40?"/api/escape/solve-v36/stream":"/api/escape/solve/stream"),"traveler discovery must happen before dual-pass solving");
-expect(v40?(home.includes("Travel Agent")&&home.includes("selectedMoods")&&home.includes("traveler")):(home.includes('"suggest"|"fixed"|"flexible"')&&home.includes("ESCAPE DNA")),"traveler preference confirmation surface missing");
+expect(v40?(home.includes("Travel Agent")&&home.includes("nextQuestion")&&home.includes("answers")&&home.includes("Μία ερώτηση ακόμη")):(home.includes('"suggest"|"fixed"|"flexible"')&&home.includes("ESCAPE DNA")),"traveler preference confirmation surface missing");
 expect(discovery.includes("expected information gain")||discovery.includes("highest expected information gain"),"adaptive discovery must select questions by information gain");
 expect(discovery.includes("never clinical psychology")&&discovery.includes("Never recommend a destination"),"safe-psychology and no-destination discovery boundaries missing");
-expect(v40?home.includes("moods"):(home.includes("VISUAL_WORLDS")&&home.includes("data-mood")),"mood-reactive semantic choices missing");
+expect(v40?home.includes("profile"):(home.includes("VISUAL_WORLDS")&&home.includes("data-mood")),"mood-reactive semantic choices missing");
 expect(v40?(home.includes('type="date"')&&home.includes("start")&&home.includes("end")):home.includes("/api/escape/date-opportunities"),"date decision stage must exist before destination matching");
 expect(dateAgent.includes("Do NOT claim")&&dateAgent.includes("weather")&&dateAgent.includes("availability"),"date agent must not invent live travel advantages before verification");
-expect(v40?(home.includes("slice(0,3)")&&home.includes("3 προορισμοί")&&home.includes("solutions.map")):(home.includes("10 καλύτερες πραγματικές λύσεις")&&home.includes("solutionRail")),"discovery surface must expose a bounded ranked decision set");
+expect(v40?(home.includes("slice(0,3)")&&home.includes("Destination reveal")&&home.includes("solutions.map")):(home.includes("10 καλύτερες πραγματικές λύσεις")&&home.includes("solutionRail")),"discovery surface must expose a bounded ranked decision set");
 expect(solver.includes("runTravelOrchestratorV26")&&(solver.includes("buildEscapeSolutionsV36")||solver.includes("buildEscapeSolutionsV35")),"dual-pass solve stream must run destination reasoning before inventory reality pass");
 expect((ranking.includes("stayScore")||ranking.includes("inventoryScore"))&&ranking.includes("combinedScore")&&ranking.includes("reasoning"),"reverse inventory reranking contract missing");
 expect(ranking.includes("trackingUrl:offer.trackingUrl"),"solution ranking must preserve exact affiliate tracking URL");
@@ -38,7 +38,7 @@ expect(v40?home.includes("real stay inventory"):(home.includes("ΑΝΤΙΣΤΡΟ
 expect(home.includes("mode=aerial"),"cinematic discovery imagery must request aerial preference");
 expect(media.includes("AERIAL")&&media.includes("drone panorama")&&media.includes("NON_PHOTO"),"media lookup must prefer aerial photography and reject non-photo assets");
 expect(media.includes("Wikimedia Commons")&&media.includes("attribution"),"media lookup must preserve attribution");
-expect(v40?(homeCss.includes("max-height:calc(100vh")||homeCss.includes("min-height:calc(100vh")):(homeCss.includes("height:100svh")&&homeCss.includes("overflow:hidden")),"desktop funnel must behave as a focused app rather than an endless questionnaire");
+expect(v40?(homeCss.includes("min-height:100svh")&&homeCss.includes("overflow:hidden")&&homeCss.includes("height:calc(100svh - 72px)")):(homeCss.includes("height:100svh")&&homeCss.includes("overflow:hidden")),"desktop funnel must behave as a focused app rather than an endless questionnaire");
 expect(builder.includes("/api/trip-builder")&&(builder.includes("/api/escape/stay-local")||builder.includes("/api/escape/research")),"selected stay must retain grounded 360 research and trip building");
 expect(research.includes("getLocalIntelligenceV38")||research.includes("hotelName:null"),"destination research must remain grounded in local intelligence");
 const selectedStayContinuity=escapePage.includes("V39DestinationMapWorkspace")?escapePage.includes("preferredOffer")&&stayRoute.includes("selected=loaded.find")&&(stayRoute.includes("V40StayWorkspace")||/V\d+EscapeBuilderClient/.test(stayRoute)):escapePage.includes("preferredOffer")&&/V\d+EscapeBuilderClient/.test(escapePage);
@@ -50,4 +50,4 @@ expect(designSkill.includes("up to 10")&&designSkill.includes("dual-pass"),"web 
 expect(orchestratorSkill.includes("Inventory Reality Pass")&&orchestratorSkill.includes("Reverse Check")&&orchestratorSkill.includes("Commission never enters the score"),"orchestrator skill must encode reverse inventory reasoning and commercial independence");
 
 if(failures.length){console.error("Semantic funnel compatibility smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log(`Semantic funnel compatibility smoke passed for ${v40?"V40":"legacy"}: discovery, dual-pass reasoning, aerial media, mission continuity and grounded selected-stay research remain present.`);
+console.log(`Semantic funnel compatibility smoke passed for ${v40?"V41-on-V40-shell":"legacy"}: adaptive discovery, dual-pass reasoning, aerial media, mission continuity and grounded selected-stay research remain present.`);
