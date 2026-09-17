@@ -34,6 +34,18 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Package production source
+        uses: actions/upload-artifact@v4
+        with:
+          name: travel-ai-production-source
+          path: |
+            .
+            !node_modules
+            !.next
+            !.git
+            !.vercel
+          include-hidden-files: true
+          retention-days: 1
       - uses: actions/setup-node@v5
         with:
           node-version: 22
