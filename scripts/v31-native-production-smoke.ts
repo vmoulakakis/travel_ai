@@ -25,8 +25,8 @@ const modernDestinationFirst=modern
  && escapeFunnel.includes("/proorismoi/")
  && escapeFunnel.includes("/en/destinations/")
  && escapeFunnel.includes("Destination reveal")
- && (escapeFunnel.includes("Real stay")||escapeFunnel.includes("Real offer"))
  && escapeFunnel.includes("propertyName")
+ && (!isV45||escapeFunnel.includes("sourceProductId"))
  && !escapeFunnel.includes("href={`/escape/${slug}/stay/");
 must(modern?modernDestinationFirst:(escapeFunnel.includes("resultRail")&&escapeFunnel.includes("solutions.map")&&escapeFunnel.includes("combinedScore")),"Current discovery experience must expose real ranked destinations/offers before stay selection");
 must(modern?(solver.includes("escape-inventory-v42")&&solver.includes("semanticStayScore")&&solver.includes("intentSource")):(solver.includes("buildEscapeSolutionsV36")||solver.includes("buildEscapeSolutionsV35")),"Current inventory reranking route is missing");
