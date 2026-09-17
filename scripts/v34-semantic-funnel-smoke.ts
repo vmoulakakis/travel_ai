@@ -38,7 +38,7 @@ expect(v40?home.includes("real stay inventory"):(home.includes("ΑΝΤΙΣΤΡΟ
 expect(home.includes("mode=aerial"),"cinematic discovery imagery must request aerial preference");
 expect(media.includes("AERIAL")&&media.includes("drone panorama")&&media.includes("NON_PHOTO"),"media lookup must prefer aerial photography and reject non-photo assets");
 expect(media.includes("Wikimedia Commons")&&media.includes("attribution"),"media lookup must preserve attribution");
-expect(v40?(homeCss.includes("min-height:100svh")&&homeCss.includes("overflow:hidden")&&homeCss.includes("height:calc(100svh - 72px)")):(homeCss.includes("height:100svh")&&homeCss.includes("overflow:hidden")),"desktop funnel must behave as a focused app rather than an endless questionnaire");
+expect(v40?(homeCss.includes("min-height:100svh")&&homeCss.includes("overflow:hidden")&&homeCss.includes("height:calc(100svh - 76px)")):(homeCss.includes("height:100svh")&&homeCss.includes("overflow:hidden")),"desktop funnel must behave as a focused app rather than an endless questionnaire");
 expect(builder.includes("/api/trip-builder")&&(builder.includes("/api/escape/stay-local")||builder.includes("/api/escape/research")),"selected stay must retain grounded 360 research and trip building");
 expect(research.includes("getLocalIntelligenceV38")||research.includes("hotelName:null"),"destination research must remain grounded in local intelligence");
 const selectedStayContinuity=escapePage.includes("V39DestinationMapWorkspace")?escapePage.includes("preferredOffer")&&stayRoute.includes("selected=loaded.find")&&(stayRoute.includes("V40StayWorkspace")||/V\d+EscapeBuilderClient/.test(stayRoute)):escapePage.includes("preferredOffer")&&/V\d+EscapeBuilderClient/.test(escapePage);
