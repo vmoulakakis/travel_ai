@@ -1,192 +1,304 @@
 ---
-name: travel-ai-v44-web-design
-version: 5.0.0
-purpose: Premium dark AI-first travel decision experience that converts natural intent into three real inventory-backed escapes, then into an evidence-aware 360° trip and disclosed provider handoff.
-source_method: MyAgenticTeam web-design-intelligence + agent-runtime-2026 + solution-first-product + live TravelAI product evidence
+name: travel-ai-v45-holiday-finder-web-design
+version: 6.1.0
+compatibility_alias: travel-ai-v44-web-design
+purpose: Premium animated AI Holiday Finder workspace that converts natural travel intent into real offer-backed holiday matches, then into an evidence-aware stay and 360° trip flow.
+source_method: MyAgenticTeam web-design-intelligence + agent-runtime-2026 + solution-first-product + live TravelAI offer/product evidence + current category research
 ---
 
-# TravelAI V44 Web Design Contract
+# TravelAI V45 Holiday Finder — Web Design Contract
 
 ## Canonical status
-This is the project-local design contract that implementation agents must follow for the current TravelAI redesign. Older V38/V40 design documents remain historical references only when they do not conflict with this file.
+This is the project-local design contract for the active redesign. Historical V38/V40/V44 documents remain useful only where they do not conflict with this contract.
 
-The current runtime compatibility names stay unchanged unless a separate migration is justified:
-- home experience component: `V40DiscoveryExperience`;
-- main inventory matcher: `/api/escape/solve-v42`;
-- public initial choice count: **3**.
+Stable runtime interfaces:
+- semantic discovery: `/api/escape/discovery`;
+- real offer/inventory matcher: `/api/escape/solve-v42`;
+- stay workspace: `V40StayWorkspace`;
+- public initial choice surface: up to **3** defensible matches.
 
-Version numbers are not a reason to churn working interfaces.
+The home surface is `V45HolidayFinder`.
 
 ## Product objective
-Primary success is a traveller progressing through:
+The product is an **AI Holiday Finder from our real offer products**, not a destination blog, generic OTA form, or AI technology showcase.
 
-`felt need -> useful understanding -> real-world frame -> 3 defensible matches -> one choice -> stay/360 experience -> disclosed provider handoff`
+Primary path:
 
-An affiliate click is downstream of confidence. It is not the ranking objective.
+`natural holiday need -> max 2 useful clarifications -> inline trip frame -> live offer search -> up to 3 offer-backed holiday matches -> one choice -> stay/360 trip -> disclosed provider handoff`
 
-## Audience
-The user often does not know where to go. They know how they feel, how much time/budget they have, who is travelling and what would ruin the trip. TravelAI should absorb complexity rather than force destination-first search behavior.
+An affiliate click is downstream of confidence. It is never the ranking objective.
 
-## V44 art-direction thesis — Option 2
-The product should feel like a premium international travel-intelligence studio: dark, immersive, precise and quietly futuristic.
+## 2026 research digest — @WEB-DESIGN-INTELLIGENCE
+The research pass focused on mechanisms rather than copying visual trade dress.
 
-- deep midnight/ocean-black canvas;
-- cyan/aqua as the intelligence/action signal;
-- modern sans typography with strong weight contrast;
-- sourced travel media used cinematically behind controlled dark layers;
-- thin luminous borders and selective translucent panels;
-- compact evidence signals and deliberate negative space;
-- subtle aurora/atmospheric depth rather than generic AI gradients;
-- no decorative metric theatre;
-- no travel-blog beige/white default;
-- no generic card-wall SaaS composition.
+### KAYAK Ask AI / AI Mode — adapt
+Observed mechanism:
+- natural-language planning starts in chat;
+- travel search results update live beside the conversation;
+- AI does not replace the useful result surface.
 
-The signature element is the **AI Trip Planner workbench**: natural language on the left, visible `understand -> match -> explain` intelligence on the right.
+Transferable principle:
+**conversation and actionable inventory should coexist in one workspace.**
 
-## Discovery architecture
-### State 1 — Welcome
-First viewport includes:
-- TravelAI premium wordmark/navigation;
-- benefit-led hero;
-- natural-language AI Trip Planner composer;
-- optional prompt chips that prefill the brief;
-- real-intelligence panel using sourced media;
-- capability rail: personalization, real stays, explainable fit, low friction.
+### Mindtrip — adapt
+Observed mechanism:
+- chat is connected to a visual planning workspace;
+- photos, maps, recommendations and itinerary context make the answer actionable;
+- the conversation is persistent rather than a temporary hero gimmick.
 
-The interface must not imply that fake agents are working. Any dynamic status corresponds to a real runtime state.
+Transferable principle:
+**the agent should feel embedded in the product surface, not bolted on above it.**
 
-### State 2 — Clarify
-Ask only a question that materially changes the recommendation. Current product contract caps adaptive clarification at two extra questions.
+### Airbnb 2026 AI comparison/highlights — adapt
+Observed mechanism:
+- AI summarises the attributes that matter to the traveller;
+- comparison is embedded in the decision flow;
+- AI is used to reduce reading and comparison burden.
 
-### State 3 — Practical setup
-Collect dates, total budget and origin together on one screen. Do not restore the old multi-screen practical-constraint funnel.
+Transferable principle:
+**AI earns trust by reducing decision work around real inventory.**
 
-### State 4 — Solve
-Show semantic intent, destination fit, real inventory and trade-off checking as understandable process states. Do not expose model/provider internals.
+### Expedia Romie — adapt
+Observed mechanism:
+- assistant spans dreaming, planning, shopping and disruption handling;
+- memory and recovery are part of the assistant value proposition;
+- the system should remain useful when the first plan fails.
 
-### State 5 — Results
-Present exactly **3 strongest distinct solutions**. Internal candidate/ranking sets may be larger.
+Transferable principle:
+**a travel agent must recover from an empty path instead of returning the user to a filter wall.**
 
-Each card exposes:
-- rank;
+### Layla / current bookable AI planner pattern — adapt cautiously
+Observed mechanism:
+- plain-language intent leads toward bookable itinerary components;
+- live price/inventory grounding creates conversion confidence.
+
+Transferable principle:
+**planning value and booking evidence should converge without fabricating certainty.**
+
+## Rejected patterns
+- dark cinematic AI splash as the dominant product experience;
+- neon/aurora “AI theatre”;
+- a hero that disappears into a cheap traditional form;
+- standalone practical-step pages;
+- error copy that tells the user to manually adjust dates/budget and retry;
+- fake live counters, fake scarcity, fake agent metrics;
+- destination-first search as the mandatory entry point;
+- generic SaaS dashboard card walls;
+- long questionnaires before showing value.
+
+## Art-direction thesis
+TravelAI should feel like a **high-end Mediterranean travel studio fused with a modern AI workspace**: bright, calm, tactile, intelligent and alive.
+
+Visual grammar:
+- warm paper / pale sand foundation;
+- sea-mist and mineral surfaces;
+- deep blue-green ink;
+- Aegean teal as action/intelligence signal;
+- restrained coral warmth;
+- editorial serif for emotion;
+- modern sans for interaction/evidence;
+- large real travel photography with editorial cropping;
+- translucent paper/glass only where it creates depth;
+- asymmetric image stacking rather than generic three-card grids;
+- visible motion that explains state change.
+
+The design should evoke **anticipation of travel**, not “software dashboard”.
+
+## Signature layout — persistent split workspace
+Desktop should default to:
+
+`conversation rail | live offer / visual canvas`
+
+The left rail owns intent, clarification, trip frame, reasoning summary and recovery. The right canvas owns imagery, matching progress and offer-backed results.
+
+Do not route the user through five visually unrelated full-screen pages. State transitions should feel like one continuous intelligent session.
+
+Mobile becomes one deliberate vertical flow: conversation first, live canvas/results second.
+
+## Funnel architecture
+### 1 — Natural holiday need
+First viewport communicates within seconds:
+- “tell me the holiday you need”;
+- the agent searches real offer products;
+- no filter maze is required.
+
+Primary interaction is a large conversational composer. Prompt chips prefill realistic briefs.
+
+### 2 — Adaptive clarification
+Ask only a question with material information gain. Maximum two additional questions.
+
+Questions feel like a travel advisor conversation, not a survey.
+
+### 3 — Inline trip frame
+Origin, dates, budget and traveller group appear as a compact editable object **inside the ongoing conversation workspace**.
+
+Never label this as a separate “practical step” or create a low-value form screen.
+
+### 4 — Live offer solve
+During real backend work, keep the user in the same workspace and animate meaningful states:
+- intent understood;
+- scanning real offers;
+- ranking defensible matches.
+
+Progress labels must correspond to actual runtime stages. Never display invented row counts before the result arrives.
+
+### 5 — Results
+Present the strongest real matches, up to three. Internal candidate sets can be larger.
+
+Each result prioritises:
 - destination;
-- real stay;
-- fit;
-- concise matched signals;
-- reason;
-- known price signal when truthful;
-- next action.
+- real property/offer;
+- match score;
+- concise grounded reason;
+- matched signals;
+- positive feed price only when present;
+- relevant distance/evidence state;
+- internal next action.
 
-No filler card is created merely to reach three.
+Source product identity remains traceable in runtime but does not need to become ugly consumer-facing metadata.
 
-## Information and trust hierarchy
-The user should understand, in order:
-1. what TravelAI does for them;
-2. what input is needed now;
-3. what the system understood;
-4. what real-world constraints remain;
-5. which three choices survive;
-6. why #1 differs from #2/#3;
-7. what remains uncertain;
-8. what action comes next.
+## Automatic recovery contract
+An AI holiday agent must not fail like a static search form.
 
-Fit, evidence confidence and commercial performance are separate concepts. Commercial performance never determines user suitability.
+If the exact requested date window yields no defensible result:
+1. keep the same intent/profile;
+2. transparently test nearby future date windows;
+3. return the closest verified window if one exists;
+4. clearly disclose that the dates moved;
+5. never silently alter budget, must-haves or traveller type;
+6. never fabricate inventory to reach three cards.
 
-## Media rules
-- destination backgrounds use sourced high-resolution landscape/aerial media;
-- property imagery comes from the actual property/feed or another explicitly sourced provider;
-- image relevance matters more than visual drama;
-- dark overlays protect contrast across every frame;
-- heavy media must have mobile/reduced-motion fallbacks;
-- do not AI-reconstruct a specific real hotel/room/view and present it as evidence.
+If multiple nearby windows also fail, the agent may offer a one-click wider search while retaining the brief. Do not tell the user to rebuild the request manually.
 
-## Typography
-Use a modern sans system for the discovery product. The current V44 experience intentionally moves away from the previous Georgia-led editorial look.
+## Offer-first intelligence contract
+The visible product can state that recommendations are derived from the user brief and real offer inventory because the active solver supports:
+- `source_product_id`;
+- property name and feed imagery;
+- persistent product semantic vectors;
+- semantic text/tags;
+- traveler fit;
+- value score;
+- location score;
+- evidence score;
+- exact tracking URL;
+- inventory count.
 
-Required behavior:
-- very strong hero weight with tight but readable tracking;
-- compact uppercase intelligence labels;
-- restrained body widths;
-- clear Greek glyph rendering;
-- mobile scaling that preserves the headline impact without clipping.
+UI copy must not imply the model invented or independently verified feed fields.
 
-## Motion
-Named jobs only: orient, reveal hierarchy, show state, focus a selected solution, or provide feedback.
+## Motion system
+Motion is required for this product, but every animation must have a named job.
 
-Default hierarchy:
-1. CSS transitions/keyframes;
-2. Motion for React only when layout/state choreography materially benefits;
-3. GSAP only for complex justified sequences;
+### Required motion jobs
+- **panel transition:** orient when conversation state changes;
+- **image drift:** maintain travel emotion without stealing attention;
+- **floating media:** create editorial spatial depth;
+- **scan line:** communicate real matching state;
+- **skeleton shimmer:** communicate pending inventory output;
+- **staggered result reveal:** make ranking legible;
+- **hover/focus elevation:** show selectable/active offers.
+
+Default implementation hierarchy:
+1. CSS keyframes/transitions;
+2. Motion for React only if state/layout choreography later requires it;
+3. GSAP only for justified complex sequences;
 4. no 3D/WebGL by default.
 
-`prefers-reduced-motion` disables ambient camera/aurora motion without removing content.
+`prefers-reduced-motion` must collapse animation without reducing content or functionality.
+
+## Information hierarchy
+The visitor should understand, in order:
+1. this finds a holiday for me;
+2. it searches real offers rather than generic ideas;
+3. what I should say;
+4. what the agent understood;
+5. what dates/budget apply;
+6. what the agent is doing now;
+7. which matches survived;
+8. why each fits;
+9. whether the date window changed during recovery;
+10. the next action.
+
+## Truth and commerce rules
+Never fabricate availability, room inventory, final trip price, ratings, reviews, customer counts, urgency, scarcity, savings, certifications, transport facts or weather.
+
+**Positive feed price** is a price signal, not automatically a nightly or total-trip price. Blank/null/zero/negative prices remain unknown.
+
+Exact affiliate `tracking_url` remains unchanged. **Commercial payout cannot lift traveller fit.** Commission, EPC or merchant economics must not promote an otherwise weaker holiday match.
+
+## Media
+- use sourced high-resolution travel imagery;
+- property imagery must come from feed/provider evidence;
+- imagery supports trust and desirability but never hides task completion;
+- initial canvas can use sourced destination imagery;
+- result cards use the actual offer image where available;
+- mobile simplifies imagery when necessary for speed;
+- never synthesise a fictional image of a real stay and present it as evidence.
+
+## Typography
+- emotional headings: editorial serif with strong Greek glyph quality;
+- UI/evidence/body: modern sans;
+- tight but readable display tracking;
+- compact uppercase micro-labels only for hierarchy;
+- avoid shouting with all-caps section headlines;
+- keep body line lengths controlled.
 
 ## Mobile
 At phone widths:
-- header simplifies;
-- composer becomes one column;
-- CTA becomes full width;
-- prompt chips stack;
-- intelligence media remains secondary to task completion;
-- practical inputs stack;
-- result cards stack vertically;
+- navigation simplifies;
+- composer CTA becomes full width;
+- prompt chips can horizontally scroll;
+- questions become one column;
+- inline trip frame becomes a 2-column/1-column grid;
+- live canvas follows the conversation rather than preceding it;
+- results become vertically scannable;
 - no horizontal overflow;
-- important touch targets are approximately 44 CSS px or larger.
+- primary touch targets remain approximately 44px or larger.
 
-## Truth and commerce rules
-Never fabricate:
-- availability;
-- room inventory;
-- final trip price;
-- star rating;
-- reviews;
-- customer counts;
-- urgency/scarcity;
-- savings;
-- certifications;
-- route facts.
-
-Positive feed price is a price signal, not necessarily a trip total. Blank/null/zero/negative values remain unknown. Final provider terms must be confirmed at handoff.
-
-Affiliate tracking URL is preserved exactly. Commercial payout cannot lift traveller fit.
+## Accessibility
+Release gates:
+- semantic headings/landmarks;
+- keyboard operation;
+- visible focus;
+- labels on form controls;
+- adequate contrast over imagery;
+- `aria-live` for changing result canvas;
+- reduced motion;
+- errors explained in the active agent context rather than detached alerts.
 
 ## Current engineering invariants
 - preserve Next.js/React architecture;
-- preserve current working APIs and data contracts;
-- `V40DiscoveryExperience` remains on Greek and English home routes;
-- `/api/escape/discovery` learns the brief before the solve;
-- `/api/escape/solve-v42` remains the active fast single-fetch semantic inventory solver;
-- `solutions=result?.solutions.slice(0,3)` remains the bounded discovery presentation;
-- sourced `/api/escape/media?...mode=aerial` remains the discovery media path;
-- current downstream map/stay/guide workflows remain intact unless separately redesigned.
+- `V45HolidayFinder` owns Greek and English home routes for the review branch;
+- `/api/escape/discovery` precedes solving;
+- `/api/escape/solve-v42` remains the active semantic inventory solver;
+- `solutions=result?.solutions.slice(0,3)` remains the bounded public surface;
+- `/api/escape/media?...mode=aerial` remains a sourced media path;
+- downstream map, stay, review, itinerary, email and affiliate workflows remain intact;
+- no backend/database migration is required for the redesign.
 
-## Agent implementation method — MyAgenticTeam 2026
-Before material UI changes:
-1. inspect repo + production evidence;
-2. read current canonical project skill and relevant MyAgenticTeam skills;
-3. turn the design objective into acceptance criteria;
-4. use the smallest capable implementation/review team;
-5. prefer deterministic inspection/tests over model speculation;
-6. implement on a reviewable branch;
-7. run typecheck, strict tests and production build;
-8. inspect actual browser output at desktop/mobile widths;
-9. verify accessibility, runtime errors and deployment health;
-10. merge only after evidence supports GREEN.
-
-Do not fan out agents merely because agents exist. Use specialized subagents only for clearly isolated work and synthesize/review their outputs before acceptance.
+## MyAgenticTeam implementation method
+1. inspect repo, runtime and real product evidence;
+2. apply `@WEB-DESIGN-INTELLIGENCE` before implementation;
+3. write the reference/Design-DNA digest;
+4. convert it into an implementation-grade design contract;
+5. implement on a review branch;
+6. run typecheck, strict regression and production build;
+7. inspect real preview output at desktop/mobile widths;
+8. verify accessibility/reduced motion;
+9. verify runtime behavior including empty-result recovery;
+10. merge only after user review of the actual preview.
 
 ## Release acceptance
-- first viewport communicates value within ~5 seconds;
-- user can start from natural intent, not a destination;
-- at most two clarifications before practical setup;
-- practical constraints remain one screen;
-- exactly three defensible initial matches;
-- no fake facts or commission-biased fit;
-- keyboard and visible focus work;
-- responsive layout works at 360/390/768/1024/desktop;
-- reduced motion works;
+- first viewport feels like a premium travel product, not a cheap form;
+- user understands real-offer Holiday Finder value quickly;
+- conversation and live result canvas coexist;
+- meaningful animation is visible but restrained;
+- max two clarifications;
+- trip frame stays inline in the agent session;
+- empty exact search triggers automatic recovery;
+- no fake filler result is created;
+- source/product truth remains grounded;
+- commercial bias cannot change fit;
 - typecheck passes;
-- strict regression suite passes;
+- strict regression passes;
 - production build passes;
-- preview/runtime is visually inspected before merge;
-- production is verified after merge before status GREEN.
+- real preview is reviewed on mobile and desktop before merge.

@@ -1,133 +1,110 @@
-# Travel Web Design — V44 Premium AI Travel Skill
+# Travel Web Design — V45 Offer-Aware Holiday Finder
 
 ## Purpose
-Design TravelAI as a premium decision product, not an OTA search form, destination blog or generic AI landing page. The experience should combine cinematic travel emotion with disciplined product UX: dark, precise, confident, fast and evidence-aware.
+Design TravelAI as a **Holiday Finder from real offer products**. The experience must help a traveller describe the break they need, let the agent narrow the brief with minimal questioning, then present a small set of real offer-backed matches.
 
-This skill supersedes older warm/editorial visual guidance where it conflicts with the current V44 design contract.
+This skill inherits the detailed project contract in `skills/web-design/SKILL.md` and the research method from MyAgenticTeam `@WEB-DESIGN-INTELLIGENCE`. If this file conflicts with the project-local canonical web-design skill, the canonical file wins.
 
-## Current design thesis — Option 2
-TravelAI should feel like an international premium travel-intelligence product.
+## Visual thesis
+The active direction is **light Mediterranean / editorial conversion utility**, not dark AI theatre.
 
-Visual language:
-- deep ink / midnight / ocean-black foundation;
-- restrained cyan/aqua intelligence accent;
-- high-contrast modern sans typography;
-- large immersive sourced travel media, heavily controlled by dark overlays;
-- thin luminous borders rather than decorative card chrome;
-- selective glass only where it improves hierarchy;
-- compact data/evidence signals;
-- one dominant action per state;
-- motion that communicates transition, ranking or focus.
+Use:
+- warm white and pale sand surfaces;
+- soft sea-mist panels;
+- deep blue-green text;
+- Aegean teal for intelligence/actions;
+- restrained coral warmth;
+- editorial serif for emotional headlines;
+- modern sans for UI/evidence;
+- real travel/property imagery;
+- generous whitespace;
+- clear decision hierarchy.
 
 Avoid:
-- generic purple AI gradients;
-- pale travel-blog styling;
-- endless destination card walls;
-- rounded-card-everywhere SaaS templates;
-- decorative metrics, fake ratings or fake scarcity;
-- UI that exposes internal agent/model names as theatre.
+- midnight/ocean-black as the dominant canvas;
+- neon aurora or generic purple AI gradients;
+- glass-dashboard theatre;
+- card walls with equal visual weight;
+- fake metrics, ratings, scarcity or urgency;
+- destination-first filter walls as the only entry path.
 
 ## Product journey
-The discovery contract is:
+`natural holiday need -> max 2 useful clarifications -> one practical setup -> real offer inventory solve -> 3 strongest holiday matches -> selected stay -> 360° trip`
 
-`natural need -> at most 2 useful clarifications -> one practical setup screen -> AI + real inventory solve -> 3 strongest solutions -> one selected destination -> stay/360 experience`
+The traveller should feel that the agent is doing the ranking work, not pushing it back through filters.
 
-The user should feel that TravelAI is doing the work. Do not push ranking work back onto the traveller through a filter wall.
+## First viewport
+The first viewport must communicate within seconds:
+1. this is a Holiday Finder;
+2. the user can describe the desired trip naturally;
+3. the system searches real offer products;
+4. the result will be a small explained set of choices.
 
-## Home / discovery
-The first viewport must communicate in seconds:
-1. this is an AI travel decision product;
-2. the user can describe what they want naturally;
-3. the system uses real inventory/evidence rather than hallucinated trips;
-4. the result is a small, explained set of choices.
-
-Recommended structure:
-- premium top navigation;
-- strong benefit-led headline;
-- natural-language AI Trip Planner composer;
-- optional inspiration prompts that populate the composer rather than bypass the reasoning flow;
-- a visual intelligence panel explaining `understand -> match -> explain`;
-- a compact capability rail for personalization, real inventory, explainability and low friction.
+Primary UI:
+- clean navigation;
+- benefit-led headline;
+- natural-language Holiday Agent composer;
+- realistic brief shortcuts;
+- one visual agent/offer panel explaining `understand -> scan offers -> keep 3`;
+- concise real-inventory trust signals.
 
 ## Choice architecture
-The discovery UI exposes **3 strongest distinct solutions**. Internal engines may maintain more candidates.
+Initial discovery exposes exactly **3 strongest distinct offer-backed solutions** when evidence supports them. Internal candidate sets may be larger.
 
-Do not show 5, 6 or 10 equal cards on the initial decision surface. If deeper exploration is later added, it must remain secondary to the bounded top-three decision.
-
-Each solution needs:
+Each result should show:
 - destination;
-- real stay/inventory state;
-- fit signal;
+- actual property/offer;
+- source product traceability;
+- fit/match;
 - concise reason;
-- material trade-off/uncertainty;
-- clear next action.
+- matched signals;
+- truthful price signal when known;
+- clear next internal action.
 
 ## Trust architecture
-Truth must be visible through product behavior rather than marketing claims.
+- fit and evidence confidence are separate;
+- commission cannot determine suitability;
+- positive feed price is not automatically a trip total;
+- unknown price/availability stays unknown;
+- sourced media represents real destinations/properties honestly;
+- progress labels correspond to real backend work;
+- no invented reviews, popularity, savings, scarcity or stock.
 
-- fit and evidence confidence are conceptually separate;
-- commission cannot decide suitability;
-- observed feed price is not automatically a trip total;
-- unknown availability/price remains unknown;
-- sourced photography represents destinations/properties honestly;
-- dynamic progress text maps to work the backend actually performs;
-- no invented urgency, popularity, review score, savings or stock.
-
-## Motion system
-Use the lightest mechanism that serves a real job:
-1. CSS for hover, focus, fades and background camera drift;
-2. Motion for React only when state/layout choreography materially improves comprehension;
-3. GSAP only for a clearly justified complex sequence;
-4. no 3D/WebGL by default.
-
-All important motion has a `prefers-reduced-motion` equivalent. Motion never delays input or hides evidence.
+## Motion
+Prefer CSS transitions/keyframes for state and hierarchy. Add heavier animation libraries only for a named UX job. `prefers-reduced-motion` must preserve complete task functionality.
 
 ## Responsive/mobile
-Mobile is a first-class product, not a compressed desktop.
-
-- single-column primary journey;
-- no tiny filter controls;
-- composer CTA becomes full width;
-- inspiration prompts stack cleanly;
-- intelligence panel remains readable without decorative excess;
-- minimum practical touch target ~44 CSS px;
+- one-column primary journey;
+- full-width composer action;
+- questions and practical fields stack;
+- offer cards stack vertically;
+- agent explanation never outranks the task;
 - no horizontal overflow;
-- long Greek labels wrap safely;
-- result cards become vertically scannable while preserving rank and action.
+- readable Greek text;
+- comfortable touch targets.
 
 ## Accessibility
-Release gates include:
-- semantic headings and landmarks;
-- programmatic labels;
-- keyboard operation;
-- visible focus;
-- adequate contrast across background imagery;
-- reduced motion;
-- errors associated with the relevant flow state;
-- meaningful action text, not icon-only critical controls.
+Require semantic structure, keyboard operation, visible focus, form labels, contrast, reduced motion and useful error feedback.
 
-## Engineering contract
-Preserve the current application architecture unless a migration has independent justification.
+## Engineering invariants
+- Greek and English home routes use `V45HolidayFinder` during V45 review;
+- `/api/escape/discovery` precedes matching;
+- `/api/escape/solve-v42` remains the real semantic single-fetch offer/inventory solver;
+- sourced `mode=aerial` media remains available;
+- practical setup captures dates, budget and origin together;
+- adaptive clarification stays bounded at two;
+- public top-three result output remains intact;
+- existing map/stay/review/itinerary/email/affiliate architecture remains unchanged unless separately redesigned.
 
-Current compatibility invariants:
-- Greek and English home routes use `V40DiscoveryExperience`;
-- current discovery solver is `/api/escape/solve-v42`;
-- discovery continues to use sourced `mode=aerial` media;
-- practical setup captures date range, budget and origin together;
-- adaptive clarification remains bounded;
-- top-three decision output remains intact.
-
-Versioned component names are compatibility identifiers, not a reason to rewrite working runtime architecture.
-
-## Review questions
-Before release, all answers should be yes:
-- Does the first viewport look like a premium product rather than a travel template?
-- Can a new user understand what to type within five seconds?
-- Is the AI value visible without technical theatre?
-- Are exactly three defensible solutions presented after matching?
-- Can the user tell why one option fits better than another?
-- Is commercial bias structurally separated from traveller fit?
-- Does the product remain useful when optional AI enrichment fails?
-- Does mobile feel deliberately designed?
-- Are sourced media, price and evidence states honest?
-- Do typecheck, strict regression tests, build and runtime checks pass?
+## Release questions
+Before production merge:
+- Is it clearly a Holiday Finder, not an AI showcase?
+- Does it visibly use real offer products?
+- Can a user start within five seconds?
+- Are questions minimal and useful?
+- Are exactly three defensible results shown when available?
+- Is property/product evidence visible?
+- Is commercial bias separated from fit?
+- Is mobile deliberately designed?
+- Are media, price and evidence states truthful?
+- Do typecheck, strict tests, build and preview review pass?
