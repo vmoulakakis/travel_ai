@@ -5,20 +5,21 @@ const read=(file:string)=>fs.readFileSync(path.join(process.cwd(),file),"utf8");
 const gr=read("app/page.tsx");
 const en=read("app/en/page.tsx");
 const layout=read("app/layout.tsx");
-const home=read("components/v40-discovery-experience.tsx");
-const css=read("components/v40-discovery-experience.module.css");
+const v45=gr.includes("V45HolidayFinder");
+const home=read(v45?"components/v45-holiday-finder.tsx":"components/v40-discovery-experience.tsx");
+const css=read(v45?"components/v45-holiday-finder.module.css":"components/v40-discovery-experience.module.css");
 const legacyRanker=read("lib/decision/solution-ranking-v36.ts");
 const legacyRoute=read("app/api/escape/solve-v36/stream/route.ts");
 const v42=read("app/api/escape/solve-v42/route.ts");
 const failures:string[]=[];
 const expect=(condition:boolean,message:string)=>{if(!condition)failures.push(message)};
 
-expect(gr.includes("V40DiscoveryExperience")&&en.includes("V40DiscoveryExperience"),"current escape experience must own both home routes");
+expect(v45?(gr.includes("V45HolidayFinder")&&en.includes("V45HolidayFinder")):(gr.includes("V40DiscoveryExperience")&&en.includes("V40DiscoveryExperience")),"current escape experience must own both home routes");
 expect(home.includes("Travel Agent")&&home.includes("solutions=result?.solutions.slice(0,3)"),"active consumer surface must remain a bounded decision experience");
 expect(home.includes('/api/escape/solve-v42'),"active architecture must use the V42 fast semantic solver");
 expect(v42.includes("escape-inventory-v42")&&v42.includes("interpretIntentV8")&&v42.includes("semanticStayScore"),"V42 must combine semantic intent with real inventory in one fetch");
 expect(home.includes("Real inventory")&&home.includes("Destination reveal"),"active discovery surface must preserve real-inventory decision truth");
-expect(home.includes("mode=aerial"),"destination media must remain cinematic and sourced");
+expect(home.includes("mode=aerial"),"destination media must remain sourced");
 expect(home.includes("slice(0,3)")||home.includes("slice(0, 3)"),"active discovery must expose multiple bounded options");
 expect(css.includes("min-height:100svh")&&css.includes("overflow:hidden")&&css.includes("min-height:calc(100svh - 74px)"),"active shell must behave as a focused app instead of an endless questionnaire");
 expect(css.includes("@media"),"active experience must retain a mobile-specific layout");
@@ -29,4 +30,4 @@ expect(legacyRanker.includes("loadV8StayOffers")&&legacyRoute.includes("forward-
 expect(layout.includes("έως 10 πραγματικές λύσεις")&&!layout.includes("3 semantic-matched escapes"),"SEO copy must not overclaim the visible shortlist as the whole engine");
 
 if(failures.length){console.error("Bidirectional funnel compatibility smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log("Bidirectional funnel compatibility smoke passed: active=V44 shell + V42 single-fetch semantic solver, bounded three-option UX, legacy V36 fallback retained.");
+console.log(`Bidirectional funnel compatibility smoke passed: active=${v45?"V45 holiday finder":"V44 shell"} + V42 single-fetch semantic solver, bounded three-option UX, legacy V36 fallback retained.`);
