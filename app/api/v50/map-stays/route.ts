@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -48,6 +49,7 @@ const base=()=>process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"
 const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY??"";
 const txt=(v:unknown)=>typeof v==="string"?v.trim():"";
 const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
+const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
 
 async function page(offset:number,limit:number){
  const serviceKey=key();if(!serviceKey)throw new Error("service_role_missing");
@@ -73,6 +75,8 @@ export async function GET(request:Request){
    const payload=await fallback.json() as Record<string,unknown>;
    return NextResponse.json({...payload,version:50,fullUniverse:false,demandLayer:{status:"not-trained",reason:"Preview fallback uses the existing capped public inventory feed; V50 demand forecasting is not trained yet."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-prototype-fallback"}});
   }
+  const catalog=await loadV8DestinationCatalog().catch(()=>[]);
+  const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
   const rows:OfferRow[]=[];
   for(let offset=0;offset<3000&&rows.length<Math.max(limit*2,2000);offset+=1000){
    const batch=await page(offset,1000);rows.push(...batch);if(batch.length<1000)break;
@@ -83,6 +87,8 @@ export async function GET(request:Request){
    if(row.in_stock===false||(validTo&&validTo<today)||!placeId||seen.has(placeId)||lat==null||lon==null||!trackingUrl)continue;
    if(lat<34||lat>42.5||lon<19||lon>30)continue;
    seen.add(placeId);
+   const locationText=norm([txt(row.location_label),txt(place?.location_label),txt(place?.city_raw),txt(place?.address)].filter(Boolean).join(" "));
+   const destinationSlug=destinationKeys.find(x=>locationText.includes(x.name))?.slug??null;
    products.push({
     productId:txt(row.source_product_id),placeId,name:txt(row.property_name)||txt(place?.property_name),
     location:txt(row.location_label)||txt(place?.location_label)||txt(place?.city_raw),
@@ -91,7 +97,7 @@ export async function GET(request:Request){
     price:num(row.price)??num(place?.min_price),fullPrice:num(row.full_price),discount:num(row.discount),
     currency:txt(row.currency)||txt(place?.currency)||"EUR",onSale:row.on_sale===true,
     availability:row.in_stock===true?"confirmed-active":txt(row.availability)||"valid-window-stock-unknown",
-    validTo:validTo||null,demandScore:num(row.demand_proxy)??num(place?.demand_score),trackingUrl
+    validTo:validTo||null,demandScore:num(row.demand_proxy)??num(place?.demand_score),trackingUrl,destinationSlug
    });
    if(products.length>=limit)break;
   }
