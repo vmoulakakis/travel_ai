@@ -1,5 +1,6 @@
 import type { TripRequest } from "@/lib/validation/trip";
-import type { V8RecommendationResponse } from "@/lib/decision/v8-types";
+import { V8_DIMENSIONS,type V8RecommendationResponse } from "@/lib/decision/v8-types";
+import { structuredIntent } from "@/lib/ai/intent-v8";
 import { runTravelOrchestratorV26,type TravelOrchestratorEmitter,type TravelOrchestratorEvent } from "@/lib/ai/travel-orchestrator-v26";
 import {
   finishTravelAgentRunV45,
@@ -95,9 +96,10 @@ export async function runTravelOrchestratorV45(
 
   try{
     const result=await runTravelOrchestratorV26(trip,sessionId,tee,{learnedPreferences:learned});
-    const confidence=Number(result.intent.semantic?.confidence??.8);
+    const confidence=Number(result.intent.semantic?.confidence??.8),currentOnly=structuredIntent(trip),explicitWeights={...currentOnly.weights};
+    for(const d of V8_DIMENSIONS)explicitWeights[d]=Math.max(Number(explicitWeights[d]??0),Number(result.intent.semantic?.positive[d]??0));
     await Promise.all([
-      persistTravelerProfileV45(profileKey,trip,result.intent,result.recommendations),
+      persistTravelerProfileV45(profileKey,trip,result.intent,result.recommendations,explicitWeights),
       recordTravelerSignalV45({
         profileKey,sessionId,eventType:"recommendation_impression",subjectType:"portfolio",subjectKey:sessionId,
         context:{slugs:result.recommendations.slice(0,3).map(r=>r.slug),engine:"V45"}
