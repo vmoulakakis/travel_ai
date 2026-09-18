@@ -118,43 +118,44 @@ export function parseNaturalWindowV50(text:string,answer:string|undefined,now=ne
 }
 
 function inferTraveler(text:string,answer?:string):V50TravelerType|null{
-  const t=norm([text,answer??""].join(" "));
-  if(/παιδ|οικογεν|family|kids|children/.test(t))return"family";
-  if(/φιλ|παρεα|friends|group/.test(t))return"friends";
-  if(/μονος|μονη|solo|alone/.test(t))return"solo";
-  if(/ζευγ|συντροφ|γυναικ|αντρα|wife|husband|partner|couple/.test(t))return"couple";
   if(answer==="couple"||answer==="solo"||answer==="family"||answer==="friends")return answer;
+  const t=norm([text,answer??""].join(" "));
+  if(/παιδ|οικογεν|family|kids|children|paidia|oikogeneia/.test(t))return"family";
+  if(/φιλ|παρεα|friends|group|filoi|filous|parea/.test(t))return"friends";
+  if(/μονος|μονη|solo|alone|monos|moni/.test(t))return"solo";
+  if(/ζευγ|συντροφ|γυναικ|αντρα|wife|husband|partner|couple|zevg|syntrof|gynaik|andra/.test(t))return"couple";
   return null;
 }
 
 function inferOutcome(text:string,answer:string|undefined,filters:V50Filters){
+  if(answer==="restore"||answer==="stimulating"||answer==="balanced")return answer;
   const t=norm([text,answer??""].join(" "));
-  if(/ξεκουρ|ηρεμ|χαλαρ|reset|rest|relax|αποφορ/.test(t)||filters.calm>=78)return"restore" as const;
-  if(/δραση|περιπετ|ενεργ|adventure|nightlife|party/.test(t)||filters.discovery>=82||filters.nightlife>=78)return"stimulating" as const;
+  if(/ξεκουρ|ηρεμ|χαλαρ|reset|rest|relax|αποφορ|xekour|ksekour|irem|xalar|apofor/.test(t)||filters.calm>=78)return"restore" as const;
+  if(/δραση|περιπετ|ενεργ|adventure|nightlife|party|drasi|peripet|energeia/.test(t)||filters.discovery>=82||filters.nightlife>=78)return"stimulating" as const;
   return"balanced" as const;
 }
 
 function inferSocial(text:string,filters:V50Filters){
   const t=norm(text);
-  if(/ησυχ|χωρις κοσμο|χωρις πολυ κοσμο|quiet|low crowd/.test(t)||filters.calm>=82)return"quiet" as const;
-  if(/nightlife|party|ζωνταν|μπαρ|club/.test(t)||filters.nightlife>=72)return"lively" as const;
+  if(/ησυχ|χωρις κοσμο|χωρις πολυ κοσμο|quiet|low crowd|isix|isyx|xwris kosmo/.test(t)||filters.calm>=82)return"quiet" as const;
+  if(/nightlife|party|ζωνταν|μπαρ|club|zontan|bar/.test(t)||filters.nightlife>=72)return"lively" as const;
   return"balanced" as const;
 }
 
 function inferMustHave(text:string,filters:V50Filters){
   const t=norm(text);
-  if(/βουν|ορειν|mountain|chalet|σαλε|φυση|nature|forest|δασ/.test(t)||filters.nature>=88)return"nature" as const;
-  if(/θαλασσ|παραλι|beach|sea|νησι/.test(t))return"sea" as const;
-  if(/πολιτισ|μουσει|ιστορ|culture|museum|heritage/.test(t))return"culture" as const;
+  if(/βουν|ορειν|mountain|chalet|σαλε|φυση|nature|forest|δασ|voun|orein|fysi|das/.test(t)||filters.nature>=88)return"nature" as const;
+  if(/θαλασσ|παραλι|beach|sea|νησι|thalass|parali|nisi/.test(t))return"sea" as const;
+  if(/πολιτισ|μουσει|ιστορ|culture|museum|heritage|politis|mousei|istor/.test(t))return"culture" as const;
   if(/nightlife|party|club|κλαμπ/.test(t))return"nightlife" as const;
   return"none" as const;
 }
 
 function inferAvoid(text:string,friction:string|undefined,filters:V50Filters){
   const t=norm([text,friction??""].join(" "));
-  if(/χωρις κοσμο|πολυκοσ|τουριστ|crowd/.test(t)||filters.calm>=88)return"crowds" as const;
-  if(/οικονομ|φθην|budget|cheap|κοστος|κόστος/.test(t)||filters.value>=88)return"high-cost" as const;
-  if(/κοντα|κοντά|ευκολ|χωρις ταλαιπωρ|short drive|easy access/.test(t)||friction==="easy-hop")return"long-travel" as const;
+  if(/χωρις κοσμο|πολυκοσ|τουριστ|crowd|xwris kosmo|tourist/.test(t)||filters.calm>=88)return"crowds" as const;
+  if(/οικονομ|φθην|budget|cheap|κοστος|κόστος|oikonom|fthin|kost/.test(t)||filters.value>=88)return"high-cost" as const;
+  if(/κοντα|κοντά|ευκολ|χωρις ταλαιπωρ|short drive|easy access|konta|eukol|efkol|xwris talaipor/.test(t)||friction==="easy-hop")return"long-travel" as const;
   return"none" as const;
 }
 
@@ -162,8 +163,8 @@ function inferDistance(friction:string|undefined,text:string){
   if(friction==="easy-hop")return"easy-hop" as const;
   if(friction==="road-trip")return"any" as const;
   const t=norm(text);
-  if(/κοντα|κοντά|ευκολ|2 ωρ|3 ωρ|short drive/.test(t))return"easy-hop" as const;
-  if(/road trip|οδικ|διαδρομ/.test(t))return"any" as const;
+  if(/κοντα|κοντά|ευκολ|2 ωρ|3 ωρ|short drive|konta|eukol|efkol/.test(t))return"easy-hop" as const;
+  if(/road trip|οδικ|διαδρομ|odiko|diadrom/.test(t))return"any" as const;
   return"any" as const;
 }
 
@@ -173,10 +174,10 @@ function inferMoods(text:string,filters:V50Filters):TripRequest["moods"]{
     ["culture",filters.discovery*.78],["adventure",filters.discovery],["city",filters.nightlife],
     ["romantic",/ρομαν|ζευγ|couple|partner/.test(t)?90:Math.round((filters.calm+filters.discovery)/2)]
   ];
-  if(/βουν|ορειν|mountain|φυση|nature|forest/.test(t))scores.push(["nature",100],["adventure",84]);
-  if(/φαγη|γαστρ|restaurant|food|wine|κρασι/.test(t))scores.push(["food",100]);
-  if(/μοναδικ|διαφορετικ|surprise|unique|hidden/.test(t))scores.push(["adventure",88]);
-  if(/ρομαν|ζευγ|couple|partner/.test(t))scores.push(["romantic",96]);
+  if(/βουν|ορειν|mountain|φυση|nature|forest|voun|orein|fysi/.test(t))scores.push(["nature",100],["adventure",84]);
+  if(/φαγη|γαστρ|restaurant|food|wine|κρασι|fagito|gastr|krasi/.test(t))scores.push(["food",100]);
+  if(/μοναδικ|διαφορετικ|surprise|unique|hidden|monadik|diaforetik/.test(t))scores.push(["adventure",88]);
+  if(/ρομαν|ζευγ|couple|partner|romant|zevg|syntrof/.test(t))scores.push(["romantic",96]);
   const best=new Map<TripRequest["moods"][number],number>();
   for(const [m,s] of scores)best.set(m,Math.max(best.get(m)??0,s));
   return [...best.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
