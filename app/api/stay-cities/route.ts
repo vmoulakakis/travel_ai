@@ -12,6 +12,6 @@ export async function GET(request:Request){
   const options=buildInventoryDestinationOptionsV15(cities,catalog.filter(destination=>destination.countryCode==="GR"),lang);
   return NextResponse.json({version:15,source:"active-stay-inventory",count:options.length,cities:options},{headers:{"cache-control":"public, max-age=120, s-maxage=600, stale-while-revalidate=1800","x-content-type-options":"nosniff"}});
  }catch{
-  return NextResponse.json({version:15,source:"unavailable",count:0,cities:[]},{status:503,headers:{"cache-control":"no-store"}});
+  return NextResponse.json({version:15,source:"temporarily-unavailable",count:0,cities:[],degraded:true},{status:200,headers:{"cache-control":"public, max-age=60"}});
  }
 }
