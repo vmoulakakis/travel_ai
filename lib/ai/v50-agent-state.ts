@@ -41,7 +41,22 @@ export type V50ConversationInterpretation={
 };
 
 const defaultFilters:V50Filters={calm:60,food:55,nature:55,discovery:55,nightlife:35,value:60};
-const norm=(s:string)=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const norm=(s:string)=>s.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"");
+const fold=(s:string)=>norm(s)
+  .replace(/\\b(epomeno|epomenh)\\s+sk\\b/g,"next weekend")
+  .replace(/\\bauto\\s+to\\s+sk\\b/g,"this weekend")
+  .replace(/\\b(sintrofo|syntrofo|partnera?)\\b/g,"partner")
+  .replace(/\\b(filous|filoi|parea)\\b/g,"friends")
+  .replace(/\\b(oikogeneia|oikogeniaka|paidia)\\b/g,"family kids")
+  .replace(/\\b(monos|monh)\\b/g,"solo")
+  .replace(/\\b(xekourasi|ksekourasi|iremia|isixia)\\b/g,"relax quiet")
+  .replace(/\\b(empeiries|drasi|peripeteia)\\b/g,"adventure")
+  .replace(/\\b(vouno|oreina|fysi)\\b/g,"mountain nature")
+  .replace(/\\b(thalassa|paralia|nisi)\\b/g,"sea beach")
+  .replace(/\\b(fagito|faghto|gastronomia)\\b/g,"food")
+  .replace(/\\b(konta|kontina|eykola|eukola)\\b/g,"short drive")
+  .replace(/\\b(fthina|oikonomika)\\b/g,"budget cheap")
+  .replace(/\\b(kosmo|polykosmia)\\b/g,"crowd");
 const iso=(d:Date)=>d.toISOString().slice(0,10);
 const validDate=(d:Date)=>Number.isFinite(d.getTime());
 const weekendRe=/(^|[\s,.;:!?])σκ($|[\s,.;:!?])|σαββατοκυριακ|weekend/i;
@@ -89,7 +104,7 @@ function explicitDate(text:string,now=new Date()){
 }
 
 export function parseNaturalWindowV50(text:string,answer:string|undefined,now=new Date()){
-  const combined=[text,answer??""].join(" ").trim(),normalized=norm(combined);
+  const combined=[text,answer??""].join(" ").trim(),normalized=fold(combined);
   const range=normalized.match(/(?:^|\s)(\d{1,2})\s*[-–]\s*(\d{1,2})\s+(ιανουαρι(?:ου)?|φεβρουαρι(?:ου)?|μαρτι(?:ου)?|απριλι(?:ου)?|μαι(?:ου)?|ιουνι(?:ου)?|ιουλι(?:ου)?|αυγουστ(?:ου|ο)?|σεπτεμβρι(?:ου)?|οκτωβρι(?:ου)?|νοεμβρι(?:ου)?|δεκεμβρι(?:ου)?)(?:\s+(\d{4}))?(?=\s|$|[,.!?;:])/);
   if(range){
     const from=explicitDate(range[1]+" "+range[3]+(range[4]?" "+range[4]:""),now),to=explicitDate(range[2]+" "+range[3]+(range[4]?" "+range[4]:""),now);
@@ -97,7 +112,7 @@ export function parseNaturalWindowV50(text:string,answer:string|undefined,now=ne
   }
 
   const anchor=explicitDate(combined,now);
-  const isWeekend=weekendRe.test(combined);
+  const isWeekend=weekendRe.test(fold(combined));
   const after=/μετ[αά]\s*(τις|την)?|after/i.test(combined);
   const flexible=after||/ευελικ|flex|οποτε|όποτε|οποιο|whatever/i.test(combined);
   const thisWeekend=/αυτ[οό]\s*το\s*σκ|this weekend/i.test(combined);
