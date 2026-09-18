@@ -153,7 +153,7 @@ function inferMustHave(text:string,filters:V50Filters){
 
 function inferAvoid(text:string,friction:string|undefined,filters:V50Filters){
   const t=norm([text,friction??""].join(" "));
-  if(/χωρις κοσμο|πολυκοσ|τουριστ|crowd|xwris kosmo|tourist/.test(t)||filters.calm>=88)return"crowds" as const;
+  if(/χωρις κοσμο|χωρις πολυ κοσμο|πολυκοσ|τουριστ|crowd|xwris kosmo|xwris poly kosmo|tourist/.test(t)||filters.calm>=88)return"crowds" as const;
   if(/οικονομ|φθην|budget|cheap|κοστος|κόστος|oikonom|fthin|kost/.test(t)||filters.value>=88)return"high-cost" as const;
   if(/κοντα|κοντά|ευκολ|χωρις ταλαιπωρ|short drive|easy access|konta|eukol|efkol|xwris talaipor/.test(t)||friction==="easy-hop")return"long-travel" as const;
   return"none" as const;
