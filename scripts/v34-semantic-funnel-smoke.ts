@@ -47,7 +47,7 @@ expect(selectedStayContinuity,"selected inventory-backed stay must carry through
 expect(escapePage.includes("loadMissionV34")&&escapePage.includes("inferMissionProfileV34"),"destination route must preserve semantic mission context");
 expect(mission.includes("needText")&&mission.includes("escapeDna")&&mission.includes("inferMissionProfileV34"),"semantic mission continuity helper missing");
 expect(homeCss.includes("@media")&&builderCss.includes("@media"),"active consumer surfaces require responsive equivalents");
-const designContract=(designSkill.includes("up to 10")&&designSkill.includes("dual-pass"))||(designSkill.includes("public initial choice count: **3**")&&designSkill.includes("Internal candidate/ranking sets may be larger"));
+const designContract=(designSkill.includes("up to 10")&&designSkill.includes("dual-pass"))||(designSkill.includes("public initial choice count: **3**")&&designSkill.includes("Internal candidate/ranking sets may be larger"))||(designSkill.includes("## Top 5 contract")&&designSkill.includes("Return up to five real, stay-backed solutions")&&designSkill.includes("No filler"));
 expect(designContract,"web design skill must preserve the real solution and bounded-choice contracts");
 const orchestratorContract=(orchestratorSkill.includes("Inventory Reality Pass")&&orchestratorSkill.includes("Reverse Check")&&orchestratorSkill.includes("Commission never enters the score"))||(orchestratorSkill.includes("Dual-pass reasoning")&&orchestratorSkill.includes("real stay inventory")&&orchestratorSkill.includes("commission")&&orchestratorSkill.includes("never raises destination/user-fit score"));
 expect(orchestratorContract,"orchestrator skill must encode reverse inventory reasoning and commercial independence");
