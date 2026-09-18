@@ -46,7 +46,7 @@ type AgentPayload={
  ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:Question;
  interpreted?:{confidence?:number;signals?:string[];summary?:string;profileSummary?:string;startDate?:string;endDate?:string;nights?:number;mustHave?:string;travelerType?:string};
  inventory?:{catalogSize:number;eligibleCount:number;resultCount:number;stayVerifiedSolutions:number};
- feasibility?:string;solutions?:Solution[];
+ feasibility?:string;solutions?:Solution[];trip?:TripContext;
 };
 type MapPayload={count:number;locationCount:number;products:StayPin[];fullUniverse?:boolean};
 
@@ -78,7 +78,7 @@ export function V50TravelIntelligenceHome(){
  const[filters,setFilters]=useState<Filters>(seedFilters);
  const[origin,setOrigin]=useState("Αθήνα");
  const[budget,setBudget]=useState(800);
- const[input,setInput]=useState("Βρες μου ένα μοναδικό ΣΚ βουνό μετά τις 01/10/2026");
+ const[input,setInput]=useState("");
  const[turns,setTurns]=useState<Turn[]>([
   {id:"welcome",role:"agent",text:"Πες μου την απόδραση όπως θα την έλεγες σε έναν άνθρωπο. Αν κάτι σημαντικό λείπει, θα σε ρωτήσω πριν σου προτείνω."}
  ]);
@@ -335,7 +335,7 @@ export function V50TravelIntelligenceHome(){
       <p>{currentSolution.destination.why}</p>
       <div className={styles.storyFacts}><span><Mountains/> {currentSolution.destination.effortLabel}</span><span><MapPin/> {currentSolution.stay.distanceKm==null?"περιοχή":currentSolution.stay.distanceKm.toFixed(1)+" km από κέντρο"}</span></div>
       <div className={styles.storyStay}><small>ΠΡΑΓΜΑΤΙΚΟ STAY</small><strong>{currentSolution.stay.name}</strong><span>{currentSolution.destination.seasonNote}</span></div>
-      <a className={styles.offerButton} href={currentSolution.stay.trackingUrl} target="_blank" rel="sponsored nofollow noopener noreferrer">ΔΕΣ ΤΗΝ ΠΡΟΣΦΟΡΑ <ArrowRight/></a>
+      <div className={styles.storyActions}><a className={styles.buildButton} href={buildTripUrl(currentSolution)}>ΧΤΙΣΕ ΤΗΝ ΑΠΟΔΡΑΣΗ <ArrowRight/></a><a className={styles.offerButton} href={currentSolution.stay.trackingUrl} target="_blank" rel="sponsored nofollow noopener noreferrer">ΔΕΣ ΠΡΟΣΦΟΡΑ ↗</a></div>
     </div>
   </aside>:null}
 
