@@ -5,7 +5,6 @@ import type { LayerGroup,Map as LeafletMap,Marker,TileLayer } from "leaflet";
 import {
   ArrowRight,
   Brain,
-  ChatCircleDots,
   Compass,
   ForkKnife,
   Leaf,
@@ -101,7 +100,6 @@ export function V50TravelIntelligenceHome(){
 
  const currentSolution=solutions[activeIndex]??null;
  const topIds=useMemo(()=>new Set(solutions.map(x=>x.stay.productId)),[solutions]);
- const topRanks=useMemo(()=>new Map(solutions.map((x,i)=>[x.stay.productId,i+1])),[solutions]);
 
  useEffect(()=>{
   transcript.current?.scrollTo({top:transcript.current.scrollHeight,behavior:"smooth"});
