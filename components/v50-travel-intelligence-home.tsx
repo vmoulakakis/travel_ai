@@ -50,6 +50,7 @@ export function V50TravelIntelligenceHome(){
  const [solutions,setSolutions]=useState<Solution[]>([]);
  const [active,setActive]=useState(0);
  const [inventory,setInventory]=useState<StayPin[]>([]);
+ const [heroMedia,setHeroMedia]=useState<HeroMedia[]>([]);
  const [mapMeta,setMapMeta]=useState({count:0,locationCount:0});
  const [selectedPin,setSelectedPin]=useState<StayPin|null>(null);
  const [showAll,setShowAll]=useState(true);
