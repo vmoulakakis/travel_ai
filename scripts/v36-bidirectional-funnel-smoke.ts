@@ -68,7 +68,7 @@ expect(
 );
 expect(legacyRanker.includes("loadV8StayOffers")&&legacyRoute.includes("forward-recovery"),"V36 fallback architecture must remain available");
 expect(
-  (layout.includes("5 πραγματικές stay-backed λύσεις")||layout.includes("έως 5 πραγματικές")||layout.includes("έως 10 πραγματικές λύσεις"))
+  (layout.includes("5 πραγματικές stay-backed λύσεις")||layout.includes("έως 5 πραγματικές")||layout.includes("έως 10 πραγματικές λύσεις")||layout.includes("έως 10 πραγματικές stay-backed λύσεις"))
   &&!layout.includes("3 semantic-matched escapes"),
   "SEO copy must describe the current bounded output without claiming an obsolete three-option engine"
 );
