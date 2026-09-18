@@ -41,6 +41,7 @@ type Solution={
  };
  liveOfferCount:number;
 };
+type TripContext={origin:string;startDate:string;endDate:string;budget:number;travelerType:string;moods:string[]};
 type AgentPayload={
  ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:Question;
  interpreted?:{confidence?:number;signals?:string[];summary?:string;profileSummary?:string;startDate?:string;endDate?:string;nights?:number;mustHave?:string;travelerType?:string};
@@ -85,6 +86,7 @@ export function V50TravelIntelligenceHome(){
  const[question,setQuestion]=useState<Question|null>(null);
  const[phase,setPhase]=useState<"ready"|"thinking"|"results"|"error">("ready");
  const[solutions,setSolutions]=useState<Solution[]>([]);
+ const[tripContext,setTripContext]=useState<TripContext|null>(null);
  const[activeIndex,setActiveIndex]=useState(0);
  const[activePin,setActivePin]=useState<StayPin|null>(null);
  const[mapReady,setMapReady]=useState(false);
