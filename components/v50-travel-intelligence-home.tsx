@@ -12,6 +12,7 @@ type Question={id:"dates"|"companions"|"outcome"|"friction";text:string;quickRep
 type Message={id:string;role:"user"|"agent";text:string};
 type StayPin={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string};
 type MapPayload={count:number;locationCount:number;products:StayPin[]};
+type HeroMedia={id:string;location:string;imageUrl:string;propertyCount:number;minPrice:number|null;currency:string;latitude:number|null;longitude:number|null};
 type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null};liveOfferCount:number};
 type AgentPayload={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:Question;interpreted?:{summary?:string;profileSummary?:string;startDate?:string;endDate?:string;signals?:string[];confidence?:number};inventory?:{catalogSize:number;eligibleCount:number;resultCount:number;stayVerifiedSolutions:number};feasibility?:string;solutions?:Solution[]};
 
@@ -60,7 +61,7 @@ export function V50TravelIntelligenceHome(){
 
  const activeSolution=solutions[active]??null;
  const topIds=useMemo(()=>new Set(solutions.map(x=>x.stay.productId)),[solutions]);
- const heroImages=useMemo(()=>inventory.filter(x=>x.imageUrl).slice(0,8).map(x=>x.imageUrl as string),[inventory]);
+ const heroImages=useMemo(()=>heroMedia.length?heroMedia.map(x=>x.imageUrl):inventory.filter(x=>x.imageUrl).slice(0,8).map(x=>x.imageUrl as string),[heroMedia,inventory]);
  const hero=activeSolution?.stay.imageUrl??heroImages[0]??null;
  const detail=activeSolution?.stay.imageUrl??heroImages[1]??hero;
  const userHistory=messages.filter(x=>x.role==="user").slice(-5).map(x=>x.text).join(" · ").slice(-700);
@@ -70,6 +71,7 @@ export function V50TravelIntelligenceHome(){
     setInventory(Array.isArray(p.products)?p.products:[]);
     setMapMeta({count:p.count??0,locationCount:p.locationCount??0});
   }).catch(()=>{});
+  fetch("/api/v50/hero-media",{cache:"no-store"}).then(r=>r.json()).then((p:{items?:HeroMedia[]})=>setHeroMedia(Array.isArray(p.items)?p.items:[])).catch(()=>{});
  },[]);
 
  useEffect(()=>{
