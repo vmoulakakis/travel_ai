@@ -221,6 +221,14 @@ export function V50TravelIntelligenceHome(){
   if(s)mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75});
  }
 
+ function showAllSolutions(){
+  if(!mapRef.current||!solutions.length)return;
+  void import("leaflet").then(L=>{
+   const bounds=L.latLngBounds(solutions.map(s=>[s.stay.latitude,s.stay.longitude] as [number,number]));
+   mapRef.current?.fitBounds(bounds,{padding:[70,70],maxZoom:9});
+  });
+ }
+
  return <main className={styles.shell}>
   <header className={styles.topbar}>
     <a href="/" className={styles.brand}>TRAVEL<b>AI</b></a>
@@ -281,7 +289,7 @@ export function V50TravelIntelligenceHome(){
       </section>
 
       {solutions.length?<section className={styles.resultsPanel}>
-        <div className={styles.sectionTitle}><div><span>03</span><h2>Οι 5 λύσεις σου</h2></div><p>Κάθε μία έχει περάσει από agent reasoning και live stay verification.</p></div>
+        <div className={styles.sectionTitle}><div><span>03</span><h2>Οι 10 λύσεις σου</h2></div><p>Δέκα λύσεις, όλες περασμένες από agent reasoning και live stay verification.</p></div>
         <div className={styles.solutionRail}>
           {solutions.map((s,index)=><article key={s.stay.productId} className={index===active?styles.solutionActive:""} onMouseEnter={()=>focus(index)}>
             <div className={styles.solutionImage} style={s.stay.imageUrl?{backgroundImage:"url("+s.stay.imageUrl+")"}:undefined}>
@@ -310,7 +318,7 @@ export function V50TravelIntelligenceHome(){
       <div className={styles.mapNarrative}>
         <span>LIVE TRAVEL UNIVERSE</span>
         <b>{solutions.length?solutions.length+" AI solutions":mapMeta.count?mapMeta.count.toLocaleString("el-GR")+" real stays":"loading inventory…"}</b>
-        <small>zoom · hover · select · challenge the agent</small>
+        <small>zoom · hover · select · challenge the agent</small>{solutions.length?<button className={styles.showAllSolutions} onClick={showAllSolutions}>SHOW ALL {solutions.length} ★</button>:null}
       </div>
 
       {activeSolution?<aside className={styles.intelCard}>
