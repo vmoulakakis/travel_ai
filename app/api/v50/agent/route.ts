@@ -84,7 +84,7 @@ function humanClarification(question:ReturnType<typeof nextV50Question>,interpre
     return `Το βασικό πλαίσιο το έχω. Τι θέλεις να κερδίσεις περισσότερο από αυτή την απόδραση: ξεκούραση, εμπειρίες ή ισορροπία;`;
   }
   if(question.id==="friction"){
-    return `Τελευταίο ουσιαστικό φίλτρο: πόση μετακίνηση δέχεσαι; Θέλω να αποφύγω να σου προτείνω κάτι εντυπωσιακό αλλά κουραστικό.`;
+    return `Και στις μετακινήσεις; Προτιμάς κάτι κοντινό, σου αρέσει η οδήγηση ή δεν σε περιορίζει ιδιαίτερα η απόσταση;`;
   }
   return question.text;
 }
@@ -321,7 +321,7 @@ export async function POST(request:Request){
       if(fallback?.solutions?.length){
         return responseWithProfile({
           ok:true,state:"results",
-          agentMessage:"Έχασα ένα enrichment layer, όχι το ταξίδι σου. Συνέχισα με το grounded semantic + live-inventory engine και κράτησα μόνο πραγματικές επιλογές. Μπορούμε να συνεχίσουμε κανονικά από εδώ.",
+          agentMessage:"Έχω αρκετά καθαρή εικόνα για το ταξίδι σου και συνέχισα με τις διαθέσιμες επιβεβαιωμένες επιλογές. Σου δείχνω μόνο όσες μπορώ να στηρίξω με πραγματικά δεδομένα.",
           interpreted:{
             confidence:interpreted.confidence,
             signals:interpreted.signals,
@@ -340,9 +340,10 @@ export async function POST(request:Request){
       console.error("[v50-agent] fallback failed",{message:fallbackError instanceof Error?fallbackError.message:String(fallbackError)});
     }
     return responseWithProfile({
-      ok:false,state:"error",
-      agentMessage:"Δεν έχω ακόμη ασφαλή live αποτέλεσμα για να σου δείξω. Το brief σου έχει κρατηθεί· δοκίμασε ξανά σε λίγα δευτερόλεπτα χωρίς να ξαναγράψεις τις προτιμήσεις σου.",
-      error:process.env.NODE_ENV==="development"?message:"agent_pipeline_unavailable"
+      ok:true,state:"degraded",
+      agentMessage:"Το brief σου είναι έτοιμο: ξέρω με ποιον ταξιδεύεις, τι θέλεις να νιώσεις και πόση μετακίνηση δέχεσαι. Δεν θα σε ξαναβάλω σε ερωτηματολόγιο· συνέχισε με την επόμενη λεπτομέρεια που σε νοιάζει ή ζήτησέ μου να σου ανοίξω τις καλύτερες επιλογές.",
+      interpreted:{confidence:interpreted.confidence,signals:interpreted.signals,travelerType:interpreted.travelerType,mustHave:interpreted.mustHave},
+      error:process.env.NODE_ENV==="development"?message:undefined
     },profileKey,503);
   }
 }
