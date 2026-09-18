@@ -12,7 +12,7 @@ function isLocalDevOrigin(origin:string){
 
 export function webflowCorsHeadersV31(request:Request,methods="GET, POST, OPTIONS"){
  const origin=request.headers.get("origin")??"",normalized=normalizeOrigin(origin),allowed=configuredOrigins();
- const headers:Record<string,string>={"vary":"Origin","access-control-allow-methods":methods,"access-control-allow-headers":"Content-Type, Accept","access-control-max-age":"86400"};
+ const headers:Record<string,string>={"vary":"Origin","access-control-allow-methods":methods,"access-control-allow-headers":"Content-Type, Accept, X-Travel-Profile-Key","access-control-expose-headers":"X-Travel-Profile-Key","access-control-max-age":"86400"};
  if(normalized&&(allowed.has(normalized)||isLocalDevOrigin(normalized)))headers["access-control-allow-origin"]=normalized;
  return headers;
 }
