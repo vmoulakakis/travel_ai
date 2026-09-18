@@ -1,112 +1,201 @@
 ---
 name: travel-ai-v50-web-design
-version: 6.0.0-prototype
-purpose: Map-first agentic travel intelligence experience where natural intent, infographic controls and a live stay map share one decision state.
-source_method: MyAgenticTeam web-design-intelligence v3 + agent-runtime-2026 + solution-first-product + TravelAI V45 runtime
+version: 7.0.0-production
+purpose: Production art direction and interaction contract for a cinematic, conversation-first, map-native agentic travel intelligence product.
+source_method: MyAgenticTeam web-design-intelligence v3 + agent-runtime-2026 + solution-first-product + TravelAI V45 persistent runtime
 ---
 
-# TravelAI V50 Prototype Web Design Contract
-
-## Prototype scope
-This contract applies to the `prototype/v50-home` review branch. Production main remains unchanged until explicit approval.
-
-The prototype must be structurally production-compatible:
-- Next.js/React and existing runtime contracts stay in place.
-- Real stay inventory and real coordinates are used whenever available.
-- Existing semantic solver is reused rather than mocked.
-- New UI state is isolated behind reusable V50 components/adapters.
-- Missing V50 intelligence layers are labelled unavailable/pending rather than fabricated.
+# TravelAI V50 Production Web Design Contract
 
 ## Product thesis
-TravelAI is not a travel agency search form. It is an agentic escape solver.
+TravelAI is not a booking search form and not a travel dashboard. It is an agentic travel intelligence experience.
 
-Primary flow:
-`felt need -> AI interpretation -> live inventory universe -> semantic fit -> Top 5 solutions -> map exploration -> challenge/compare -> downstream trip build`.
+The user should feel that a highly capable travel expert is:
+1. listening;
+2. asking the minimum high-value questions needed;
+3. understanding hidden travel needs and constraints;
+4. searching the real inventory;
+5. challenging weak choices when necessary;
+6. revealing the strongest real solutions on an immersive map;
+7. continuing through itinerary, travel book, email/watch and verified booking handoff.
 
-The map, conversational agent and infographic controls are three interfaces over the same travel-decision state.
+Core flow:
+`conversation -> clarification -> structured traveler state -> V45 reasoning -> live stay verification -> Top 5 -> map exploration -> challenge/compare -> trip build -> booking handoff`.
 
-## First viewport
-The first viewport is a full-screen decision canvas:
-- compact TravelAI identity/navigation;
-- natural-language prompt;
-- editable practical frame (origin, dates, total budget);
-- visual Travel DNA controls;
-- live map containing the user's real stay universe;
-- visible inventory count;
-- one primary action: analyze the escape.
+## Map is the visual hero
+The map is the primary visual canvas and must not be demoted to a secondary panel.
 
-Do not use a generic tourism hero + search bar + cards.
+Preserve:
+- satellite / terrain / standard layers;
+- full live stay universe;
+- smooth fly-to and fit-bounds behavior;
+- persistent map context while interacting with recommendations.
 
-## Map experience
-The prototype map must:
-- render real stay pins from Supabase;
-- support standard, satellite and terrain basemaps;
-- highlight Top-5 matches after solving;
-- support hover insight and click selection;
-- preserve map context while showing intelligence cards;
-- make a non-Top-5 user selection visibly challengeable by the agent;
-- use a map adapter boundary so Mapbox/deck.gl can replace Leaflet in production without changing funnel state.
+Top-5 solutions use ranked intelligence pins, not generic dots:
+- visible rank 1-5;
+- fit score;
+- active halo;
+- hover/focus state;
+- contextual solution card;
+- visually distinct from ordinary inventory pins.
 
-V50 production target may use Mapbox/deck.gl. The prototype deliberately reuses Leaflet to minimize dependency churn and prove the interaction model first.
+Ordinary stay inventory stays subtle and dense. Ranked solutions carry visual hierarchy.
+
+## Conversation-first agent UX
+The agent is the main decision interface.
+
+Never jump from a vague sentence directly into unrelated destination results.
+
+Use one high-information-gain question at a time when critical context is missing:
+- dates;
+- companions;
+- desired outcome;
+- travel friction.
+
+Quick replies may accelerate the conversation, but natural language always remains available.
+
+The agent must:
+- retain compact persistent traveler context;
+- treat current explicit intent as highest priority;
+- challenge a user-selected stay when it is a weak match;
+- explain trade-offs without patronizing;
+- never fabricate demand, availability, weather, reviews, events or urgency.
+
+The transcript, map and filters are one shared decision state.
+
+## Infographic filters
+Travel DNA is an active structured-input layer, not decoration.
+
+Required dimensions:
+- calm;
+- food;
+- nature;
+- discovery;
+- nightlife / energy;
+- value.
+
+Visual treatment:
+- compact infographic dials;
+- instant visible values;
+- slider or drag affordance;
+- updates feed the server-side agent state.
+
+## Visual thesis
+Premium editorial travel intelligence.
+
+Not:
+- SaaS dashboard;
+- generic AI gradient;
+- giant rounded-card stack;
+- booking-site clone;
+- heavy purple;
+- fake metric theatre.
+
+Use:
+- full-screen cartographic/satellite visual field;
+- warm ivory editorial surfaces;
+- dark mineral green;
+- restrained orange/amber intelligence accents;
+- serif editorial display typography paired with compact technical sans;
+- generous negative space;
+- fine borders;
+- low-opacity glass only where overlays need separation;
+- cinematic hierarchy rather than boxed sections.
+
+## Image standards
+Real property/location imagery remains the source of truth.
+
+Never generate a fake hotel and present it as the real property.
+
+Every displayed travel image must use a consistent visual treatment:
+- quality gate: reject tiny, severely compressed or obviously broken imagery;
+- intentional editorial crop;
+- consistent aspect ratio by component;
+- cinematic contrast / vignette / tonal treatment;
+- readable overlay-safe focal area;
+- graceful fallback when no usable image exists;
+- circular secondary detail lens ("drone lens") for high-priority solution cards.
+
+The circular lens may use a zoomed/cropped view of the real source image unless a separately licensed aerial image exists. Label it as a visual lens, never as actual drone footage when it is not.
+
+Future AI image enhancement may improve resolution/relighting/crop, but it must preserve factual identity of the real property/location.
+
+## Motion choreography
+Motion communicates state changes:
+- agent thinking;
+- result reveal;
+- ranked pin activation;
+- map fly-to;
+- card focus;
+- Travel DNA change.
+
+Use restrained durations and consistent easing.
+Respect prefers-reduced-motion.
+Do not animate merely to decorate.
 
 ## Top 5 contract
-The V50 prototype shows up to five strongest distinct real-inventory solutions from the existing semantic solver.
+Return up to five real, stay-backed solutions.
 
-No filler result is created. If fewer than five are returned, display the real count.
+No filler.
+No fake exact-match language.
+No result may be shown as bookable without a real offer/tracking URL.
 
-A solution card must expose:
-- rank and fit;
+Each solution needs:
 - destination;
 - real stay;
-- truthful price signal when available;
-- semantic matched signals;
-- explicit action to focus it on the map;
-- downstream path into the existing stay/escape flow.
+- fit score;
+- why it fits;
+- travel effort;
+- season context;
+- live offer count;
+- truthful price signal;
+- verified outbound tracking URL.
 
-## AI behavior
-The agent must not flatter a bad user choice.
+## Truth and evidence
+The server-side agent owns recommendation quality.
+The browser never invents recommendation scores.
 
-When the user selects a mapped stay outside the current Top 5, the UI should explain that it is not among the current strongest matches and invite a comparison/recalculation. The user retains control.
+Current V50 production homepage must use:
+- V45 persistent orchestration;
+- adaptive V50 conversation state;
+- natural-date parsing;
+- real stay retrieval;
+- availability truth assessment;
+- Top-5 cap.
 
-No hidden chain-of-thought is shown. Observable filtering/ranking counts and evidence state may be shown.
+Demand/weather/events/review layers appear only when evidence exists.
+The current non-discriminating demand proxy must not be presented as meaningful demand forecast.
 
-## Infographic controls
-Expose a small set of high-value experiential dimensions such as calm, food, nature, discovery, nightlife and value.
+## Responsive
+Desktop:
+- full-screen map;
+- floating agent deck;
+- floating infographic controls;
+- ranked result rail;
+- cinematic active-solution card.
 
-They are not decorative charts. They modify the structured request sent to the semantic solver.
+Mobile:
+- conversation remains first;
+- map remains a major stage;
+- filters collapse without disappearing;
+- result rail becomes horizontal;
+- active solution becomes an editorial card below the map interaction;
+- no desktop overlay should obscure the composer.
 
-## Truth rules
-Never fabricate demand, weather, events, reviews, availability, urgency or savings.
-
-Current `demand_proxy` is non-discriminating across the live offer set and must not be represented as a meaningful V50 demand forecast.
-
-Future demand/weather/events/review layers should plug into explicit evidence slots and appear only when their data services are ready.
-
-## Visual direction
-Premium intelligence studio rather than travel brochure:
-- near-black green/ocean canvas;
-- warm ivory text;
-- mineral green and amber/orange intelligence accents;
-- large but controlled typographic hierarchy;
-- satellite/map imagery as the main visual material;
-- thin borders, dense information hierarchy and restrained glass only where it clarifies overlay relationships;
-- subtle motion for map focus, result reveal and state transition;
-- no purple AI gradients, bento spam, generic SaaS cards or fake metric theatre.
-
-## Responsive behavior
-Desktop: map and decision panel operate side by side in one viewport.
-Mobile: natural-language input and Top-5 decision controls remain primary; map becomes a large dedicated stage below the composer with sticky mode controls.
-
-## Prototype acceptance
-- root homepage on the prototype branch renders V50;
-- production main is untouched;
-- real inventory endpoint can return the full active stay universe, subject to valid/tracked/geo-qualified rows;
-- map loads and renders the returned pins;
-- standard/satellite/terrain switching works;
-- semantic solve uses the existing `/api/escape/solve-v42` contract;
-- up to 5 real solutions render;
-- clicking/focusing a result moves the map;
-- selecting a non-Top-5 pin triggers an agent challenge state;
-- responsive CSS exists for phone/tablet/desktop;
-- reduced-motion preference is respected;
-- typecheck/build/CI must pass before preview is called GREEN.
+## Production acceptance
+- root homepage uses V50;
+- all recommendation scoring is server-side;
+- V45 persistent agent runtime is active;
+- agent asks clarifying questions before matching when needed;
+- live map inventory loads;
+- ranked pins render 1-5;
+- fly-to / fit-bounds stay intact;
+- Travel DNA modifies agent state;
+- real stay-backed Top-5 is enforced;
+- user-selected weak choices can trigger an agent challenge;
+- image treatment contract is implemented;
+- mobile and reduced-motion contracts exist;
+- typecheck passes;
+- strict regression suite passes;
+- production build passes;
+- production deployment is verified before declaring GREEN.
