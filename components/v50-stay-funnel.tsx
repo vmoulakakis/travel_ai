@@ -1,0 +1,84 @@
+"use client";
+
+import { FormEvent,useEffect,useMemo,useState } from "react";
+import QRCode from "qrcode";
+import type { V8StayOffer } from "@/lib/decision/v8-types";
+import type { TripRequest } from "@/lib/validation/trip";
+import type { TripBuilderPlanV25 } from "@/lib/trip-builder/types-v25";
+import type { LocalIntelligenceV38,LocalPlaceV38 } from "@/lib/data/local-intelligence-v38";
+import type { StayReviewIntelligenceV39 } from "@/lib/data/stay-review-intelligence-v39";
+import styles from "./v50-stay-funnel.module.css";
+
+type Props={slug:string;destination:string;destinationEn:string;offer:V8StayOffer;trip:TripRequest;lang:"el"|"en";missionId?:string|null};
+type EventItem={id:string;name:string;date:string;time:string|null;venue:string|null;city:string;category:string;imageUrl:string|null};
+type EventsPayload={status:"live"|"empty"|"unavailable";events:EventItem[];providers:string[];disclosure:string};
+type LocalResponse=LocalIntelligenceV38&{stay?:{name:string;latitude:number;longitude:number;address:string|null;city:string|null}};
+type ChatRow={role:"agent"|"user";text:string};
+
+const say=(l:"el"|"en",el:string,en:string)=>l==="el"?el:en;
+const money=(n:number|null|undefined,c:string|null|undefined,l:"el"|"en")=>n&&n>0?new Intl.NumberFormat(l==="el"?"el-GR":"en-GB",{style:"currency",currency:c||"EUR",maximumFractionDigits:0}).format(n):say(l,"Τιμή στον πάροχο","Price at provider");
+const dateLabel=(iso:string,l:"el"|"en")=>new Intl.DateTimeFormat(l==="el"?"el-GR":"en-GB",{weekday:"short",day:"numeric",month:"short"}).format(new Date(iso+"T12:00:00Z"));
+function images(o:V8StayOffer){const r=o.raw&&typeof o.raw==="object"?o.raw as Record<string,unknown>:{};const parse=(v:unknown):string[]=>Array.isArray(v)?v.flatMap(parse):typeof v==="string"?v.split(/[|,\n]+/).map(x=>x.trim()).filter(x=>/^https?:\/\//.test(x)):v&&typeof v==="object"?Object.values(v as Record<string,unknown>).flatMap(parse):[];return [...new Set([o.imageUrl||"",o.thumbUrl||"",...parse(r.extra_images),...parse(r.extraImages)])].filter(Boolean).slice(0,10)}
+
+export function V50StayFunnel({slug,destination,destinationEn,offer,trip,lang}:Props){
+ const [step,setStep]=useState(0),[plan,setPlan]=useState<TripBuilderPlanV25|null>(null),[local,setLocal]=useState<LocalResponse|null>(null),[reviews,setReviews]=useState<StayReviewIntelligenceV39|null>(null),[events,setEvents]=useState<EventsPayload|null>(null),[busy,setBusy]=useState(true),[chat,setChat]=useState<ChatRow[]>([{role:"agent",text:say(lang,`Κλείδωσα το ${offer.propertyName}. Τώρα χτίζω όλη την απόδραση γύρω από αυτό.`,`I locked ${offer.propertyName}. Now I’m building the whole escape around it.`)}]),[chatInput,setChatInput]=useState(""),[agentBusy,setAgentBusy]=useState(false),[email,setEmail]=useState(""),[emailMsg,setEmailMsg]=useState(""),[unlocked,setUnlocked]=useState(false),[qr,setQr]=useState("");
+ const hotelImages=useMemo(()=>images(offer),[offer.sourceProductId]),weather=plan?.weather.days??[],guidePath=plan?.guide.path??null;
+ const topRating=reviews?.ratings.find(x=>x.provider!=="AI Guest Signal")??null;
+ const places=useMemo(()=>local?[...local.attractions,...local.museums,...local.restaurants,...local.cafes,...local.nightlife,...local.beaches]:[],[local]);
+ const categories=useMemo(()=>({must:places.filter(x=>["attraction","museum","beach"].includes(x.kind)).slice(0,6),food:places.filter(x=>["restaurant","cafe"].includes(x.kind)).slice(0,6),night:places.filter(x=>x.kind==="nightlife").slice(0,4)}),[places]);
+
+ useEffect(()=>{let cancel=false;setBusy(true);Promise.all([
+  fetch("/api/trip-builder",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({trip,slug,offerId:offer.sourceProductId})}).then(r=>r.ok?r.json():null).catch(()=>null),
+  fetch("/api/escape/stay-local",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({trip,slug,offerId:offer.sourceProductId})}).then(r=>r.ok?r.json():null).catch(()=>null),
+  fetch("/api/escape/stay-reviews",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({propertyName:offer.propertyName,sourceProductId:offer.sourceProductId,destinationSlug:slug,destinationName:lang==="en"?destinationEn:destination,latitude:offer.latitude,longitude:offer.longitude,language:lang})}).then(r=>r.ok?r.json():null).catch(()=>null),
+  fetch("/api/escape/events",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({destination,start:trip.startDate,end:trip.endDate,latitude:offer.latitude,longitude:offer.longitude})}).then(r=>r.ok?r.json():null).catch(()=>null)
+ ]).then(([p,l,r,e])=>{if(cancel)return;setPlan(p as TripBuilderPlanV25|null);setLocal(l as LocalResponse|null);setReviews((r as {result?:StayReviewIntelligenceV39}|null)?.result??null);setEvents(e as EventsPayload|null)}).finally(()=>!cancel&&setBusy(false));return()=>{cancel=true}},[slug,offer.sourceProductId,trip.startDate,trip.endDate]);
+
+ useEffect(()=>{QRCode.toDataURL(offer.trackingUrl,{width:220,margin:1,errorCorrectionLevel:"H"}).then(setQr).catch(()=>setQr(""))},[offer.trackingUrl]);
+
+ async function sendChat(e:FormEvent){e.preventDefault();const q=chatInput.trim();if(!q||agentBusy)return;setChat(v=>[...v,{role:"user",text:q}]);setChatInput("");setAgentBusy(true);try{const r=await fetch("/api/escape/agent-chat",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({trip,slug,offerId:offer.sourceProductId,message:q})});const d=await r.json();setChat(v=>[...v,{role:"agent",text:r.ok&&d.reply?d.reply:say(lang,"Δεν έχω αρκετό verified context για ασφαλή απάντηση.","I don't have enough verified context for a safe answer.")}])}finally{setAgentBusy(false)}}
+ async function sendEmail(){if(!/^\S+@\S+\.\S+$/.test(email)){setEmailMsg(say(lang,"Βάλε έγκυρο email.","Enter a valid email."));return}const r=await fetch("/api/guide/email",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email,slug,start:trip.startDate,end:trip.endDate,offer:offer.sourceProductId,language:lang,trip})});if(r.ok){setUnlocked(true);setEmailMsg(say(lang,"Το Escape Book στάλθηκε και ξεκλείδωσε το τελικό booking CTA.","Escape Book sent and the final booking CTA is unlocked."))}else setEmailMsg(say(lang,"Δεν ολοκληρώθηκε η αποστολή.","Email delivery failed."))}
+
+ const steps=[
+  say(lang,"Stay","Stay"),say(lang,"Καιρός & Truth","Weather & Truth"),say(lang,"Περιοχή","Area"),say(lang,"Events","Events"),say(lang,"Itinerary","Itinerary"),say(lang,"Escape Book","Escape Book")
+ ];
+
+ return <main className={styles.shell}>
+  <header className={styles.topbar}><a href={lang==="en"?"/en":"/"} className={styles.brand}>TRAVEL<b>AI</b></a><div className={styles.tripName}>{destination} · {trip.startDate} → {trip.endDate}</div><div className={styles.truth}>360° VERIFIED FUNNEL</div></header>
+  <nav className={styles.stepper}>{steps.map((s,i)=><button key={s} onClick={()=>setStep(i)} className={step===i?styles.stepOn:""}><span>{String(i+1).padStart(2,"0")}</span>{s}</button>)}</nav>
+  <section className={styles.workspace}>
+   <aside className={styles.agent}>
+    <div className={styles.agentHead}><span>✦</span><div><b>Travel Agent</b><small>stay-aware · area-aware · date-aware</small></div></div>
+    <div className={styles.chat}>{chat.slice(-6).map((m,i)=><div key={i} className={m.role==="agent"?styles.agentBubble:styles.userBubble}>{m.text}</div>)}{agentBusy?<div className={styles.agentBubble}>…</div>:null}</div>
+    <form onSubmit={sendChat} className={styles.chatForm}><input value={chatInput} onChange={e=>setChatInput(e.target.value)} placeholder={say(lang,"Ρώτα για την απόδραση…","Ask about the escape…")}/><button>➜</button></form>
+    <div className={styles.providerMatrix}><b>SOURCES</b><span>Tripadvisor <i className={plan?.tripadvisor.status==="live"?styles.ok:""}/></span><span>Google / Foursquare <i className={local?.providers.some(x=>x==="Google Places"||x==="Foursquare")?styles.ok:""}/></span><span>Expedia <em>{say(lang,"δεν είναι συνδεδεμένο","not connected")}</em></span><span>Events <i className={events?.status==="live"?styles.ok:""}/></span></div>
+   </aside>
+
+   <section className={styles.canvas}>
+    {busy?<div className={styles.loading}>Ο agent συνθέτει stay, καιρό, reviews, περιοχή και itinerary…</div>:null}
+
+    {step===0?<div className={styles.scene}>
+      <div className={styles.heroGrid}><div className={styles.hero} style={hotelImages[0]?{backgroundImage:`url("${hotelImages[0]}")`}:undefined}><div className={styles.heroShade}/><div className={styles.heroCopy}><small>YOUR BASE</small><h1>{offer.propertyName}</h1><p>⌖ {offer.city||destination}{offer.address?` · ${offer.address}`:""}</p></div><div className={styles.orbit}>★</div></div><aside className={styles.stayFacts}><strong>{money(offer.price,offer.currency,lang)}</strong>{topRating?<div className={styles.rating}><b>{topRating.rating.toFixed(1)}★</b><span>{topRating.provider}{topRating.reviewCount?` · ${topRating.reviewCount}`:""}</span></div>:<div className={styles.rating}>— verified rating</div>}<p>{reviews?.summary||plan?.webResearch.overview||say(lang,"Η βάση της απόδρασης έχει κλειδώσει. Τα επόμενα βήματα χτίζονται γύρω από τη συγκεκριμένη θέση.","Your base is locked. The next steps are built around this exact location.")}</p><div className={styles.gallery}>{hotelImages.slice(1,4).map(x=><img key={x} src={x} alt=""/>)}</div><button onClick={()=>setStep(1)}>ΣΥΝΕΧΕΙΑ: ΚΑΙΡΟΣ & TRUTH →</button></aside></div>
+    </div>:null}
+
+    {step===1?<div className={styles.scene}><div className={styles.sectionHead}><span>02</span><div><h2>{say(lang,"Καιρός & πλήρης διαφάνεια","Weather & full disclosure")}</h2><p>{say(lang,"Ακριβώς για το ταξιδιωτικό παράθυρο που διάλεξες.","For the exact travel window you selected.")}</p></div></div><div className={styles.weatherGrid}>{weather.slice(0,6).map(d=><article key={d.date}><small>{dateLabel(d.date,lang)}</small><strong>{d.temperatureMaxC!=null?Math.round(d.temperatureMaxC)+"°":"—"}</strong><p>{d.summary}</p><span>{d.precipitationProbability!=null?Math.round(d.precipitationProbability)+"% rain":d.source}</span></article>)}</div><div className={styles.disclosure}><b>360° DISCLOSURE</b><p>{local?.sourceDisclosure||say(lang,"External ratings εμφανίζονται μόνο όταν επιστρέφονται από τον ονομαζόμενο provider.","External ratings appear only when returned by the named provider.")}</p><p>{plan?.availability.reason}</p></div><button className={styles.next} onClick={()=>setStep(2)}>ΠΕΡΙΟΧΗ →</button></div>:null}
+
+    {step===2?<div className={styles.scene}><div className={styles.sectionHead}><span>03</span><div><h2>{say(lang,"Η περιοχή χωρίς generic λίστες","The area without generic lists")}</h2><p>{say(lang,"Must‑visit, food, drink και δραστηριότητες από verified/local sources.","Must-visits, food, drink and activities from verified/local sources.")}</p></div></div><PlaceLane title="MUST VISIT" rows={categories.must}/><PlaceLane title="FOOD & DRINK" rows={categories.food}/><PlaceLane title="AFTER DARK" rows={categories.night}/><div className={styles.sourceLine}>{local?.providers.join(" + ")||"No verified local provider returned data"}</div><button className={styles.next} onClick={()=>setStep(3)}>EVENTS →</button></div>:null}
+
+    {step===3?<div className={styles.scene}><div className={styles.sectionHead}><span>04</span><div><h2>Events στις ημερομηνίες σου</h2><p>{events?.disclosure}</p></div></div>{events?.events?.length?<div className={styles.eventGrid}>{events.events.map(e=><article key={e.id}>{e.imageUrl?<img src={e.imageUrl} alt=""/>:null}<small>{e.date}{e.time?` · ${e.time}`:""}</small><h3>{e.name}</h3><p>{e.venue||e.city} · {e.category}</p></article>)}</div>:<div className={styles.emptyState}>Δεν βρέθηκε verified event για αυτό το παράθυρο. Δεν θα εφεύρουμε ένα.</div>}<button className={styles.next} onClick={()=>setStep(4)}>ITINERARY →</button></div>:null}
+
+    {step===4?<div className={styles.scene}><div className={styles.sectionHead}><span>05</span><div><h2>Το itinerary σου</h2><p>Χτισμένο γύρω από stay + weather + area intelligence.</p></div></div><div className={styles.itinerary}>{buildItinerary(trip,offer,places,lang).map(day=><article key={day.date}><h3>{dateLabel(day.date,lang)}</h3>{day.rows.map((r,i)=><div className={styles.slot} key={i}><time>{r.time}</time><span/><div><b>{r.title}</b><small>{r.note}</small></div></div>)}</article>)}</div><button className={styles.next} onClick={()=>setStep(5)}>ESCAPE BOOK →</button></div>:null}
+
+    {step===5?<div className={styles.scene}><div className={styles.sectionHead}><span>06</span><div><h2>Escape Book</h2><p>{say(lang,"Canva‑ready travel dossier + QR του tracking URL σου.","Canva-ready travel dossier + QR for your tracking URL.")}</p></div></div><div className={styles.finalGrid}><div className={styles.book}><b>PDF · 360° SOURCED DOSSIER</b><p>Stay · weather · must‑visit · food/drink · itinerary · disclosure · QR.</p>{guidePath?<a href={guidePath} target="_blank" rel="noopener noreferrer">ΑΝΟΙΞΕ / ΚΑΤΕΒΑΣΕ PDF →</a>:<span>PDF preparing…</span>}<small>Canva status: {plan?.guide.canvaTemplateStatus??"checking"}</small></div><div className={styles.qr}>{qr?<img src={qr} alt="Tracking QR"/>:null}<b>{offer.propertyName}</b><span>{money(offer.price,offer.currency,lang)}</span></div></div><div className={styles.emailUnlock}><h3>Στείλε το Escape Book στο email</h3><div><input value={email} onChange={e=>setEmail(e.target.value)} placeholder="email"/><button onClick={sendEmail}>SEND</button></div><small>{emailMsg}</small></div>{unlocked?<a className={styles.finalCta} href={offer.trackingUrl} target="_blank" rel="sponsored nofollow noopener noreferrer">ΤΕΛΙΚΗ ΠΡΟΣΦΟΡΑ ΣΤΟΝ ΠΑΡΟΧΟ ↗</a>:null}<p className={styles.affiliate}>Το παραπάνω είναι το μοναδικό εξωτερικό εμπορικό link. Είναι affiliate tracking URL και μπορεί να λάβουμε προμήθεια χωρίς επιπλέον κόστος για εσένα.</p></div>:null}
+   </section>
+  </section>
+ </main>;
+}
+
+function PlaceLane({title,rows}:{title:string;rows:LocalPlaceV38[]}){
+ return <section className={styles.placeLane}><h3>{title}</h3><div>{rows.map(p=><article key={p.id}>{p.imageUrl?<img src={p.imageUrl} alt=""/>:<div className={styles.placeFallback}>⌖</div>}<div><b>{p.name}</b><span>{p.rating!=null?`${p.rating.toFixed(1)}★${p.ratingCount?` · ${p.ratingCount}`:""}`:p.source}</span><p>{p.address||p.source}</p><small>{p.distanceKm!=null?`${p.distanceKm.toFixed(1)} km · `:""}{p.source}</small></div></article>)}</div></section>
+}
+function buildItinerary(trip:TripRequest,offer:V8StayOffer,places:LocalPlaceV38[],lang:"el"|"en"){
+ const start=Date.parse(trip.startDate+"T00:00:00Z"),days=Math.max(2,Math.min(6,trip.nights+1)),must=places.filter(x=>["attraction","museum","beach"].includes(x.kind)),food=places.filter(x=>["restaurant","cafe"].includes(x.kind));
+ return Array.from({length:days},(_,i)=>{const date=new Date(start+i*86400000).toISOString().slice(0,10),rows:Array<{time:string;title:string;note:string}>=[];if(i===0)rows.push({time:"15:00",title:say(lang,"Άφιξη & check‑in","Arrival & check-in"),note:offer.propertyName});if(i>0&&i<days-1){const a=must[(i-1)%Math.max(1,must.length)];if(a)rows.push({time:"10:00",title:a.name,note:a.rating!=null?`${a.rating.toFixed(1)}★ · ${a.source}`:a.source})}const f=food[i%Math.max(1,food.length)];if(f)rows.push({time:"20:00",title:f.name,note:f.rating!=null?`${f.rating.toFixed(1)}★ · ${f.source}`:f.source});if(i===days-1)rows.push({time:"11:30",title:"Check‑out",note:say(lang,"Χωρίς πρόγραμμα-μαραθώνιο πριν την επιστροφή.","No itinerary marathon before returning.")});return{date,rows}})
+}
