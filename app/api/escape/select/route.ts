@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { recordTravelerSignalV45,travelerProfileKeyFromRequest } from "@/lib/ai/travel-intelligence-v45";
 
 const Body=z.object({missionId:z.string().uuid(),destinationId:z.string().min(1).max(120)});
 
 export async function POST(request:Request){
+  const profileKey=travelerProfileKeyFromRequest(request);
   const parsed=Body.safeParse(await request.json().catch(()=>null));
   if(!parsed.success)return NextResponse.json({ok:false,error:"invalid_selection"},{status:400});
   const base=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,5 +19,6 @@ export async function POST(request:Request){
   if(!research.ok)return NextResponse.json({ok:false,error:"research_queue_failed",detail:await research.text()},{status:502});
   const rows=await research.json().catch(()=>[]) as Array<{id:string}>;
   await fetch(new URL("/rest/v1/travel_mission_events",base),{method:"POST",cache:"no-store",headers:h,body:JSON.stringify({mission_id:parsed.data.missionId,event_name:"destination_chosen",payload:{destinationId:parsed.data.destinationId}})}).catch(()=>null);
+  if(profileKey)await recordTravelerSignalV45({profileKey,missionId:parsed.data.missionId,eventType:"destination_selected",subjectType:"destination",subjectKey:parsed.data.destinationId,context:{source:"escape-select"}}).catch(()=>null);
   return NextResponse.json({ok:true,researchRunId:rows[0]?.id??null});
 }
