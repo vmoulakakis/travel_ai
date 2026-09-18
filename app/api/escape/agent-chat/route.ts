@@ -4,6 +4,7 @@ import { loadV8DestinationCatalog,loadV8StayOffers } from "@/lib/data/destinatio
 import { getLocalIntelligenceV38 } from "@/lib/data/local-intelligence-v38";
 import { getDailyTripWeatherV25 } from "@/lib/data/trip-weather-v25";
 import { createLLMRequestBudgetV16,generateJsonWithRoutingV16 } from "@/lib/ai/model-router-v9";
+import { loadTravelerContextV45,travelerProfileKeyFromRequest } from "@/lib/ai/travel-intelligence-v45";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -29,10 +30,10 @@ export async function POST(request:Request){
  try{
   const body=await request.json() as Record<string,unknown>,message=clip(body.message,600),slug=clip(body.slug,80).toLowerCase(),offerId=clip(body.offerId,180),parsed=parseTripRequest(body.trip);
   if(!message||!slugPattern.test(slug)||!idPattern.test(offerId)||!parsed.success)return NextResponse.json({message:"Invalid agent request"},{status:400});
-  const trip=parsed.data;
-  const base=await within(Promise.all([loadV8DestinationCatalog(),loadV8StayOffers(slug,trip.startDate,trip.endDate,60)]),2600);
+  const trip=parsed.data,profileKey=travelerProfileKeyFromRequest(request);
+  const base=await within(Promise.all([loadV8DestinationCatalog(),loadV8StayOffers(slug,trip.startDate,trip.endDate,60),profileKey?loadTravelerContextV45(profileKey):Promise.resolve(null)]),2800);
   if(!base)return NextResponse.json({reply:trip.language==="en"?"I got that. I’m keeping your selected stay fixed and I’ll apply the change without blocking the trip flow.":"Το πήρα. Κρατάω το επιλεγμένο κατάλυμα σταθερό και εφαρμόζω την αλλαγή χωρίς να μπλοκάρω τη ροή του ταξιδιού.",preferenceTags:[],grounded:false,degraded:true},{headers:{"cache-control":"no-store","x-travel-agent-mode":"fast-fallback"}});
-  const[catalog,offers]=base,destination=catalog.find(x=>x.slug===slug),stay=offers.find(x=>x.sourceProductId===offerId);
+  const[catalog,offers,travelerMemory]=base,destination=catalog.find(x=>x.slug===slug),stay=offers.find(x=>x.sourceProductId===offerId);
   if(!destination||!stay)return NextResponse.json({message:"Stay context not found"},{status:404});
   const destinationName=trip.language==="en"?destination.nameEn:destination.nameEl;
   const fallbackBase=trip.language==="en"?`I’ve kept your selected stay (${stay.propertyName}) fixed. I’ll adjust the trip around it without making you choose accommodation again.`:`Κρατάω σταθερό το επιλεγμένο κατάλυμα (${stay.propertyName}). Θα προσαρμόσω το ταξίδι γύρω του χωρίς να σε βάλω να ξαναδιαλέξεις κατάλυμα.`;
@@ -63,11 +64,11 @@ export async function POST(request:Request){
    if(rows.length){const reply=(trip.language==="en"?"Useful verified options around your stay: ":"Χρήσιμες επαληθευμένες επιλογές γύρω από το stay: ")+rows.map(p=>`${p.name}${p.distanceKm!=null?` · ${p.distanceKm.toFixed(1)} km`:""}${p.rating!=null?` · ${p.rating.toFixed(1)}★`:""}`).join(" | ");return NextResponse.json({reply,preferenceTags:[],grounded:true,degraded:false,providers:safeLocal.providers},{headers:{"cache-control":"no-store","x-travel-agent-mode":"grounded-fast"}})}
   }
 
-  const system="You are the Travel Agent inside a Greek travel decision product. Answer as a concise expert concierge. Use only the supplied grounded trip/stay/weather/place context. Never invent ratings, events, availability, prices or review claims. Do not give external links. Keep the selected accommodation fixed unless the user explicitly asks to reconsider it. If evidence is missing, say so. Reply in the user's language.";
+  const system="You are the Travel Agent inside a Greek travel decision product. Answer as a concise expert concierge. Use only the supplied grounded trip/stay/weather/place context. Persistent traveler memory is a soft preference prior only: the current message and current trip always win, and remembered preferences may never create facts or override explicit current constraints. Never invent ratings, events, availability, prices or review claims. Do not give external links. Keep the selected accommodation fixed unless the user explicitly asks to reconsider it. If evidence is missing, say so. Reply in the user's language.";
   const routed=await within(generateJsonWithRoutingV16<{reply:string;preferenceTags:string[]}>({
    context:{task:"research",text:message,deterministicConfidence:.72,forceSemantic:true},budget:createLLMRequestBudgetV16(),preference:"critical",
    system,
-   prompt:JSON.stringify({message,trip:{origin:trip.origin,startDate:trip.startDate,endDate:trip.endDate,nights:trip.nights,budget:trip.budget,moods:trip.moods,travelerType:trip.travelerType,pace:trip.pace},destination:destinationName,stay:{name:stay.propertyName,city:stay.city,address:stay.address,price:stay.price,currency:stay.currency},weather:weatherText,nearbyPlaces:places,providers:safeLocal?.providers??[]}),
+   prompt:JSON.stringify({message,trip:{origin:trip.origin,startDate:trip.startDate,endDate:trip.endDate,nights:trip.nights,budget:trip.budget,moods:trip.moods,travelerType:trip.travelerType,pace:trip.pace},travelerMemory:travelerMemory?{learnedPreferences:travelerMemory.learnedPreferences??{},confidence:travelerMemory.confidence??0}:null,destination:destinationName,stay:{name:stay.propertyName,city:stay.city,address:stay.address,price:stay.price,currency:stay.currency},weather:weatherText,nearbyPlaces:places,providers:safeLocal?.providers??[]}),
    validate:value=>typeof value.reply==="string"&&value.reply.trim()?{reply:value.reply.trim().slice(0,900),preferenceTags:Array.isArray(value.preferenceTags)?value.preferenceTags.filter((x):x is string=>typeof x==="string").slice(0,6):[]}:null
   }),1800);
   return NextResponse.json({reply:routed?.value.reply??fallbackBase,preferenceTags:routed?.value.preferenceTags??[],grounded:Boolean(safeLocal||safeWeather),degraded:!routed,providers:safeLocal?.providers??[]},{headers:{"cache-control":"no-store","x-travel-agent-mode":routed?"semantic-bounded":"fast-fallback"}});
