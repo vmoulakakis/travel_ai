@@ -32,6 +32,15 @@ const complete=interpretV50Conversation({...base,answers},now);
 const next=nextV50Question(complete,answers);
 assert.equal(next,null,"explicit answers should complete the compact brief");
 
+
+const coupleRoadTrip={companions:"couple",outcome:"balanced",friction:"road-trip"} as const;
+const coupleRoadTripState=interpretV50Conversation({...base,answers:coupleRoadTrip},now);
+assert.equal(nextV50Question(coupleRoadTripState,coupleRoadTrip),null,"couple + balanced + road-trip must complete the brief without another generic question");
+const coupleRoadTripTrip=buildV50Trip({...base,answers:coupleRoadTrip},coupleRoadTripState);
+assert.equal(coupleRoadTripTrip.travelerType,"couple");
+assert.equal(coupleRoadTripTrip.desiredEnergy,"balanced");
+assert.equal(coupleRoadTripTrip.distancePreference,"any");
+
 const trip=buildV50Trip({...base,answers},complete);
 assert.equal(trip.startDate,"2026-10-02");
 assert.equal(trip.endDate,"2026-10-04");
