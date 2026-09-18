@@ -152,6 +152,8 @@ Each solution needs:
 - verified outbound tracking URL.
 
 ## Truth and evidence
+Commercial payout, affiliate commission, EPC, CTR or provider economics can never lift traveler-fit, destination-fit, stay-fit or final recommendation rank. Commercial performance is downstream of user suitability and remains analytically separate.
+
 The server-side agent owns recommendation quality.
 The browser never invents recommendation scores.
 
