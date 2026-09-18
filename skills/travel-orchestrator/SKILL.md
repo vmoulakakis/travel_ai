@@ -40,7 +40,7 @@ Dual-pass reasoning separates traveller fit from commercial inventory. First ask
 
 Then run an **Inventory Reality Pass / Reverse Check**: **Which surviving trips are actually supportable by real stay inventory and current evidence for these dates and constraints?**
 
-Commission never enters the fit score and never raises destination/user-fit score. Affiliate economics may only affect link attribution after an eligible trip has survived the evidence and inventory gates.
+Commission never enters the score; commission never raises destination/user-fit score. Affiliate economics may only affect link attribution after an eligible trip has survived the evidence and inventory gates.
 
 ## Runtime agents
 The canonical V44/V45 registry is `travel_agent_registry_v44`. Active roles include Decision Orchestrator, Intent & Constraint Interpreter, Location Truth, Destination Scout, Inventory Grounder, Season & Weather Analyst, Route & Friction Analyst, Local Experience Scout, Food Scout, Value Analyst, Skeptical Auditor, Traveler Advocate and Decision Synthesizer.
