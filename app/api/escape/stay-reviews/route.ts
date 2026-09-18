@@ -15,5 +15,5 @@ export async function POST(request:Request){
   if(!propertyName||!id.test(sourceProductId)||!slug.test(destinationSlug)||!destinationName)return NextResponse.json({ok:false,error:"invalid_stay_review_request"},{status:400});
   const result=await getStayReviewIntelligenceV39({propertyName,sourceProductId,destinationSlug,destinationName,latitude,longitude,language});
   return NextResponse.json({ok:true,result},{headers:{"cache-control":"public, s-maxage=1800, stale-while-revalidate=7200","x-travel-review-engine":"v39-truthful-multi-source"}});
- }catch{return NextResponse.json({ok:false,error:"stay_review_intelligence_unavailable"},{status:503,headers:{"cache-control":"no-store"}})}
+ }catch{return NextResponse.json({ok:true,result:null,degraded:true},{status:200,headers:{"cache-control":"public, max-age=60","x-travel-review-engine":"degraded"}})}
 }
