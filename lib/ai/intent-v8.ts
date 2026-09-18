@@ -61,6 +61,14 @@ function applyLearnedPreferencesV45(request:TripRequest,weights:Record<V8Dimensi
  return weights;
 }
 
+function enforceCurrentHardConstraintsV45(request:TripRequest,weights:Record<V8Dimension,number>){
+ if(request.mustHave==="sea")weights.beach=Math.max(weights.beach,.98);
+ if(request.mustHave==="nature")weights.nature=Math.max(weights.nature,.98);
+ if(request.mustHave==="culture")weights.culture=Math.max(weights.culture,.98);
+ if(request.mustHave==="nightlife")weights.nightlife=Math.max(weights.nightlife,.98);
+ return weights;
+}
+
 function reconcileWeights(request:TripRequest,semantic:V8SemanticIntent,learned?:Partial<Record<V8Dimension,number>>){
  const weights=baseStructuredWeights(request);
  for(const d of V8_DIMENSIONS){const p=clamp(semantic.positive[d]??0),n=clamp(semantic.negative[d]??0);if(p>0)weights[d]=Math.max(weights[d]*.7,p);if(n>0)weights[d]*=1-n*.92;}
@@ -72,15 +80,11 @@ function reconcileWeights(request:TripRequest,semantic:V8SemanticIntent,learned?
  // V21: priority must be stronger than a normal selected mood. V18/V19 used <=1 targets,
  // so a structured mood already at weight=1 made "food first" or "culture first" a no-op.
  semantic.priorities.slice(0,3).forEach((d,i)=>{if((semantic.positive[d]??0)>=.35)weights[d]=Math.max(weights[d],[1.75,1.4,1.2][i]);});
- if(request.mustHave==="sea")weights.beach=Math.max(weights.beach,.98);
- if(request.mustHave==="nature")weights.nature=Math.max(weights.nature,.98);
- if(request.mustHave==="culture")weights.culture=Math.max(weights.culture,.98);
- if(request.mustHave==="nightlife")weights.nightlife=Math.max(weights.nightlife,.98);
- return applyLearnedPreferencesV45(request,weights,learned,semantic.negative);
+ return enforceCurrentHardConstraintsV45(request,applyLearnedPreferencesV45(request,weights,learned,semantic.negative));
 }
 
 export function structuredIntent(request:TripRequest,learned?:Partial<Record<V8Dimension,number>>):V8IntentProfile{
- const text=request.tripText?.trim();if(!text)return{weights:applyLearnedPreferencesV45(request,baseStructuredWeights(request),learned),source:"structured",summary:request.moods.join(" + ")};
+ const text=request.tripText?.trim();if(!text)return{weights:enforceCurrentHardConstraintsV45(request,applyLearnedPreferencesV45(request,baseStructuredWeights(request),learned)),source:"structured",summary:request.moods.join(" + ")};
  const semantic=deterministicSemanticIntentV18(text);return{weights:reconcileWeights(request,semantic,learned),source:"structured",summary:request.moods.join(" + "),interpretedText:text,semantic};
 }
 
