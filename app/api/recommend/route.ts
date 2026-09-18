@@ -14,7 +14,7 @@ export async function POST(request:Request){
  const trip=parsed.data,sessionId=crypto.randomUUID(),profileKey=travelerProfileKeyFromRequest(request)??crypto.randomUUID();
  try{
   const result=await runTravelOrchestratorV45(trip,sessionId,profileKey);
-  const response=NextResponse.json(result,{headers:{"cache-control":"no-store","x-travel-engine":"v26-criterion-truth"}});
+  const response=NextResponse.json(result,{headers:{"cache-control":"no-store","x-travel-engine":"v45-persistent-knowledge"}});
   response.cookies.set("travel_match_session",sessionId,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:7776000});
   response.cookies.set(TRAVEL_PROFILE_COOKIE,profileKey,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:15552000});
   response.headers.set(TRAVEL_PROFILE_HEADER,profileKey);
