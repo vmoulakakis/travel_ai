@@ -54,7 +54,13 @@ function nextFriday(anchor:Date,strictAfter:boolean){
   return d;
 }
 
-function explicitDate(text:string){
+const greekMonths:Record<string,number>={
+  ιανουαρι:0,ιαν:0,φεβρουαρι:1,φεβ:1,μαρτι:2,μαρ:2,απριλι:3,απρ:3,μαιο:4,μαι:4,
+  ιουνι:5,ιουν:5,ιουλι:6,ιουλ:6,αυγουστο:7,αυγ:7,σεπτεμβρι:8,σεπτ:8,οκτωβρι:9,οκτ:9,
+  νοεμβρι:10,νοε:10,δεκεμβρι:11,δεκ:11
+};
+
+function explicitDate(text:string,now=new Date()){
   let m=text.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\b/);
   if(m){
     const d=new Date(Date.UTC(Number(m[3]),Number(m[2])-1,Number(m[1])));
@@ -65,12 +71,26 @@ function explicitDate(text:string){
     const d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])));
     if(validDate(d))return d;
   }
+
+  const normalized=norm(text);
+  const named=normalized.match(/\b(\d{1,2})\s+(ιανουαρι(?:ου)?|ιαν|φεβρουαρι(?:ου)?|φεβ|μαρτι(?:ου)?|μαρ|απριλι(?:ου)?|απρ|μαι(?:ου)?|μαι|ιουνι(?:ου)?|ιουν|ιουλι(?:ου)?|ιουλ|αυγουστ(?:ου|ο)?|αυγ|σεπτεμβρι(?:ου)?|σεπτ|οκτωβρι(?:ου)?|οκτ|νοεμβρι(?:ου)?|νοε|δεκεμβρι(?:ου)?|δεκ)(?:\s+(\d{4}))?\b/);
+  if(named){
+    const day=Number(named[1]),monthToken=named[2].replace(/ου$/,"").replace(/ο$/,""),month=greekMonths[monthToken];
+    if(month!=null){
+      let year=named[3]?Number(named[3]):now.getUTCFullYear();
+      let d=new Date(Date.UTC(year,month,day));
+      if(!named[3]&&d.getTime()<new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())).getTime()){
+        year+=1;d=new Date(Date.UTC(year,month,day));
+      }
+      if(validDate(d)&&d.getUTCDate()===day&&d.getUTCMonth()===month)return d;
+    }
+  }
   return null;
 }
 
 export function parseNaturalWindowV50(text:string,answer:string|undefined,now=new Date()){
   const combined=[text,answer??""].join(" ").trim();
-  const anchor=explicitDate(combined);
+  const anchor=explicitDate(combined,now);
   const isWeekend=weekendRe.test(combined);
   const after=/μετ[αά]\s*(τις|την)?|after/i.test(combined);
   const flexible=after||/ευελικ|flex|οποτε|όποτε|οποιο|whatever/i.test(combined);
