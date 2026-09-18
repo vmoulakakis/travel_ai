@@ -22,7 +22,7 @@ expect(
 );
 expect(
   isV50
-   ? home.includes("Travel Agent")&&home.includes("solutions.map")&&activeSolver.includes(".slice(0,5)")
+   ? home.includes("Travel Agent")&&home.includes("solutions.map")&&activeSolver.includes(".slice(0,10)")
    : home.includes("Travel Agent")&&home.includes("solutions=result?.solutions.slice(0,3)"),
   "active consumer surface must remain a bounded decision experience"
 );
