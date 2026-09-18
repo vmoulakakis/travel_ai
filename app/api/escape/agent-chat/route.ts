@@ -34,7 +34,7 @@ export async function POST(request:Request){
   const base=await within(Promise.all([loadV8DestinationCatalog(),loadV8StayOffers(slug,trip.startDate,trip.endDate,60),profileKey?loadTravelerContextV45(profileKey):Promise.resolve(null)]),2800);
   if(!base)return NextResponse.json({reply:trip.language==="en"?"I got that. I’m keeping your selected stay fixed and I’ll apply the change without blocking the trip flow.":"Το πήρα. Κρατάω το επιλεγμένο κατάλυμα σταθερό και εφαρμόζω την αλλαγή χωρίς να μπλοκάρω τη ροή του ταξιδιού.",preferenceTags:[],grounded:false,degraded:true},{headers:{"cache-control":"no-store","x-travel-agent-mode":"fast-fallback"}});
   const[catalog,offers,travelerMemory]=base,destination=catalog.find(x=>x.slug===slug),stay=offers.find(x=>x.sourceProductId===offerId);
-  if(!destination||!stay)return NextResponse.json({message:"Stay context not found"},{status:404});
+  if(!destination||!stay)return NextResponse.json({reply:trip.language==="en"?"I kept your trip context. This stay is no longer available in the current inventory, so I can continue with the destination or help you choose another verified stay.":"Κράτησα το πλαίσιο του ταξιδιού σου. Αυτό το κατάλυμα δεν εμφανίζεται πλέον στο τρέχον inventory, οπότε μπορώ να συνεχίσω με τον προορισμό ή να σου βρω άλλο επιβεβαιωμένο stay.",preferenceTags:[],grounded:false,degraded:true},{status:200,headers:{"cache-control":"no-store","x-travel-agent-mode":"inventory-changed"}});
   const destinationName=trip.language==="en"?destination.nameEn:destination.nameEl;
   const fallbackBase=trip.language==="en"?`I’ve kept your selected stay (${stay.propertyName}) fixed. I’ll adjust the trip around it without making you choose accommodation again.`:`Κρατάω σταθερό το επιλεγμένο κατάλυμα (${stay.propertyName}). Θα προσαρμόσω το ταξίδι γύρω του χωρίς να σε βάλω να ξαναδιαλέξεις κατάλυμα.`;
 
@@ -52,7 +52,7 @@ export async function POST(request:Request){
 
   if(asksWeather(message)){
    const days=safeWeather?.days.slice(0,3)??[];
-   const reply=days.length?(trip.language==="en"?`Verified forecast for the trip: ${days.map(d=>`${d.date} ${d.summary}${d.temperatureMaxC!=null?` ${d.temperatureMaxC}°C`:""}`).join(" · ")}.`:`Επαληθευμένη πρόγνωση για το ταξίδι: ${days.map(d=>`${d.date} ${d.summary}${d.temperatureMaxC!=null?` ${d.temperatureMaxC}°C`:""}`).join(" · ")}.`):(trip.language==="en"?"I don’t have verified weather data fast enough right now, so I won’t invent it. The rest of your trip remains available.":"Δεν έχω επαληθευμένα δεδομένα καιρού αρκετά γρήγορα αυτή τη στιγμή, οπότε δεν θα μαντέψω. Η υπόλοιπη ροή του ταξιδιού συνεχίζει κανονικά.");
+   const reply=days.length?(trip.language==="en"?`Verified forecast for the trip: ${days.map(d=>`${d.date} ${d.summary}${d.temperatureMaxC!=null?` ${d.temperatureMaxC}°C`:""}`).join(" · ")}.`:`Επαληθευμένη πρόγνωση για το ταξίδι: ${days.map(d=>`${d.date} ${d.summary}${d.temperatureMaxC!=null?` ${d.temperatureMaxC}°C`:""}`).join(" · ")}.`):(trip.language==="en"?"The forecast is not confirmed yet for these dates. I’ll keep the rest of your plan intact and add weather guidance when verified data is available.":"Η πρόγνωση δεν έχει επιβεβαιωθεί ακόμη για αυτές τις ημερομηνίες. Κρατάω κανονικά το υπόλοιπο πλάνο και θα χρησιμοποιήσω καιρικά στοιχεία μόνο όταν είναι επαληθευμένα.");
    return NextResponse.json({reply,preferenceTags:[],grounded:days.length>0,degraded:!days.length},{headers:{"cache-control":"no-store","x-travel-agent-mode":"grounded-fast"}});
   }
   if(asksFood(message)&&safeLocal){
@@ -73,6 +73,6 @@ export async function POST(request:Request){
   }),1800);
   return NextResponse.json({reply:routed?.value.reply??fallbackBase,preferenceTags:routed?.value.preferenceTags??[],grounded:Boolean(safeLocal||safeWeather),degraded:!routed,providers:safeLocal?.providers??[]},{headers:{"cache-control":"no-store","x-travel-agent-mode":routed?"semantic-bounded":"fast-fallback"}});
  }catch{
-  return NextResponse.json({reply:"Το μήνυμά σου καταγράφηκε. Δεν θα μπλοκάρω τη ροή: κράτησα το stay σταθερό και μπορείς να συνεχίσεις το ταξίδι σου.",preferenceTags:[],grounded:false,degraded:true},{status:200,headers:{"cache-control":"no-store","x-travel-agent-mode":"fail-safe"}})
+  return NextResponse.json({reply:"Κράτησα την επιλογή σου και το ταξίδι συνεχίζει κανονικά. Μπορείς να αλλάξεις ρυθμό, δραστηριότητες ή προτεραιότητες χωρίς να ξαναστήσουμε το πλάνο από την αρχή.",preferenceTags:[],grounded:false,degraded:true},{status:200,headers:{"cache-control":"no-store","x-travel-agent-mode":"fail-safe"}})
  }
 }
