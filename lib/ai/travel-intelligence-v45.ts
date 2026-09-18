@@ -22,8 +22,14 @@ const clamp=(n:number,a=0,b=1)=>Math.max(a,Math.min(b,n));
 const baseUrl=()=>process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co";
 const serviceKey=()=>process.env.SUPABASE_SERVICE_ROLE_KEY??"";
 export const TRAVEL_PROFILE_COOKIE="travel_profile_key";
+export const TRAVEL_PROFILE_HEADER="x-travel-profile-key";
 const profileCookiePattern=/(?:^|;\s*)travel_profile_key=([0-9a-f-]{36})(?:;|$)/i;
-export function travelerProfileKeyFromRequest(request:Request){return request.headers.get("cookie")?.match(profileCookiePattern)?.[1]??null}
+const profileKeyPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export function travelerProfileKeyFromRequest(request:Request){
+ const header=request.headers.get(TRAVEL_PROFILE_HEADER)?.trim()??"";
+ if(profileKeyPattern.test(header))return header;
+ return request.headers.get("cookie")?.match(profileCookiePattern)?.[1]??null;
+}
 function headers(){const key=serviceKey();return key?{apikey:key,Authorization:`Bearer ${key}`,"content-type":"application/json"}:null}
 
 async function rpc<T>(name:string,body:JsonRecord,timeout=3000):Promise<T|null>{
