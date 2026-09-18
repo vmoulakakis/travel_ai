@@ -19,7 +19,7 @@ assert(ui.includes("/api/v50/stay-rating")&&ui.includes("hoverStayCard"),"map ho
 assert(ui.includes("/escape/")&&ui.includes("/stay/"),"stay cards must link into the internal landing funnel");
 assert(agentApi.includes("runTravelOrchestratorV45"),"V50 must use persistent V45 orchestration");
 assert(agentApi.includes("loadV8StayOffers")&&agentApi.includes("assessStayAvailabilityV20"),"V50 must ground final solutions in real stay offers");
-assert(agentApi.includes(".slice(0,5)"),"V50 public portfolio must cap at five verified solutions");
+assert(agentApi.includes(".slice(0,10)"),"V50 public portfolio must cap at ten verified solutions");
 assert(state.includes("nextV50Question")&&state.includes("parseNaturalWindowV50"),"V50 must clarify missing information and parse natural dates");
 assert(mapApi.includes("SUPABASE_SERVICE_ROLE_KEY"),"full-inventory API must remain server-side");
 assert(mapApi.includes('status:"not-trained"'),"untrained demand must not be fabricated");
