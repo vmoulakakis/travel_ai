@@ -273,5 +273,5 @@
 }
 @media(prefers-reduced-motion:reduce){
   .thinkingTurn span,.rankMarkerActive .rankMarkerHalo{animation:none}
-  .quickReplies button,.composer>button,.resultCard,.resultCardActive,.offerButton{transition:none}
+  .quickReplies button,.composer>button,.resultCard,.resultCardActive,.offerButton,.buildButton{transition:none}
 }
