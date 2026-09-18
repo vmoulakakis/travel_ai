@@ -56,7 +56,7 @@ function nextFriday(anchor:Date,strictAfter:boolean){
 
 const greekMonths:Record<string,number>={
   ιανουαρι:0,ιαν:0,φεβρουαρι:1,φεβ:1,μαρτι:2,μαρ:2,απριλι:3,απρ:3,μαιο:4,μαι:4,
-  ιουνι:5,ιουν:5,ιουλι:6,ιουλ:6,αυγουστο:7,αυγ:7,σεπτεμβρι:8,σεπτ:8,οκτωβρι:9,οκτ:9,
+  ιουνι:5,ιουν:5,ιουλι:6,ιουλ:6,αυγουστο:7,αυγουστ:7,αυγ:7,σεπτεμβρι:8,σεπτ:8,οκτωβρι:9,οκτ:9,
   νοεμβρι:10,νοε:10,δεκεμβρι:11,δεκ:11
 };
 
@@ -89,21 +89,32 @@ function explicitDate(text:string,now=new Date()){
 }
 
 export function parseNaturalWindowV50(text:string,answer:string|undefined,now=new Date()){
-  const combined=[text,answer??""].join(" ").trim();
+  const combined=[text,answer??""].join(" ").trim(),normalized=norm(combined);
+  const range=normalized.match(/\b(\d{1,2})\s*[-–]\s*(\d{1,2})\s+(ιανουαρι(?:ου)?|φεβρουαρι(?:ου)?|μαρτι(?:ου)?|απριλι(?:ου)?|μαι(?:ου)?|ιουνι(?:ου)?|ιουλι(?:ου)?|αυγουστ(?:ου|ο)?|σεπτεμβρι(?:ου)?|οκτωβρι(?:ου)?|νοεμβρι(?:ου)?|δεκεμβρι(?:ου)?)(?:\s+(\d{4}))?\b/);
+  if(range){
+    const from=explicitDate(range[1]+" "+range[3]+(range[4]?" "+range[4]:""),now),to=explicitDate(range[2]+" "+range[3]+(range[4]?" "+range[4]:""),now);
+    if(from&&to&&to>from)return{startDate:iso(from),endDate:iso(to),nights:Math.max(1,Math.round((to.getTime()-from.getTime())/86400000)),weekend:weekendRe.test(combined),flexible:false};
+  }
+
   const anchor=explicitDate(combined,now);
   const isWeekend=weekendRe.test(combined);
   const after=/μετ[αά]\s*(τις|την)?|after/i.test(combined);
   const flexible=after||/ευελικ|flex|οποτε|όποτε|οποιο|whatever/i.test(combined);
-  if(!anchor&&!/αυτ[οό]\\s*το\\s*σκ|this weekend|επομεν|επόμεν|next weekend|ευελικ|flex|οποτε|όποτε/i.test(combined))return null;
+  const thisWeekend=/αυτ[οό]\s*το\s*σκ|this weekend/i.test(combined);
+  const nextWeekend=/επομεν[οό]\s*σκ|next weekend/i.test(combined);
+  if(!anchor&&!thisWeekend&&!nextWeekend&&!/ευελικ|flex|οποτε|όποτε/i.test(combined))return null;
 
   let start:Date;
   if(anchor){
     start=isWeekend?nextFriday(anchor,after):new Date(anchor.getTime());
+  }else if(thisWeekend){
+    const day=now.getUTCDay();
+    start=day===5?new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())):day===6?new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())):nextFriday(now,false);
   }else{
     start=nextFriday(now,true);
   }
-  const nights=isWeekend?2:3,end=new Date(start.getTime()+nights*86400000);
-  return{startDate:iso(start),endDate:iso(end),nights,weekend:isWeekend,flexible};
+  const nights=isWeekend||thisWeekend||nextWeekend?2:3,end=new Date(start.getTime()+nights*86400000);
+  return{startDate:iso(start),endDate:iso(end),nights,weekend:isWeekend||thisWeekend||nextWeekend,flexible};
 }
 
 function inferTraveler(text:string,answer?:string):V50TravelerType|null{
