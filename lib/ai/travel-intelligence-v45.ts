@@ -92,8 +92,8 @@ export function applyKnowledgePriorV45(items:V8Ranked[],prior:KnowledgePriorV45)
  }).sort((a,b)=>b.score-a.score);
 }
 
-export async function persistTravelerProfileV45(profileKey:string,trip:TripRequest,intent:V8IntentProfile,recommendations:V8Recommendation[]){
- const preferenceWeights=Object.fromEntries(V8_DIMENSIONS.map(d=>[d,Number(intent.weights[d]??0)]));
+export async function persistTravelerProfileV45(profileKey:string,trip:TripRequest,intent:V8IntentProfile,recommendations:V8Recommendation[],explicitPreferenceWeights?:Partial<Record<V8Dimension,number>>){
+ const preferenceWeights=Object.fromEntries(V8_DIMENSIONS.map(d=>[d,Number(explicitPreferenceWeights?.[d]??intent.weights[d]??0)]));
  const hardConstraints={mustHave:trip.mustHave??"none",transportMode:trip.transportMode??"any",dateFlexibility:trip.dateFlexibility??"fixed"};
  const avoidances={avoid:trip.avoid??"none"};
  const history={lastRequestAt:new Date().toISOString(),lastRecommended:recommendations.slice(0,3).map(r=>r.slug)};
