@@ -116,8 +116,19 @@ export async function POST(request:Request){
 
   try{
     const trip=buildV50Trip(input,interpreted),sessionId=crypto.randomUUID();
-    const recommendation=await runTravelOrchestratorV45(trip,sessionId,profileKey);
-    const candidates=recommendation.recommendations.slice(0,12);
+    const [recommendation,catalog]=await Promise.all([
+      runTravelOrchestratorV45(trip,sessionId,profileKey),
+      loadV8DestinationCatalog()
+    ]);
+    const catalogBySlug=new Map(catalog.map(item=>[item.slug,item]));
+    const mountainSlugs=new Set(["zagori","meteora","pelion","ioannina"]);
+    const terrainFiltered=interpreted.terrainIntent==="mountain"
+      ? recommendation.recommendations.filter(item=>{
+          const profile=catalogBySlug.get(item.slug);
+          return profile?.seasonProfile==="mountain"||mountainSlugs.has(item.slug);
+        })
+      : recommendation.recommendations;
+    const candidates=terrainFiltered.slice(0,12);
     const stayRows=await Promise.all(candidates.map(async rec=>({rec,...await bestStay(rec,trip.budget,trip.startDate,trip.endDate)})));
     const solutions=stayRows
       .filter((row):row is typeof row & {best:NonNullable<typeof row.best>}=>Boolean(row.best))
@@ -184,6 +195,7 @@ export async function POST(request:Request){
         catalogSize:recommendation.catalogSize,
         eligibleCount:recommendation.eligibleCount??0,
         resultCount:recommendation.resultCount,
+        terrainEligibleCount:terrainFiltered.length,
         stayVerifiedSolutions:solutionCount
       },
       feasibility:recommendation.feasibility,
