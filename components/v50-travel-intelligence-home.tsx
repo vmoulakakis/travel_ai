@@ -347,7 +347,16 @@ export function V50TravelIntelligenceHome(){
       {solutions.length?<section ref={resultsRef} className={styles.resultsPanel}>
         <div className={styles.sectionTitle}><div><span>03</span><h2>Οι καλύτερες επιλογές τώρα</h2></div><p>Πραγματικά stays που πέρασαν το τρέχον brief και τα διαθέσιμα travel-fit checks.</p></div>
         <div className={styles.solutionRail}>
-          {solutions.map((s,index)=><article key={s.stay.productId} className={index===active?styles.solutionActive:""} onMouseEnter={()=>focus(index)}>
+          {solutions.map((s,index)=><article key={s.stay.productId} className={index===active?styles.solutionActive:""} onMouseEnter={()=>{
+            focus(index);
+            setHoverPin({
+              productId:s.stay.productId,placeId:s.stay.productId,name:s.stay.name,location:s.destination.name,address:s.destination.regionGroup,
+              latitude:s.stay.latitude,longitude:s.stay.longitude,category:"AI TOP MATCH",imageUrl:s.stay.imageUrl,price:s.stay.price,
+              fullPrice:s.stay.fullPrice,discount:s.stay.discount,currency:s.stay.currency,onSale:Boolean(s.stay.discount&&s.stay.discount>0),
+              availability:s.stay.availability,validTo:null,demandScore:null,trackingUrl:s.stay.trackingUrl,destinationSlug:s.destination.slug
+            });
+            void ensureRating(s.stay.productId,s.stay.name,s.destination.slug,s.destination.name,s.stay.latitude,s.stay.longitude);
+          }}>
             <div className={styles.solutionImage} style={s.stay.imageUrl?{backgroundImage:"url("+s.stay.imageUrl+")"}:undefined}>
               <span className={styles.solutionRank}>0{index+1}</span>
               <span className={styles.solutionScore}>{Math.round(s.score)}%</span>
