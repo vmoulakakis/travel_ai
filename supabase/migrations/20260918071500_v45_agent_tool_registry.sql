@@ -97,18 +97,32 @@ $$;
 create or replace view public.travel_agent_tool_health_v45 as
 select
   now() as checked_at,
-  count(*) filter(where r.active) as active_agents,
-  count(distinct t.tool_key) filter(where t.active) as registered_tools,
-  count(*) filter(where r.active and missing.tool_key is not null) as unresolved_tool_bindings
-from public.travel_agent_registry_v44 r
-left join lateral (
-  select u.tool_key
-  from unnest(r.allowed_tools) u(tool_key)
-  left join public.travel_tool_registry_v45 x on x.tool_key=u.tool_key and x.active
-  where x.tool_key is null
-  limit 1
-) missing on true
-left join public.travel_tool_registry_v45 t on t.active;
+  (select count(*) from public.travel_agent_registry_v44 where active) as active_agents,
+  (select count(*) from public.travel_tool_registry_v45 where active) as registered_tools,
+  (
+    select count(*)
+    from public.travel_agent_registry_v44 r
+    cross join lateral unnest(r.allowed_tools) u(tool_key)
+    left join public.travel_tool_registry_v45 t on t.tool_key=u.tool_key and t.active
+    where r.active and t.tool_key is null
+  ) as unresolved_tool_bindings;
+
+alter table public.travel_tool_registry_v45 enable row level security;
+revoke all on public.travel_tool_registry_v45 from anon,authenticated;
+grant select on public.travel_tool_registry_v45 to service_role;
+
+revoke execute on function public.search_travel_knowledge_v45(text,extensions.vector,text[],text,integer) from public,anon,authenticated;
+revoke execute on function public.upsert_traveler_profile_v45(text,extensions.vector,jsonb,jsonb,jsonb,jsonb,real) from public,anon,authenticated;
+revoke execute on function public.record_traveler_signal_v45(text,text,uuid,text,text,text,numeric,jsonb) from public,anon,authenticated;
+revoke execute on function public.get_traveler_context_v45(text) from public,anon,authenticated;
+revoke execute on function public.finish_travel_agent_run_v45(uuid,text,jsonb,real) from public,anon,authenticated;
+revoke execute on function public.get_travel_agent_tool_contract_v45(text) from public,anon,authenticated;
+grant execute on function public.search_travel_knowledge_v45(text,extensions.vector,text[],text,integer) to service_role;
+grant execute on function public.upsert_traveler_profile_v45(text,extensions.vector,jsonb,jsonb,jsonb,jsonb,real) to service_role;
+grant execute on function public.record_traveler_signal_v45(text,text,uuid,text,text,text,numeric,jsonb) to service_role;
+grant execute on function public.get_traveler_context_v45(text) to service_role;
+grant execute on function public.finish_travel_agent_run_v45(uuid,text,jsonb,real) to service_role;
+grant execute on function public.get_travel_agent_tool_contract_v45(text) to service_role;
 
 comment on table public.travel_tool_registry_v45 is
 'Executable TravelAI tool contract. Agent allowed_tools must resolve here before runtime use.';
