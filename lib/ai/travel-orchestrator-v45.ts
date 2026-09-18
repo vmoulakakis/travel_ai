@@ -46,7 +46,7 @@ async function persistObservedSteps(runId:string,events:TimedEvent[]){
     const step=stepFor(item.event)!;
     const previous=index===0?events[0]?.at??item.at:rows[index-1]?.[1].at??item.at;
     await writeTravelAgentStepV45({
-      runId,stageKey,agentId:step.agentId,status:"succeeded",
+      runId,stageKey,agentId:step.agentId,status:"completed",
       outputSnapshot:{eventType:item.event.type,...(item.event.payload??{})},
       evidenceRefs:item.event.type==="knowledge:ready"?(item.event.payload?.top??[]):{},
       confidence:confidenceFromPayload(item.event.payload),
@@ -92,7 +92,7 @@ export async function runTravelOrchestratorV45(
     if(runId){
       await persistObservedSteps(runId,events);
       await writeTravelAgentStepV45({
-        runId,stageKey:"synthesize",agentId:"decision-synthesizer",status:"succeeded",
+        runId,stageKey:"synthesize",agentId:"decision-synthesizer",status:"completed",
         outputSnapshot:{slugs:result.recommendations.slice(0,3).map(r=>r.slug),count:result.recommendations.length,feasibility:result.feasibility},
         confidence,durationMs:Math.max(0,Date.now()-started)
       });
