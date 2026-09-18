@@ -15,7 +15,8 @@ assert(ui.includes("/api/v50/agent"),"V50 conversation must use the server-side 
 assert(ui.includes("quickReplies")&&ui.includes("Travel DNA"),"V50 must support adaptive conversation and infographic filters");
 assert(ui.includes("v50TopStar")&&css.includes(":global(.v50TopStar)")&&css.includes("starPulse"),"Top-5 map pins must use blinking golden stars");
 assert(ui.includes("flyTo"),"V50 must preserve map zoom/focus choreography");
-assert(ui.includes("/api/v50/stay-rating")&&ui.includes("hoverStayCard"),"map hover cards must load verified ratings without LLM summaries");\nassert(ui.includes("category:\"AI TOP MATCH\"")&&ui.includes("setHoverPin({"),"top AI map markers must open the same product hover card as inventory markers");
+assert(ui.includes("/api/v50/stay-rating")&&ui.includes("hoverStayCard"),"map hover cards must load verified ratings without LLM summaries");
+assert(ui.includes("category:\"AI TOP MATCH\"")&&ui.includes("setHoverPin({"),"top AI map markers must open the same product hover card as inventory markers");
 assert(ui.includes("/escape/")&&ui.includes("/stay/"),"stay cards must link into the internal landing funnel");
 assert(agentApi.includes("runTravelOrchestratorV45"),"V50 must use persistent V45 orchestration");
 assert(agentApi.includes("loadV8StayOffers")&&agentApi.includes("assessStayAvailabilityV20"),"V50 must ground final solutions in real stay offers");
