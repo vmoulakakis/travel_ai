@@ -74,7 +74,7 @@ export function parseNaturalWindowV50(text:string,answer:string|undefined,now=ne
   const isWeekend=weekendRe.test(combined);
   const after=/μετ[αά]\s*(τις|την)?|after/i.test(combined);
   const flexible=after||/ευελικ|flex|οποτε|όποτε|οποιο|whatever/i.test(combined);
-  if(!anchor&&!/αυτ[οό]\s*το\s*σκ|this weekend|επομεν|επόμεν|next weekend/i.test(combined))return null;
+  if(!anchor&&!/αυτ[οό]\\s*το\\s*σκ|this weekend|επομεν|επόμεν|next weekend|ευελικ|flex|οποτε|όποτε/i.test(combined))return null;
 
   let start:Date;
   if(anchor){
