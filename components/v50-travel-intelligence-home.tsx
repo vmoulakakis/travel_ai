@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect,useMemo,useRef,useState } from "react";
-import type { DivIcon,LayerGroup,Map as LeafletMap,Marker,TileLayer } from "leaflet";
+import { useEffect,useMemo,useRef,useState,type CSSProperties } from "react";
+import type { LayerGroup,Map as LeafletMap,Marker,TileLayer } from "leaflet";
 import {
   ArrowRight,
   Brain,
@@ -183,7 +183,7 @@ export function V50TravelIntelligenceHome(){
       <span class="${styles.rankMarkerNum}">${i+1}</span>
       <span class="${styles.rankMarkerScore}">${Math.round(s.score)}%</span>
     </div>`;
-    const icon:L.DivIcon=L.divIcon({html,className:styles.rankMarkerHost,iconSize:[58,58],iconAnchor:[29,50]});
+    const icon=L.divIcon({html,className:styles.rankMarkerHost,iconSize:[58,58],iconAnchor:[29,50]});
     const marker=L.marker([s.stay.latitude,s.stay.longitude],{icon,zIndexOffset:1000-i*10}).addTo(group);
     marker.on("click",()=>focusSolution(i));
     marker.on("mouseover",()=>focusSolution(i,false));
@@ -301,7 +301,7 @@ export function V50TravelIntelligenceHome(){
     <div className={styles.filterRail}>
       {filterMeta.map(item=>{
         const Icon=item.icon,value=filters[item.key];
-        return <label key={item.key} className={styles.dial} style={{"--value":value+"%"} as React.CSSProperties}>
+        return <label key={item.key} className={styles.dial} style={{"--value":value+"%"} as CSSProperties}>
           <span className={styles.dialRing}><Icon/><b>{value}</b></span>
           <span className={styles.dialLabel}>{item.label}</span>
           <input aria-label={item.label} type="range" min="0" max="100" value={value} onChange={e=>updateFilter(item.key,Number(e.target.value))}/>
