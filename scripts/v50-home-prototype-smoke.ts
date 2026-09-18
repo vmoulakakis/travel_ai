@@ -13,8 +13,10 @@ assert(home.includes("V50TravelIntelligenceHome"),"V50 root must render the curr
 assert(ui.includes("/api/v50/map-stays?limit=1800"),"V50 must request the live stay universe");
 assert(ui.includes("/api/v50/agent"),"V50 conversation must use the server-side V50 agent");
 assert(ui.includes("quickReplies")&&ui.includes("Travel DNA"),"V50 must support adaptive conversation and infographic filters");
-assert(ui.includes("v50Pin")&&css.includes(":global(.v50Pin)"),"Top-5 map pins must use ranked intelligence markers");
+assert(ui.includes("v50TopStar")&&css.includes(":global(.v50TopStar)")&&css.includes("starPulse"),"Top-5 map pins must use blinking golden stars");
 assert(ui.includes("flyTo"),"V50 must preserve map zoom/focus choreography");
+assert(ui.includes("/api/v50/stay-rating")&&ui.includes("hoverStayCard"),"map hover cards must load verified ratings without LLM summaries");
+assert(ui.includes("/escape/")&&ui.includes("/stay/"),"stay cards must link into the internal landing funnel");
 assert(agentApi.includes("runTravelOrchestratorV45"),"V50 must use persistent V45 orchestration");
 assert(agentApi.includes("loadV8StayOffers")&&agentApi.includes("assessStayAvailabilityV20"),"V50 must ground final solutions in real stay offers");
 assert(agentApi.includes(".slice(0,5)"),"V50 public portfolio must cap at five verified solutions");
