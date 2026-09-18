@@ -19,6 +19,6 @@ export async function POST(request:Request){
   const result=await getStayRatingQuickV50({propertyName,sourceProductId,destinationSlug,destinationName,latitude,longitude,language:"el"});
   return NextResponse.json({ok:true,result},{headers:{"cache-control":"public, s-maxage=1800, stale-while-revalidate=7200","x-travel-rating":"v50-quick"}});
  }catch{
-  return NextResponse.json({ok:false,error:"rating_unavailable"},{status:503,headers:{"cache-control":"no-store"}});
+  return NextResponse.json({ok:true,result:null,degraded:true},{status:200,headers:{"cache-control":"public, max-age=60","x-travel-rating":"degraded"}});
  }
 }
