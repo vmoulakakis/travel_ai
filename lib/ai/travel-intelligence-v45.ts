@@ -133,12 +133,12 @@ export async function startTravelAgentRunV45(sessionId:string,objective:string,i
  }catch{return null}
 }
 
-export async function writeTravelAgentStepV45(input:{runId:string;stageKey:string;agentId:string;status?:"succeeded"|"failed"|"partial";inputSnapshot?:JsonRecord;outputSnapshot?:JsonRecord;evidenceRefs?:unknown;confidence?:number|null;durationMs?:number;llmCalls?:number;error?:string|null}){
+export async function writeTravelAgentStepV45(input:{runId:string;stageKey:string;agentId:string;status?:"completed"|"failed"|"skipped";inputSnapshot?:JsonRecord;outputSnapshot?:JsonRecord;evidenceRefs?:unknown;confidence?:number|null;durationMs?:number;llmCalls?:number;error?:string|null}){
  const h=headers();if(!h)return false;
  try{
   const r=await fetch(`${baseUrl().replace(/\/$/,"")}/rest/v1/travel_agent_steps_v44?on_conflict=run_id,stage_key`,{
    method:"POST",headers:{...h,Prefer:"resolution=merge-duplicates,return=minimal"},cache:"no-store",signal:AbortSignal.timeout(2200),
-   body:JSON.stringify({run_id:input.runId,stage_key:input.stageKey,agent_id:input.agentId,status:input.status??"succeeded",input_snapshot:input.inputSnapshot??{},output_snapshot:input.outputSnapshot??{},evidence_refs:input.evidenceRefs??{},confidence:input.confidence==null?null:clamp(input.confidence),duration_ms:Math.max(0,Math.round(input.durationMs??0)),llm_calls:Math.max(0,Math.round(input.llmCalls??0)),estimated_cost_usd:0,error:input.error??null,started_at:new Date(Date.now()-Math.max(0,input.durationMs??0)).toISOString(),completed_at:new Date().toISOString()})
+   body:JSON.stringify({run_id:input.runId,stage_key:input.stageKey,agent_id:input.agentId,status:input.status??"completed",input_snapshot:input.inputSnapshot??{},output_snapshot:input.outputSnapshot??{},evidence_refs:input.evidenceRefs??{},confidence:input.confidence==null?null:clamp(input.confidence),duration_ms:Math.max(0,Math.round(input.durationMs??0)),llm_calls:Math.max(0,Math.round(input.llmCalls??0)),estimated_cost_usd:0,error:input.error??null,started_at:new Date(Date.now()-Math.max(0,input.durationMs??0)).toISOString(),completed_at:new Date().toISOString()})
   });return r.ok;
  }catch{return false}
 }
