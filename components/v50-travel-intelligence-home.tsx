@@ -151,8 +151,32 @@ export function V50TravelIntelligenceHome(){
       const html='<div class="v50TopStar '+(isActive?"is-active":"")+'"><span class="v50StarGlyph">★</span><span class="v50StarRank">'+(index+1)+'</span><span class="v50StarScore">'+Math.round(s.score)+'%</span></div>';
       const icon=L.divIcon({className:"v50PinHost",html,iconSize:[72,72],iconAnchor:[36,36]});
       const m=L.marker([s.stay.latitude,s.stay.longitude],{icon,zIndexOffset:1200-index*10}).addTo(group);
-      m.on("mouseover",()=>{setActive(index);setHoverPin(null);void ensureRating(s.stay.productId,s.stay.name,s.destination.slug,s.destination.name,s.stay.latitude,s.stay.longitude)});
-      m.on("click",()=>{setActive(index);setSelectedPin(null);setHoverPin(null);mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75})});
+      m.on("mouseover",()=>{
+        setActive(index);
+        setHoverPin({
+          productId:s.stay.productId,
+          placeId:s.stay.productId,
+          name:s.stay.name,
+          location:s.destination.name,
+          address:s.destination.regionGroup,
+          latitude:s.stay.latitude,
+          longitude:s.stay.longitude,
+          category:"AI TOP MATCH",
+          imageUrl:s.stay.imageUrl,
+          price:s.stay.price,
+          fullPrice:s.stay.fullPrice,
+          discount:s.stay.discount,
+          currency:s.stay.currency,
+          onSale:Boolean(s.stay.discount&&s.stay.discount>0),
+          availability:s.stay.availability,
+          validTo:null,
+          demandScore:null,
+          trackingUrl:s.stay.trackingUrl,
+          destinationSlug:s.destination.slug
+        });
+        void ensureRating(s.stay.productId,s.stay.name,s.destination.slug,s.destination.name,s.stay.latitude,s.stay.longitude);
+      });
+      m.on("click",()=>{setActive(index);setSelectedPin(null);mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75})});
     });
   });
   return()=>{cancelled=true};
