@@ -89,6 +89,87 @@ function humanClarification(question:ReturnType<typeof nextV50Question>,interpre
   return question.text;
 }
 
+
+type V42FallbackPayload={
+  ok?:boolean;
+  intentSummary?:string;
+  solutions?:Array<{
+    rank:number;score:number;
+    destination:{slug:string;name:string;nameEn:string;tags:string[]};
+    stay:{sourceProductId:string;propertyName:string;trackingUrl:string;imageUrl:string|null;price:number|null;currency:string|null;distanceKm:number|null;availability:string|null;semanticScore:number;vectorScore:number;travelerFit:number;valueScore:number;evidenceScore:number};
+    matchedSignals:string[];reason:string;
+  }>;
+};
+
+async function fallbackViaV42(request:Request,trip:ReturnType<typeof buildV50Trip>,interpreted:ReturnType<typeof interpretV50Conversation>){
+  try{
+    const url=new URL("/api/escape/solve-v42",request.url);
+    const response=await fetch(url,{
+      method:"POST",
+      headers:{"content-type":"application/json","x-travel-failover":"v50"},
+      body:JSON.stringify(trip),
+      cache:"no-store",
+      signal:AbortSignal.timeout(14000)
+    });
+    if(!response.ok)return null;
+    const payload=await response.json() as V42FallbackPayload;
+    if(!payload.ok||!Array.isArray(payload.solutions)||!payload.solutions.length)return null;
+    const catalog=await loadV8DestinationCatalog().catch(()=>[]);
+    const bySlug=new Map(catalog.map(item=>[item.slug,item]));
+    const mountainSlugs=new Set(["zagori","meteora","pelion","ioannina","arachova","karpenisi"]);
+    let rows=payload.solutions;
+    if(interpreted.terrainIntent==="mountain"){
+      const filtered=rows.filter(item=>{
+        const profile=bySlug.get(item.destination.slug);
+        return profile?.seasonProfile==="mountain"||mountainSlugs.has(item.destination.slug);
+      });
+      if(filtered.length)rows=filtered;
+    }
+    return{
+      intentSummary:payload.intentSummary??null,
+      solutions:rows.slice(0,10).map((item,index)=>{
+        const d=bySlug.get(item.destination.slug);
+        return{
+          rank:index+1,
+          score:item.score,
+          destination:{
+            slug:item.destination.slug,
+            name:item.destination.name,
+            regionGroup:d?.regionGroup??"",
+            latitude:d?.latitude??0,
+            longitude:d?.longitude??0,
+            explorationRole:"verified-failover",
+            explorationReason:"Full agent enrichment failed, so TravelAI returned the strongest grounded semantic + live-inventory match instead of stopping.",
+            why:item.reason,
+            seasonNote:"",
+            effortLabel:"",
+            budgetLabel:"",
+            tags:item.destination.tags,
+            weather:null
+          },
+          stay:{
+            productId:item.stay.sourceProductId,
+            name:item.stay.propertyName,
+            description:null,
+            price:item.stay.price,
+            fullPrice:null,
+            discount:null,
+            currency:item.stay.currency??"EUR",
+            latitude:d?.latitude??0,
+            longitude:d?.longitude??0,
+            imageUrl:item.stay.imageUrl,
+            trackingUrl:item.stay.trackingUrl,
+            availability:item.stay.availability??"provider-check",
+            availabilityConfidence:"MEDIUM",
+            distanceKm:item.stay.distanceKm
+          },
+          liveOfferCount:1
+        };
+      })
+    };
+  }catch{return null}
+}
+
 function responseWithProfile(payload:Record<string,unknown>,profileKey:string,status=200){
   const response=NextResponse.json(payload,{status,headers:{
     "cache-control":"no-store",
@@ -233,10 +314,35 @@ export async function POST(request:Request){
     },profileKey);
   }catch(error){
     const message=error instanceof Error?error.message:"v50_agent_failed";
+    console.error("[v50-agent] primary pipeline failed",{message,name:error instanceof Error?error.name:"unknown"});
+    try{
+      const trip=buildV50Trip(input,interpreted);
+      const fallback=await fallbackViaV42(request,trip,interpreted);
+      if(fallback?.solutions?.length){
+        return responseWithProfile({
+          ok:true,state:"results",
+          agentMessage:"Έχασα ένα enrichment layer, όχι το ταξίδι σου. Συνέχισα με το grounded semantic + live-inventory engine και κράτησα μόνο πραγματικές επιλογές. Μπορούμε να συνεχίσουμε κανονικά από εδώ.",
+          interpreted:{
+            confidence:interpreted.confidence,
+            signals:interpreted.signals,
+            summary:fallback.intentSummary,
+            startDate:trip.startDate,endDate:trip.endDate,nights:trip.nights,
+            mustHave:interpreted.mustHave,terrainIntent:interpreted.terrainIntent,travelerType:interpreted.travelerType
+          },
+          trip,
+          inventory:{catalogSize:0,eligibleCount:fallback.solutions.length,resultCount:fallback.solutions.length,stayVerifiedSolutions:fallback.solutions.length},
+          feasibility:"grounded-failover",
+          fallback:{engine:"v42-semantic-live-inventory",reason:message},
+          solutions:fallback.solutions
+        },profileKey);
+      }
+    }catch(fallbackError){
+      console.error("[v50-agent] fallback failed",{message:fallbackError instanceof Error?fallbackError.message:String(fallbackError)});
+    }
     return responseWithProfile({
       ok:false,state:"error",
-      agentMessage:"Δεν θα μαντέψω. Κάτι απέτυχε στον έλεγχο δεδομένων και κράτησα το brief σου για να συνεχίσουμε χωρίς να χαθεί.",
-      error:process.env.NODE_ENV==="development"?message:"agent_evidence_check_failed"
+      agentMessage:"Δεν έχω ακόμη ασφαλή live αποτέλεσμα για να σου δείξω. Το brief σου έχει κρατηθεί· δοκίμασε ξανά σε λίγα δευτερόλεπτα χωρίς να ξαναγράψεις τις προτιμήσεις σου.",
+      error:process.env.NODE_ENV==="development"?message:"agent_pipeline_unavailable"
     },profileKey,503);
   }
 }
