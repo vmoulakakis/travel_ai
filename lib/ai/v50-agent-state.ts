@@ -73,7 +73,7 @@ function explicitDate(text:string,now=new Date()){
   }
 
   const normalized=norm(text);
-  const named=normalized.match(/\b(\d{1,2})\s+(ιανουαρι(?:ου)?|ιαν|φεβρουαρι(?:ου)?|φεβ|μαρτι(?:ου)?|μαρ|απριλι(?:ου)?|απρ|μαι(?:ου)?|μαι|ιουνι(?:ου)?|ιουν|ιουλι(?:ου)?|ιουλ|αυγουστ(?:ου|ο)?|αυγ|σεπτεμβρι(?:ου)?|σεπτ|οκτωβρι(?:ου)?|οκτ|νοεμβρι(?:ου)?|νοε|δεκεμβρι(?:ου)?|δεκ)(?:\s+(\d{4}))?\b/);
+  const named=normalized.match(/(?:^|\s)(\d{1,2})\s+(ιανουαρι(?:ου)?|ιαν|φεβρουαρι(?:ου)?|φεβ|μαρτι(?:ου)?|μαρ|απριλι(?:ου)?|απρ|μαι(?:ου)?|μαι|ιουνι(?:ου)?|ιουν|ιουλι(?:ου)?|ιουλ|αυγουστ(?:ου|ο)?|αυγ|σεπτεμβρι(?:ου)?|σεπτ|οκτωβρι(?:ου)?|οκτ|νοεμβρι(?:ου)?|νοε|δεκεμβρι(?:ου)?|δεκ)(?:\s+(\d{4}))?(?=\s|$|[,.!?;:])/);
   if(named){
     const day=Number(named[1]),monthToken=named[2].replace(/ου$/,"").replace(/ο$/,""),month=greekMonths[monthToken];
     if(month!=null){
@@ -90,7 +90,7 @@ function explicitDate(text:string,now=new Date()){
 
 export function parseNaturalWindowV50(text:string,answer:string|undefined,now=new Date()){
   const combined=[text,answer??""].join(" ").trim(),normalized=norm(combined);
-  const range=normalized.match(/\b(\d{1,2})\s*[-–]\s*(\d{1,2})\s+(ιανουαρι(?:ου)?|φεβρουαρι(?:ου)?|μαρτι(?:ου)?|απριλι(?:ου)?|μαι(?:ου)?|ιουνι(?:ου)?|ιουλι(?:ου)?|αυγουστ(?:ου|ο)?|σεπτεμβρι(?:ου)?|οκτωβρι(?:ου)?|νοεμβρι(?:ου)?|δεκεμβρι(?:ου)?)(?:\s+(\d{4}))?\b/);
+  const range=normalized.match(/(?:^|\s)(\d{1,2})\s*[-–]\s*(\d{1,2})\s+(ιανουαρι(?:ου)?|φεβρουαρι(?:ου)?|μαρτι(?:ου)?|απριλι(?:ου)?|μαι(?:ου)?|ιουνι(?:ου)?|ιουλι(?:ου)?|αυγουστ(?:ου|ο)?|σεπτεμβρι(?:ου)?|οκτωβρι(?:ου)?|νοεμβρι(?:ου)?|δεκεμβρι(?:ου)?)(?:\s+(\d{4}))?(?=\s|$|[,.!?;:])/);
   if(range){
     const from=explicitDate(range[1]+" "+range[3]+(range[4]?" "+range[4]:""),now),to=explicitDate(range[2]+" "+range[3]+(range[4]?" "+range[4]:""),now);
     if(from&&to&&to>from)return{startDate:iso(from),endDate:iso(to),nights:Math.max(1,Math.round((to.getTime()-from.getTime())/86400000)),weekend:weekendRe.test(combined),flexible:false};
