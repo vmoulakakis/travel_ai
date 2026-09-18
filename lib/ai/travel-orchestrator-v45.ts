@@ -28,29 +28,43 @@ function confidenceFromPayload(payload?:Record<string,unknown>){
   return Number.isFinite(n)?Math.max(0,Math.min(1,n)):null;
 }
 
-function stepFor(event:TravelOrchestratorEvent){
-  if(event.type==="understand:ready")return{stageKey:"understand",agentId:"intent-constraint"};
-  if(event.type==="knowledge:ready"||event.type==="shortlist:ready")return{stageKey:"candidates",agentId:"destination-scout"};
-  if(event.type==="stay:ready")return{stageKey:"inventory",agentId:"inventory-grounder"};
-  if(event.type==="weather:ready")return{stageKey:"season",agentId:"season-weather"};
-  if(event.type==="verify:ready")return{stageKey:"audit",agentId:"skeptical-auditor"};
-  if(event.type==="council:ready")return{stageKey:"advocate",agentId:"traveler-advocate"};
-  return null;
+type ObservedStep={stageKey:string;agentId:string;toolKeys:string[];item:TimedEvent};
+
+function stepSpecs(event:TravelOrchestratorEvent,trip:TripRequest):Array<Omit<ObservedStep,"item">>{
+  if(event.type==="understand:ready")return[{stageKey:"understand",agentId:"intent-constraint",toolKeys:["mission-input","traveler-profile"]}];
+  if(event.type==="scope:ready")return[{stageKey:"scope",agentId:"location-truth",toolKeys:["geo-graph","destination-catalog"]}];
+  if(event.type==="knowledge:ready")return[{stageKey:"candidates",agentId:"destination-scout",toolKeys:["knowledge-search","destination-facts","destination-catalog"]}];
+  if(event.type==="choice:ready"||event.type==="stay:ready")return[
+    {stageKey:"inventory",agentId:"inventory-grounder",toolKeys:["inventory","stay-offers","stay-knowledge","tracking-validity"]},
+    {stageKey:"value",agentId:"value-analyst",toolKeys:["inventory","decision-context"]}
+  ];
+  if(event.type==="weather:ready")return[
+    {stageKey:"season",agentId:"season-weather",toolKeys:["weather-evidence","destination-facts"]},
+    {stageKey:"route",agentId:"route-friction",toolKeys:["route-evidence","geo-graph"]}
+  ];
+  if(event.type==="research:ready"){
+    const specs:Array<Omit<ObservedStep,"item">>=[{stageKey:"experience",agentId:"local-experience",toolKeys:["knowledge-search","web-evidence"]}];
+    const text=(trip.tripText??"").toLowerCase();
+    if(trip.moods.includes("food")||/food|restaurant|φαγη|γαστρο|ταβερν/.test(text))specs.push({stageKey:"food",agentId:"food-scout",toolKeys:["knowledge-search","web-evidence"]});
+    return specs;
+  }
+  if(event.type==="verify:ready")return[{stageKey:"audit",agentId:"skeptical-auditor",toolKeys:["facts","evidence","hypotheses"]}];
+  if(event.type==="council:ready")return[{stageKey:"advocate",agentId:"traveler-advocate",toolKeys:["verified-hypotheses","traveler-profile"]}];
+  return[];
 }
 
-async function persistObservedSteps(runId:string,events:TimedEvent[]){
-  const chosen=new Map<string,TimedEvent>();
-  for(const item of events){const step=stepFor(item.event);if(step)chosen.set(step.stageKey,item)}
-  const rows=[...chosen.entries()];
-  await Promise.all(rows.map(async([stageKey,item],index)=>{
-    const step=stepFor(item.event)!;
-    const previous=index===0?events[0]?.at??item.at:rows[index-1]?.[1].at??item.at;
+async function persistObservedSteps(runId:string,events:TimedEvent[],trip:TripRequest){
+  const chosen=new Map<string,ObservedStep>();
+  for(const item of events)for(const spec of stepSpecs(item.event,trip))chosen.set(spec.stageKey,{...spec,item});
+  const rows=[...chosen.values()].sort((a,b)=>a.item.at-b.item.at);
+  await Promise.all(rows.map(async(row,index)=>{
+    const previous=index===0?events[0]?.at??row.item.at:rows[index-1]?.item.at??row.item.at;
     await writeTravelAgentStepV45({
-      runId,stageKey,agentId:step.agentId,status:"completed",
-      outputSnapshot:{eventType:item.event.type,...(item.event.payload??{})},
-      evidenceRefs:item.event.type==="knowledge:ready"?(item.event.payload?.top??[]):{},
-      confidence:confidenceFromPayload(item.event.payload),
-      durationMs:Math.max(0,item.at-previous)
+      runId,stageKey:row.stageKey,agentId:row.agentId,status:"completed",toolKeys:row.toolKeys,
+      outputSnapshot:{eventType:row.item.event.type,...(row.item.event.payload??{})},
+      evidenceRefs:row.item.event.type==="knowledge:ready"?(row.item.event.payload?.top??[]):{},
+      confidence:confidenceFromPayload(row.item.event.payload),
+      durationMs:Math.max(0,row.item.at-previous)
     });
   }));
 }
@@ -90,9 +104,9 @@ export async function runTravelOrchestratorV45(
       })
     ]);
     if(runId){
-      await persistObservedSteps(runId,events);
+      await persistObservedSteps(runId,events,trip);
       await writeTravelAgentStepV45({
-        runId,stageKey:"synthesize",agentId:"decision-synthesizer",status:"completed",
+        runId,stageKey:"synthesize",agentId:"decision-synthesizer",status:"completed",toolKeys:["decision-ledger","agent-hypotheses"],
         outputSnapshot:{slugs:result.recommendations.slice(0,3).map(r=>r.slug),count:result.recommendations.length,feasibility:result.feasibility},
         confidence,durationMs:Math.max(0,Date.now()-started)
       });
@@ -107,7 +121,7 @@ export async function runTravelOrchestratorV45(
   }catch(error){
     if(runId){
       await writeTravelAgentStepV45({
-        runId,stageKey:"synthesize",agentId:"decision-synthesizer",status:"failed",
+        runId,stageKey:"synthesize",agentId:"decision-synthesizer",status:"failed",toolKeys:["decision-ledger","agent-hypotheses"],
         outputSnapshot:{},error:error instanceof Error?error.message:String(error),durationMs:Math.max(0,Date.now()-started)
       });
       await finishTravelAgentRunV45(runId,"failed",{error:error instanceof Error?error.message:String(error)},null);
