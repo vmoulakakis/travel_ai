@@ -43,7 +43,19 @@ function semanticFromParsed(parsed:Parsed,fallback:V8SemanticIntent,source:V8Sem
  return{positive,negative,priorities:parsed.priorities?.length?parsed.priorities:fallback.priorities,qualifiers,confidence:clamp(parsed.confidence??.9),source,rationale:(parsed.rationale??[]).slice(0,5)};
 }
 
-function reconcileWeights(request:TripRequest,semantic:V8SemanticIntent){
+function applyLearnedPreferencesV45(weights:Record<V8Dimension,number>,learned?:Partial<Record<V8Dimension,number>>,negative?:Partial<Record<V8Dimension,number>>){
+ if(!learned)return weights;
+ for(const d of V8_DIMENSIONS){
+  const remembered=Math.max(0,Math.min(.35,Number(learned[d]??0)));
+  const rejected=Math.max(0,Math.min(1,Number(negative?.[d]??0)));
+  if(!remembered||rejected>=.45)continue;
+  // Persistent memory is deliberately a small soft prior, never a hard override.
+  weights[d]=Math.min(2,weights[d]+Math.min(.16,remembered*.45));
+ }
+ return weights;
+}
+
+function reconcileWeights(request:TripRequest,semantic:V8SemanticIntent,learned?:Partial<Record<V8Dimension,number>>){
  const weights=baseStructuredWeights(request);
  for(const d of V8_DIMENSIONS){const p=clamp(semantic.positive[d]??0),n=clamp(semantic.negative[d]??0);if(p>0)weights[d]=Math.max(weights[d]*.7,p);if(n>0)weights[d]*=1-n*.92;}
  if(semantic.qualifiers.avoidCrowds>0)weights.relax=Math.max(weights.relax,.7*semantic.qualifiers.avoidCrowds);
@@ -58,18 +70,18 @@ function reconcileWeights(request:TripRequest,semantic:V8SemanticIntent){
  if(request.mustHave==="nature")weights.nature=Math.max(weights.nature,.98);
  if(request.mustHave==="culture")weights.culture=Math.max(weights.culture,.98);
  if(request.mustHave==="nightlife")weights.nightlife=Math.max(weights.nightlife,.98);
- return weights;
+ return applyLearnedPreferencesV45(weights,learned,semantic.negative);
 }
 
-export function structuredIntent(request:TripRequest):V8IntentProfile{
- const text=request.tripText?.trim();if(!text)return{weights:baseStructuredWeights(request),source:"structured",summary:request.moods.join(" + ")};
- const semantic=deterministicSemanticIntentV18(text);return{weights:reconcileWeights(request,semantic),source:"structured",summary:request.moods.join(" + "),interpretedText:text,semantic};
+export function structuredIntent(request:TripRequest,learned?:Partial<Record<V8Dimension,number>>):V8IntentProfile{
+ const text=request.tripText?.trim();if(!text)return{weights:applyLearnedPreferencesV45(baseStructuredWeights(request),learned),source:"structured",summary:request.moods.join(" + ")};
+ const semantic=deterministicSemanticIntentV18(text);return{weights:reconcileWeights(request,semantic,learned),source:"structured",summary:request.moods.join(" + "),interpretedText:text,semantic};
 }
 
 const tierSource=(tier:ModelTierV16):V8IntentProfile["source"]=>tier==="free"?"structured+free":tier==="openai"?"structured+openai":"structured+deepseek";
 
-export async function interpretIntentV8(request:TripRequest,budget:LLMRequestBudgetV16=createLLMRequestBudgetV16()):Promise<V8IntentProfile>{
- const base=structuredIntent(request),text=request.tripText?.trim();if(!text||text.length<3)return base;const fallback=base.semantic??deterministicSemanticIntentV18(text),normalized=normalizedFreeText(text),clauseCount=(normalized.match(/(?:,| και | and | αλλα | but | ομως | however | χωρις | without )/g)??[]).length,semanticConflict=V8_DIMENSIONS.some(d=>(fallback.positive[d]??0)>.25&&(fallback.negative[d]??0)>.25),complexTradeoff=semanticConflict||clauseCount>=3;
+export async function interpretIntentV8(request:TripRequest,budget:LLMRequestBudgetV16=createLLMRequestBudgetV16(),learned?:Partial<Record<V8Dimension,number>>):Promise<V8IntentProfile>{
+ const base=structuredIntent(request,learned),text=request.tripText?.trim();if(!text||text.length<3)return base;const fallback=base.semantic??deterministicSemanticIntentV18(text),normalized=normalizedFreeText(text),clauseCount=(normalized.match(/(?:,| και | and | αλλα | but | ομως | however | χωρις | without )/g)??[]).length,semanticConflict=V8_DIMENSIONS.some(d=>(fallback.positive[d]??0)>.25&&(fallback.negative[d]??0)>.25),complexTradeoff=semanticConflict||clauseCount>=3;
  const system=`You are the canonical semantic parser for a travel decision engine. Parse EVERY clause of the traveller's free text. Do not recommend destinations and do not invent facts. Separate desires from dislikes and exclusions. Preserve priority and trade-offs. "not X" must never become a positive X preference. Hard geography and accommodation constraints are enforced elsewhere. Dimensions: ${V8_DIMENSIONS.join(", ")}. Return JSON only with this schema: {"positive":{"dimension":0..1},"negative":{"dimension":0..1},"priorities":["dimension"],"qualifiers":{"avoidCrowds":0..1,"easyAccess":0..1,"slowRhythm":0..1,"walkable":0..1,"localCharacter":0..1},"confidence":0..1,"summary":"max 120 chars","rationale":["short clause interpretations"]}. Use a dimension only when supported by the user's words. If the user says sea nearby but not a beach holiday, keep beach positive low and beach negative meaningful. If the user says food first but no nightlife, food is a priority and nightlife is negative.`;
  const routed=await generateJsonWithRoutingV16<Parsed>({context:{task:"intent",text,deterministicConfidence:fallback.confidence,hardConstraintRisk:false,contradictorySignals:complexTradeoff,forceSemantic:true},budget,system,prompt:text,preference:"critical",validate(raw){
   const readMap=(input:unknown)=>{const out:Partial<Record<V8Dimension,number>>={};if(!input||typeof input!=="object"||Array.isArray(input))return out;for(const [k,v] of Object.entries(input as Record<string,unknown>)){const d=mapDimension(k),n=Number(v);if(d&&Number.isFinite(n))out[d]=clamp(n);}return out;};
@@ -79,6 +91,6 @@ export async function interpretIntentV8(request:TripRequest,budget:LLMRequestBud
   if(!Object.keys(positive).length&&!Object.keys(negative).length&&!priorities.length&&!Object.keys(qualifiers).length)return null;
   return{positive,negative,priorities,qualifiers,confidence:Number.isFinite(confidence)?clamp(confidence):.85,summary:typeof raw.summary==="string"?raw.summary.slice(0,120):undefined,rationale};
  }});
- const source=routed?tierSource(routed.tier):"structured",semantic=routed?semanticFromParsed(routed.value,fallback,source):fallback,weights=reconcileWeights(request,semantic);
+ const source=routed?tierSource(routed.tier):"structured",semantic=routed?semanticFromParsed(routed.value,fallback,source):fallback,weights=reconcileWeights(request,semantic,learned);
  return{weights,source,summary:routed?.value.summary??base.summary,interpretedText:text,semantic:{...semantic,source}};
 }
