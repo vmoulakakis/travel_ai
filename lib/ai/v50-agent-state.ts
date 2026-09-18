@@ -90,6 +90,11 @@ function explicitDate(text:string,now=new Date()){
 
 export function parseNaturalWindowV50(text:string,answer:string|undefined,now=new Date()){
   const combined=[text,answer??""].join(" ").trim(),normalized=norm(combined);
+  const isoRange=normalized.match(/\b(\d{4}-\d{2}-\d{2})\s*(?:→|–|—|to|-)\s*(\d{4}-\d{2}-\d{2})\b/);
+  if(isoRange){
+    const from=new Date(isoRange[1]+"T00:00:00Z"),to=new Date(isoRange[2]+"T00:00:00Z");
+    if(validDate(from)&&validDate(to)&&to>from)return{startDate:iso(from),endDate:iso(to),nights:Math.max(1,Math.round((to.getTime()-from.getTime())/86400000)),weekend:weekendRe.test(combined),flexible:false};
+  }
   const range=normalized.match(/(?:^|\s)(\d{1,2})\s*[-–]\s*(\d{1,2})\s+(ιανουαρι(?:ου)?|φεβρουαρι(?:ου)?|μαρτι(?:ου)?|απριλι(?:ου)?|μαι(?:ου)?|ιουνι(?:ου)?|ιουλι(?:ου)?|αυγουστ(?:ου|ο)?|σεπτεμβρι(?:ου)?|οκτωβρι(?:ου)?|νοεμβρι(?:ου)?|δεκεμβρι(?:ου)?)(?:\s+(\d{4}))?(?=\s|$|[,.!?;:])/);
   if(range){
     const from=explicitDate(range[1]+" "+range[3]+(range[4]?" "+range[4]:""),now),to=explicitDate(range[2]+" "+range[3]+(range[4]?" "+range[4]:""),now);
@@ -214,17 +219,17 @@ export function interpretV50Conversation(input:V50ConversationInput,now=new Date
 }
 
 export function nextV50Question(x:V50ConversationInterpretation,answers:V50ConversationInput["answers"]={}):V50Question|null{
-  if(!x.startDate||!x.endDate)return{id:"dates",text:"Πότε θέλεις να φύγεις; Μπορείς να μου πεις και φυσικά, π.χ. «το πρώτο ΣΚ μετά τις 10 Οκτωβρίου».",quickReplies:[
-    {label:"Αυτό το ΣΚ",value:"αυτό το ΣΚ"},{label:"Επόμενο ΣΚ",value:"επόμενο ΣΚ"},{label:"Είμαι ευέλικτος",value:"ευέλικτες ημερομηνίες"}
+  if(!x.startDate||!x.endDate)return{id:"dates",text:"Διάλεξε ημερομηνίες με τον τρόπο που σε βολεύει — AI παράθυρα, ακριβές από/έως ή φυσική φράση.",quickReplies:[
+    {label:"Επόμενο ΣΚ",value:"επόμενο ΣΚ"},{label:"Σε 2-3 εβδομάδες",value:"ευέλικτες ημερομηνίες"},{label:"Καθημερινές",value:"ευέλικτες ημερομηνίες"},{label:"Θέλω AI επιλογές",value:"ευέλικτες ημερομηνίες"}
   ]};
-  if(!x.travelerType)return{id:"companions",text:"Με ποιον θα κάνεις αυτή την απόδραση; Αυτό αλλάζει πολύ το τι θεωρώ καλή λύση.",quickReplies:[
+  if(!x.travelerType)return{id:"companions",text:"Ποιος ταξιδεύει μαζί σου; Αυτό είναι το μόνο στοιχείο που αλλάζει ουσιαστικά τον τύπο stay που θα ψάξω.",quickReplies:[
     {label:"Με σύντροφο",value:"couple"},{label:"Μόνος/η",value:"solo"},{label:"Με οικογένεια",value:"family"},{label:"Με φίλους",value:"friends"}
   ]};
-  if(x.desiredEnergy==="balanced"&&!answers.outcome)return{id:"outcome",text:"Τι θέλεις να σου δώσει κυρίως αυτό το ταξίδι: reset, εμπειρίες ή λίγο και από τα δύο;",quickReplies:[
-    {label:"Να ξεκουραστώ",value:"restore"},{label:"Να ζήσω κάτι διαφορετικό",value:"stimulating"},{label:"Ισορροπία",value:"balanced"}
+  if(x.desiredEnergy==="balanced"&&!answers.outcome&&x.confidence<.72)return{id:"outcome",text:"Ποιο feeling να βάλω πρώτο; Δεν χρειάζεται άλλο ερωτηματολόγιο μετά από αυτό.",quickReplies:[
+    {label:"Reset & ηρεμία",value:"restore"},{label:"Εμπειρίες & ανακάλυψη",value:"stimulating"},{label:"Ισορροπία",value:"balanced"},{label:"Άσε το AI να αποφασίσει",value:"balanced"}
   ]};
-  if(x.distancePreference==="any"&&!answers.friction)return{id:"friction",text:"Πόση μετακίνηση ανέχεσαι για να αξίζει πραγματικά η απόδραση;",quickReplies:[
-    {label:"Όσο πιο κοντά γίνεται",value:"easy-hop"},{label:"Μου αρέσει η οδήγηση",value:"road-trip"},{label:"Δεν με περιορίζει",value:"any"}
+  if(x.distancePreference==="any"&&!answers.friction&&x.confidence<.64)return{id:"friction",text:"Μόνο αν σε περιορίζει η μετακίνηση: πόσο μακριά να κοιτάξω;",quickReplies:[
+    {label:"Κοντά / εύκολα",value:"easy-hop"},{label:"Road trip OK",value:"road-trip"},{label:"Δεν με περιορίζει",value:"any"}
   ]};
   return null;
 }
