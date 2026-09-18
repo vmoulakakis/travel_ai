@@ -13,7 +13,8 @@ type Props={slug:string;destination:string;destinationEn:string;offer:V8StayOffe
 type EventItem={id:string;name:string;date:string;time:string|null;venue:string|null;city:string;category:string;imageUrl:string|null};
 type EventsPayload={status:"live"|"empty"|"unavailable";events:EventItem[];providers:string[];disclosure:string};
 type LocalResponse=LocalIntelligenceV38&{stay?:{name:string;latitude:number;longitude:number;address:string|null;city:string|null}};
-type ChatRow={role:"agent"|"user";text:string};\ntype AerialMedia={imageUrl:string;sourceUrl:string;title:string;license:string;attribution:string};
+type ChatRow={role:"agent"|"user";text:string};
+type AerialMedia={imageUrl:string;sourceUrl:string;title:string;license:string;attribution:string};
 
 const say=(l:"el"|"en",el:string,en:string)=>l==="el"?el:en;
 const money=(n:number|null|undefined,c:string|null|undefined,l:"el"|"en")=>n&&n>0?new Intl.NumberFormat(l==="el"?"el-GR":"en-GB",{style:"currency",currency:c||"EUR",maximumFractionDigits:0}).format(n):say(l,"Τιμή στον πάροχο","Price at provider");
@@ -22,7 +23,8 @@ function images(o:V8StayOffer){const r=o.raw&&typeof o.raw==="object"?o.raw as R
 
 export function V50StayFunnel({slug,destination,destinationEn,offer,trip,lang}:Props){
  const [step,setStep]=useState(0),[plan,setPlan]=useState<TripBuilderPlanV25|null>(null),[local,setLocal]=useState<LocalResponse|null>(null),[reviews,setReviews]=useState<StayReviewIntelligenceV39|null>(null),[events,setEvents]=useState<EventsPayload|null>(null),[aerial,setAerial]=useState<AerialMedia[]>([]),[busy,setBusy]=useState(true),[chat,setChat]=useState<ChatRow[]>([{role:"agent",text:say(lang,`Κλείδωσα το ${offer.propertyName}. Τώρα χτίζω όλη την απόδραση γύρω από αυτό.`,`I locked ${offer.propertyName}. Now I’m building the whole escape around it.`)}]),[chatInput,setChatInput]=useState(""),[agentBusy,setAgentBusy]=useState(false),[email,setEmail]=useState(""),[emailMsg,setEmailMsg]=useState(""),[unlocked,setUnlocked]=useState(false),[qr,setQr]=useState("");
- const hotelImages=useMemo(()=>images(offer),[offer.sourceProductId]),weather=plan?.weather.days??[],guidePath=plan?.guide.path??null;\n const mapHost=useRef<HTMLDivElement|null>(null);
+ const hotelImages=useMemo(()=>images(offer),[offer.sourceProductId]),weather=plan?.weather.days??[],guidePath=plan?.guide.path??null;
+ const mapHost=useRef<HTMLDivElement|null>(null);
  const topRating=reviews?.ratings.find(x=>x.provider!=="AI Guest Signal")??null;
  const places=useMemo(()=>local?[...local.attractions,...local.museums,...local.restaurants,...local.cafes,...local.nightlife,...local.beaches]:[],[local]);
  const categories=useMemo(()=>({must:places.filter(x=>["attraction","museum","beach"].includes(x.kind)).slice(0,6),food:places.filter(x=>["restaurant","cafe"].includes(x.kind)).slice(0,6),night:places.filter(x=>x.kind==="nightlife").slice(0,4)}),[places]);
