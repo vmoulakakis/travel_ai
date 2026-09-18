@@ -23,11 +23,13 @@ import { applyCriterionTruthV26 } from "@/lib/decision/criterion-truth-v26";
 import { mergeStructuredStayRequirementsV26 } from "@/lib/decision/structured-stay-requirements-v26";
 import { interpretStayConstraintsV16 } from "@/lib/ai/stay-constraint-interpreter-v16";
 import { gateRankedByStayRequirementsV16 } from "@/lib/decision/stay-eligibility-v16";
-import type { V8IntentProfile,V8RecommendationResponse } from "@/lib/decision/v8-types";
+import { applyKnowledgePriorV45,loadTravelKnowledgePriorV45 } from "@/lib/ai/travel-intelligence-v45";
+import type { V8Dimension,V8IntentProfile,V8RecommendationResponse } from "@/lib/decision/v8-types";
 import type { TripRequest } from "@/lib/validation/trip";
 
 export type TravelOrchestratorEvent={type:string;progress:number;payload?:Record<string,unknown>};
 export type TravelOrchestratorEmitter=(event:TravelOrchestratorEvent)=>void;
+export type TravelRuntimeContextV45={learnedPreferences?:Partial<Record<V8Dimension,number>>};
 
 export class TravelDecisionError extends Error{
  constructor(public readonly status:number,public readonly publicMessage:string,public readonly stage:string){super(publicMessage);this.name="TravelDecisionError"}
@@ -40,14 +42,14 @@ function stayRequirementAudit(spec:{hard:string[];soft:string[];source:string},e
 function stayNoResultMessage(trip:TripRequest,hard:string[]){const beachfront=hard.includes("BEACHFRONT"),charging=hard.includes("EV_CHARGING");if(trip.language==="en"){if(charging)return"I could not verify EV charging at an eligible stay for all selected dates. I will not assume a charger exists.";return beachfront?"I could not verify a beachfront stay for every selected date. I will not substitute a merely coastal destination.":"I could not verify a stay that satisfies every mandatory accommodation requirement for those dates.";}if(charging)return"Δεν μπόρεσα να επαληθεύσω φόρτιση EV σε επιλέξιμο κατάλυμα για όλες τις ημερομηνίες. Δεν θα υποθέσω ότι υπάρχει φορτιστής.";return beachfront?"Δεν βρήκα κατάλυμα με επαληθευμένο «μπροστά στη θάλασσα» για όλες τις ημερομηνίες σου. Δεν θα το αντικαταστήσω με απλώς παραθαλάσσιο προορισμό.":"Δεν βρήκα κατάλυμα που να καλύπτει όλα τα υποχρεωτικά κριτήρια διαμονής για αυτές τις ημερομηνίες."}
 function noResult(trip:TripRequest){return trip.language==="en"?"No verified destination satisfies every red line and criterion in that combination yet.":"Δεν υπάρχει ακόμη επαληθευμένος προορισμός που να καλύπτει όλες τις κόκκινες γραμμές και τα κριτήρια αυτού του συνδυασμού."}
 
-export async function runTravelOrchestratorV26(trip:TripRequest,sessionId:string,emit:TravelOrchestratorEmitter=noop):Promise<V8RecommendationResponse>{
+export async function runTravelOrchestratorV26(trip:TripRequest,sessionId:string,emit:TravelOrchestratorEmitter=noop,runtime:TravelRuntimeContextV45={}):Promise<V8RecommendationResponse>{
  const started=Date.now(),timings:Record<string,number>={},roles=runtimeAgentRoles().map(role=>role.id),llmBudget=createLLMRequestBudgetV16();let stage="start",last=started;
  const mark=(name:string)=>{const now=Date.now();timings[name]=now-last;last=now;stage=name};
  const signal=(type:string,progress:number,payload:Record<string,unknown>={})=>emit({type,progress,payload});
  try{
   signal("understand:start",8,{hasFreeText:Boolean(trip.tripText),agent:"intent-constraint"});signal("catalog:start",12,{agent:"orchestrator"});
   stage="intent+catalog";
-  const[intent,rawStayRequirements,allDestinations]=await Promise.all([interpretIntentV8(trip,llmBudget),interpretStayConstraintsV16(trip.tripText,llmBudget),loadV8DestinationCatalog()]);
+  const[intent,rawStayRequirements,allDestinations]=await Promise.all([interpretIntentV8(trip,llmBudget,runtime.learnedPreferences),interpretStayConstraintsV16(trip.tripText,llmBudget),loadV8DestinationCatalog()]);
   const stayRequirements=mergeStructuredStayRequirementsV26(trip,rawStayRequirements),catalog=allDestinations.filter(destination=>destination.countryCode==="GR"),choiceProfiles=buildDestinationChoiceProfilesV26(catalog),{hardConstraint,constrainedCatalog,rankingTrip}=canonicalRankingInputsV19(trip,catalog);mark("intent+catalog");
   const hasHardSemanticContext=Boolean(hardConstraint||stayRequirements.hard.length||stayRequirements.soft.length||trip.mustHave!=="none"||trip.avoid!=="none"||trip.transportMode!=="any");
   if(semanticNeedsClarificationV19(intent,trip.tripText,hasHardSemanticContext)){
@@ -57,7 +59,10 @@ export async function runTravelOrchestratorV26(trip:TripRequest,sessionId:string
   }
   signal("understand:ready",24,{summary:intent.summary,semanticSource:intent.source,semanticPriorities:intent.semantic?.priorities??[],hardStayRequirements:stayRequirements.hard,agent:"intent-constraint"});signal("catalog:ready",36,{catalogSize:catalog.length,verifiedChoiceProfiles:choiceProfiles.size,agent:"orchestrator"});
 
-  const rawPre=preRankV8(rankingTrip,intent,constrainedCatalog,Math.max(30,constrainedCatalog.length)),preTruth=applyCriterionTruthV26(trip,intent,rawPre),semanticPre=applySemanticIntentRankingV18(preTruth.ranked,intent),criterionPre=applyCriterionRelevanceV22(trip,intent,semanticPre,choiceProfiles),criterionTruth=applyCriterionTruthV26(trip,intent,criterionPre.ranked);
+  stage="knowledge";const knowledge=await loadTravelKnowledgePriorV45(trip,intent).catch(()=>({enabled:false,hits:[],bySlug:new Map<string,number>()}));mark("knowledge");
+  signal("knowledge:ready",38,{enabled:knowledge.enabled,matched:knowledge.hits.length,top:knowledge.hits.slice(0,5).map(hit=>({key:hit.canonical_key,score:hit.final_score})),agent:"destination-scout"});
+
+  const rawPre=preRankV8(rankingTrip,intent,constrainedCatalog,Math.max(30,constrainedCatalog.length)),preTruth=applyCriterionTruthV26(trip,intent,rawPre),semanticPre=applySemanticIntentRankingV18(preTruth.ranked,intent),knowledgePre=applyKnowledgePriorV45(semanticPre,knowledge),criterionPre=applyCriterionRelevanceV22(trip,intent,knowledgePre,choiceProfiles),criterionTruth=applyCriterionTruthV26(trip,intent,criterionPre.ranked);
   stage="choice-correctness";
   const choice=await applyChoiceCorrectnessV21(trip,intent,stayRequirements,criterionTruth.ranked),preAll=choice.ranked.slice(0,30),minimum=(hardConstraint||stayRequirements.hard.length||trip.mustHave!=="none"||trip.avoid!=="none")?1:3;mark("pre-rank");
   signal("choice:ready",39,{agent:"orchestrator",semanticRejected:choice.audit.semanticRejected.length,criterionRejected:criterionTruth.audit.rejected,budgetCorrections:criterionTruth.audit.budgetCorrections,globalStayScan:choice.audit.stayScanRan&&!choice.audit.stayScanFailed,mappedStays:choice.audit.mappedStayCount,hardStayRejected:choice.audit.hardStayRejected.length,criterionProfilesUsed:criterionPre.audit.profilesUsed,activeCriteria:criterionPre.audit.activeDimensions});
