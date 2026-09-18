@@ -57,7 +57,8 @@ export function V50TravelIntelligenceHome(){
  const [hoverPin,setHoverPin]=useState<StayPin|null>(null);
  const [ratings,setRatings]=useState<Record<string,RatingView|null>>({});
  const [lastTrip,setLastTrip]=useState<AgentPayload["trip"]|null>(null);
- const [showAll,setShowAll]=useState(true);\n const [cinematicTarget,setCinematicTarget]=useState<string|null>(null);
+ const [showAll,setShowAll]=useState(true);
+ const [cinematicTarget,setCinematicTarget]=useState<string|null>(null);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const resultsRef=useRef<HTMLElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
