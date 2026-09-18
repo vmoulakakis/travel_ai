@@ -8,7 +8,7 @@ const InputSchema=z.object({
  duration:z.number().int().min(2).max(10).default(3),
  horizonDays:z.number().int().min(21).max(180).default(90),
  profile:z.object({
-  travelerType:z.enum(["solo","couple","family","friends"]),
+  travelerType:z.enum(["solo","couple","family","friends","unknown"]),
   desiredEnergy:z.enum(["restore","balanced","stimulating"]),
   socialPreference:z.enum(["quiet","balanced","lively"]),
   noveltyPreference:z.enum(["familiar","balanced","surprise"]),
