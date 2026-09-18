@@ -10,11 +10,12 @@ type FilterKey="calm"|"food"|"nature"|"discovery"|"nightlife"|"value";
 type Filters=Record<FilterKey,number>;
 type Question={id:"dates"|"companions"|"outcome"|"friction";text:string;quickReplies:Array<{label:string;value:string}>};
 type Message={id:string;role:"user"|"agent";text:string};
-type StayPin={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string};
+type StayPin={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null};
 type MapPayload={count:number;locationCount:number;products:StayPin[]};
 type HeroMedia={id:string;location:string;imageUrl:string;propertyCount:number;minPrice:number|null;currency:string;latitude:number|null;longitude:number|null};
 type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null};liveOfferCount:number};
-type AgentPayload={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:Question;interpreted?:{summary?:string;profileSummary?:string;startDate?:string;endDate?:string;signals?:string[];confidence?:number};inventory?:{catalogSize:number;eligibleCount:number;resultCount:number;stayVerifiedSolutions:number};feasibility?:string;solutions?:Solution[]};
+type AgentPayload={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:Question;interpreted?:{summary?:string;profileSummary?:string;startDate?:string;endDate?:string;signals?:string[];confidence?:number};inventory?:{catalogSize:number;eligibleCount:number;resultCount:number;stayVerifiedSolutions:number};feasibility?:string;solutions?:Solution[];trip?:{startDate:string;endDate:string;travelerType:string;moods:string[];budget:number;origin:string}};
+type RatingView={label:string;provider:string;reviewCount:number|null;summary?:string};
 
 const tileConfig:Record<BaseMode,{url:string;attribution:string;maxZoom:number}>={
  map:{url:"https://tile.openstreetmap.org/{z}/{x}/{y}.png",attribution:"© OpenStreetMap contributors",maxZoom:19},
@@ -53,6 +54,9 @@ export function V50TravelIntelligenceHome(){
  const [heroMedia,setHeroMedia]=useState<HeroMedia[]>([]);
  const [mapMeta,setMapMeta]=useState({count:0,locationCount:0});
  const [selectedPin,setSelectedPin]=useState<StayPin|null>(null);
+ const [hoverPin,setHoverPin]=useState<StayPin|null>(null);
+ const [ratings,setRatings]=useState<Record<string,RatingView|null>>({});
+ const [lastTrip,setLastTrip]=useState<AgentPayload["trip"]|null>(null);
  const [showAll,setShowAll]=useState(true);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
@@ -140,6 +144,7 @@ export function V50TravelIntelligenceHome(){
       userText:clean||"Θέλω να συγκρίνεις αυτή την επιλογή.",
       priorUserText:userHistory,
       origin,budget,filters,answers:nextAnswers,
+      lastQuestionId:question?.id,
       currentTopIds:solutions.map(x=>x.stay.productId),
       selectedStay:selected?{productId:selected.productId,name:selected.name,location:selected.location,price:selected.price}:null
     })});
@@ -148,6 +153,7 @@ export function V50TravelIntelligenceHome(){
     setQuestion(payload.question??null);
     if(payload.state==="results"&&payload.solutions){
       setSolutions(payload.solutions);
+      setLastTrip(payload.trip??null);
       setActive(0);
       setSelectedPin(null);
     }
@@ -166,12 +172,12 @@ export function V50TravelIntelligenceHome(){
   setBusy(true);
   try{
     const response=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-      userText:label,priorUserText:userHistory,origin,budget,filters,answers:next
+      userText:label,priorUserText:userHistory,origin,budget,filters,answers:next,lastQuestionId:question?.id
     })});
     const payload=await response.json() as AgentPayload;
     setMessages(v=>[...v,{id:id(),role:"agent",text:payload.agentMessage}]);
     setQuestion(payload.question??null);
-    if(payload.state==="results"&&payload.solutions){setSolutions(payload.solutions);setActive(0)}
+    if(payload.state==="results"&&payload.solutions){setSolutions(payload.solutions);setLastTrip(payload.trip??null);setActive(0)}
   }finally{setBusy(false)}
  }
 
