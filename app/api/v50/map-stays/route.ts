@@ -73,7 +73,7 @@ export async function GET(request:Request){
    const fallback=await fetch(fallbackUrl,{headers:{accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(8000)});
    if(!fallback.ok)throw new Error("fallback_map_unavailable");
    const payload=await fallback.json() as Record<string,unknown>;
-   return NextResponse.json({...payload,version:50,fullUniverse:false,demandLayer:{status:"not-trained",reason:"Preview fallback uses the existing capped public inventory feed; V50 demand forecasting is not trained yet."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-prototype-fallback"}});
+   return NextResponse.json({...payload,version:50,fullUniverse:false,demandLayer:{status:"disabled",reason:"Demand forecasting is not used for public ranking; results are based on verified inventory and trip-fit criteria."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-prototype-fallback"}});
   }
   const catalog=await loadV8DestinationCatalog().catch(()=>[]);
   const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
@@ -107,7 +107,7 @@ export async function GET(request:Request){
    generatedAt:new Date().toISOString(),
    count:products.length,
    locationCount:new Set(products.map(x=>x.location).filter(Boolean)).size,
-   demandLayer:{status:"not-trained",reason:"Current offer demand proxy is non-discriminating and is intentionally not presented as forecast demand."},
+   demandLayer:{status:"disabled",reason:"Demand forecasting is not used for public ranking; offer ranking relies on verified inventory and trip-fit criteria."},
    products
   },{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-prototype"}});
  }catch(error){
