@@ -29,3 +29,7 @@ assert(css.includes(".droneCircle")&&css.includes(".heroMedia")&&css.includes(".
 assert(skill.includes("agentic travel intelligence")||skill.includes("Agentic Travel Intelligence"),"project-local design skill must own the V50 production contract");
 
 console.log("V50_HOME_OK conversation=ADAPTIVE v45=PERSISTENT real-stays=YES top5=YES ranked-pins=YES cinematic=YES");
+
+const agentRoute=readFileSync("app/api/v50/agent/route.ts","utf8");
+assert(agentRoute.includes("fallbackViaV42")&&agentRoute.includes("/api/escape/solve-v42"),"V50 agent must fail over to grounded V42 semantic live inventory instead of returning 503 immediately");
+assert(agentRoute.includes('console.error("[v50-agent] primary pipeline failed"'),"V50 agent must emit observable primary-pipeline failures");
