@@ -18,13 +18,22 @@ const inventory=runtime.find(role=>role.id==="inventory-grounder");
 assert.equal(inventory?.kind,"deterministic");
 assert(inventory?.forbidden.some(rule=>rule.includes("destination score")),"Stay inventory must never influence destination score");
 
-const jsonRoute=readFileSync("app/api/recommend/route.ts","utf8"),streamRoute=readFileSync("app/api/recommend/stream/route.ts","utf8"),orchestrator=readFileSync("lib/ai/travel-orchestrator-v26.ts","utf8"),criterionTruth=readFileSync("lib/decision/criterion-truth-v26.ts","utf8"),research=readFileSync("lib/ai/recommendation-research-agent-v14.ts","utf8"),ui=readFileSync("components/travel-decision-experience.tsx","utf8"),cityRoute=readFileSync("app/api/stay-cities/route.ts","utf8");
+const jsonRoute=readFileSync("app/api/recommend/route.ts","utf8"),
+ streamRoute=readFileSync("app/api/recommend/stream/route.ts","utf8"),
+ orchestrator=readFileSync("lib/ai/travel-orchestrator-v26.ts","utf8"),
+ wrapper=readFileSync("lib/ai/travel-orchestrator-v45.ts","utf8"),
+ criterionTruth=readFileSync("lib/decision/criterion-truth-v26.ts","utf8"),
+ research=readFileSync("lib/ai/recommendation-research-agent-v14.ts","utf8"),
+ ui=readFileSync("components/travel-decision-experience.tsx","utf8"),
+ cityRoute=readFileSync("app/api/stay-cities/route.ts","utf8");
+
 for(const [name,source] of [["json",jsonRoute],["stream",streamRoute]] as const){
- assert(source.includes("runTravelOrchestratorV26"),`${name} route must use the V26 criterion-truth orchestrator`);
- assert(source.includes("v26-criterion-truth"),`${name} route must expose the active engine version`);
+ assert(source.includes("runTravelOrchestratorV45"),`${name} route must use the V45 persistent-knowledge wrapper`);
+ assert(source.includes("v45-persistent-knowledge"),`${name} route must expose the active V45 engine version`);
  assert(!source.includes("preRankV8"),`${name} route must not duplicate ranking internals`);
  assert(!source.includes("runRecommendationResearchAgent"),`${name} route must not duplicate research internals`);
 }
+assert(wrapper.includes("runTravelOrchestratorV26"),"V45 must delegate core decisioning to the V26 criterion-truth orchestrator");
 assert(orchestrator.includes("runRecommendationResearchAgent"));
 assert(orchestrator.includes("auditAndRepairV10"));
 assert(orchestrator.includes("runTravelCouncilV9"));
