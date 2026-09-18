@@ -38,7 +38,7 @@ expect(
 );
 expect(
   isV50
-   ? home.includes("LIVE TRAVEL UNIVERSE")&&home.includes("live stay verification")
+   ? home.includes("LIVE TRAVEL UNIVERSE")&&home.includes("Πραγματικά stays")&&activeSolver.includes("stayVerifiedSolutions")
    : home.includes("Real inventory")&&home.includes("Destination reveal"),
   "active discovery surface must preserve real-inventory decision truth"
 );
