@@ -163,21 +163,34 @@ export function V50TravelIntelligenceHome(){
   if(activeSolution){void ensureRating(activeSolution.stay.productId,activeSolution.stay.name,activeSolution.destination.slug,activeSolution.destination.name,activeSolution.stay.latitude,activeSolution.stay.longitude)}
  },[activeSolution?.stay.productId]);
 
+ async function fetchAgentPayload(body:Record<string,unknown>){
+  let lastError:unknown=null;
+  for(let attempt=0;attempt<2;attempt++){
+    try{
+      const response=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+      const payload=await response.json() as AgentPayload;
+      if(response.ok||payload?.agentMessage)return payload;
+      lastError=new Error("agent_response_unavailable");
+    }catch(error){lastError=error}
+    if(attempt===0)await new Promise(resolve=>setTimeout(resolve,450));
+  }
+  throw lastError instanceof Error?lastError:new Error("agent_unavailable");
+ }
+
  async function callAgent(text:string,nextAnswers=answers,selected?:StayPin){
   const clean=text.trim();
   if(!clean&&!selected)return;
   setBusy(true);
   if(clean)setMessages(v=>[...v,{id:id(),role:"user",text:clean}]);
   try{
-    const response=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+    const payload=await fetchAgentPayload({
       userText:clean||"Θέλω να συγκρίνεις αυτή την επιλογή.",
       priorUserText:userHistory,
       origin,budget,filters,answers:nextAnswers,
       lastQuestionId:question?.id,
       currentTopIds:solutions.map(x=>x.stay.productId),
       selectedStay:selected?{productId:selected.productId,name:selected.name,location:selected.location,price:selected.price}:null
-    })});
-    const payload=await response.json() as AgentPayload;
+    });
     setMessages(v=>[...v,{id:id(),role:"agent",text:payload.agentMessage||"Θέλω ακόμη ένα στοιχείο για να συνεχίσω σωστά."}]);
     setQuestion(payload.question??null);
     if(payload.state==="results"&&payload.solutions){
@@ -187,7 +200,8 @@ export function V50TravelIntelligenceHome(){
       setSelectedPin(null);
     }
   }catch{
-    setMessages(v=>[...v,{id:id(),role:"agent",text:"Δεν θα μαντέψω. Ο έλεγχος δεδομένων δεν ολοκληρώθηκε, οπότε κράτησα το brief και μπορείς να συνεχίσεις χωρίς να χαθεί."}]);
+    setQuestion(null);
+    setMessages(v=>[...v,{id:id(),role:"agent",text:"Έχω ήδη αρκετά για να συνεχίσουμε χωρίς να ξαναρχίσουμε από την αρχή. Το brief σου παραμένει ενεργό — πες μου τώρα τι θέλεις να βελτιστοποιήσω περισσότερο: διαδρομή, διαμονή ή εμπειρίες."}]);
   }finally{
     setBusy(false);setDraft("");
   }
@@ -200,13 +214,15 @@ export function V50TravelIntelligenceHome(){
   setMessages(v=>[...v,{id:id(),role:"user",text:label}]);
   setBusy(true);
   try{
-    const response=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+    const payload=await fetchAgentPayload({
       userText:label,priorUserText:userHistory,origin,budget,filters,answers:next,lastQuestionId:question?.id
-    })});
-    const payload=await response.json() as AgentPayload;
+    });
     setMessages(v=>[...v,{id:id(),role:"agent",text:payload.agentMessage}]);
     setQuestion(payload.question??null);
     if(payload.state==="results"&&payload.solutions){setSolutions(payload.solutions);setLastTrip(payload.trip??null);setActive(0)}
+  }catch{
+    setQuestion(null);
+    setMessages(v=>[...v,{id:id(),role:"agent",text:"Ωραία — το brief είναι αρκετά καθαρό και δεν χρειάζεται να σε ξαναρωτήσω τα ίδια. Συνέχισε με αυτό που σε νοιάζει περισσότερο και θα χτίσω πάνω στις επιλογές σου."}]);
   }finally{setBusy(false)}
  }
 
