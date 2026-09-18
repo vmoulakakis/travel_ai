@@ -1,6 +1,6 @@
 import { TravelDecisionError } from "@/lib/ai/travel-orchestrator-v26";
 import { runTravelOrchestratorV45 } from "@/lib/ai/travel-orchestrator-v45";
-import { TRAVEL_PROFILE_COOKIE,travelerProfileKeyFromRequest } from "@/lib/ai/travel-intelligence-v45";
+import { TRAVEL_PROFILE_COOKIE,TRAVEL_PROFILE_HEADER,travelerProfileKeyFromRequest } from "@/lib/ai/travel-intelligence-v45";
 import { pendingContinuity,safePublicMessage } from "@/lib/continuity";
 import { webflowCorsHeadersV31,webflowPreflightV31 } from "@/lib/http/webflow-cors-v31";
 import { parseTripRequest } from "@/lib/validation/trip";
@@ -26,7 +26,7 @@ export async function POST(request:Request){
    else emit("continuity",100,{message:safePublicMessage(null,trip.language==="en"?"en":"el"),continuity:pendingContinuity()});
   }finally{if(!closed){closed=true;controller.close()}}
  }});
- const secure=process.env.NODE_ENV==="production"?"; Secure":"",headers=new Headers({...cors,"content-type":"application/x-ndjson; charset=utf-8","cache-control":"no-store, no-transform","x-content-type-options":"nosniff","x-travel-engine":"v45-persistent-knowledge"});
+ const secure=process.env.NODE_ENV==="production"?"; Secure":"",headers=new Headers({...cors,"content-type":"application/x-ndjson; charset=utf-8","cache-control":"no-store, no-transform","x-content-type-options":"nosniff","x-travel-engine":"v45-persistent-knowledge",[TRAVEL_PROFILE_HEADER]:profileKey});
  headers.append("set-cookie",`travel_match_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7776000${secure}`);
  headers.append("set-cookie",`${TRAVEL_PROFILE_COOKIE}=${profileKey}; Path=/; HttpOnly; SameSite=Lax; Max-Age=15552000${secure}`);
  return new Response(stream,{headers});
