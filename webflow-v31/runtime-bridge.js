@@ -3,6 +3,8 @@
   const runtime=(root.dataset.travelRuntimeOrigin||window.TRAVEL_AI_RUNTIME_ORIGIN||"").replace(/\/$/,"");
   const locale=(document.querySelector("[data-locale]")?.getAttribute("data-locale")||"el").startsWith("en")?"en":"el";
   const api=(path)=>`${runtime}${path}`;
+  const profileStorageKey="travel_profile_key_v45";
+  const profileKey=()=>{let value="";try{value=localStorage.getItem(profileStorageKey)||""}catch{}if(!/^[0-9a-f-]{36}$/i.test(value)){value=crypto.randomUUID();try{localStorage.setItem(profileStorageKey,value)}catch{}}return value};
   const qs=(s,scope=document)=>scope.querySelector(s);
   const qsa=(s,scope=document)=>Array.from(scope.querySelectorAll(s));
   const text=(el,value)=>{if(el)el.textContent=value==null||value===""?"—":String(value)};
@@ -79,7 +81,7 @@
       payload.language=locale;payload.moods=String(payload.moods||"relax").split(",").filter(Boolean);payload.groupSize=Number(payload.groupSize||2);payload.nights=Number(payload.nights||3);payload.budget=Number(payload.budget||900);
       if(output)output.innerHTML="";
       try{
-        const response=await fetch(api("/api/recommend/stream"),{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/x-ndjson"},body:JSON.stringify(payload)});if(!response.ok)throw new Error("planner");
+        const response=await fetch(api("/api/recommend/stream"),{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/x-ndjson","X-Travel-Profile-Key":profileKey()},body:JSON.stringify(payload)});if(!response.ok)throw new Error("planner");const returnedProfile=response.headers.get("x-travel-profile-key");if(returnedProfile)try{localStorage.setItem(profileStorageKey,returnedProfile)}catch{}
         const reader=response.body?.getReader(),decoder=new TextDecoder();let buffer="";
         if(!reader)return;
         while(true){const{done,value}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});const lines=buffer.split("\n");buffer=lines.pop()||"";for(const line of lines){if(!line.trim())continue;const event=JSON.parse(line);if(output){const row=document.createElement("div");row.className="wf-card";row.style.marginTop="10px";row.innerHTML=`<strong>${esc(event.type)}</strong><p class="wf-body">${esc(event.message||event.payload?.message||`${event.progress??0}%`)}</p>`;output.appendChild(row)}if(event.type==="final")window.dispatchEvent(new CustomEvent("travel:v31-final",{detail:event.result}))}}
