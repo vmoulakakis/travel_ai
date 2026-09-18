@@ -41,7 +41,22 @@ export type V50ConversationInterpretation={
 };
 
 const defaultFilters:V50Filters={calm:60,food:55,nature:55,discovery:55,nightlife:35,value:60};
-const norm=(s:string)=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const norm=(s:string)=>s.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"");
+const fold=(s:string)=>norm(s)
+  .replace(/\\b(epomeno|epomenh)\\s+sk\\b/g,"next weekend")
+  .replace(/\\bauto\\s+to\\s+sk\\b/g,"this weekend")
+  .replace(/\\b(sintrofo|syntrofo|partnera?)\\b/g,"partner")
+  .replace(/\\b(filous|filoi|parea)\\b/g,"friends")
+  .replace(/\\b(oikogeneia|oikogeniaka|paidia)\\b/g,"family kids")
+  .replace(/\\b(monos|monh)\\b/g,"solo")
+  .replace(/\\b(xekourasi|ksekourasi|iremia|isixia)\\b/g,"relax quiet")
+  .replace(/\\b(empeiries|drasi|peripeteia)\\b/g,"adventure")
+  .replace(/\\b(vouno|oreina|fysi)\\b/g,"mountain nature")
+  .replace(/\\b(thalassa|paralia|nisi)\\b/g,"sea beach")
+  .replace(/\\b(fagito|faghto|gastronomia)\\b/g,"food")
+  .replace(/\\b(konta|kontina|eykola|eukola)\\b/g,"short drive")
+  .replace(/\\b(fthina|oikonomika)\\b/g,"budget cheap")
+  .replace(/\\b(kosmo|polykosmia)\\b/g,"crowd");
 const iso=(d:Date)=>d.toISOString().slice(0,10);
 const validDate=(d:Date)=>Number.isFinite(d.getTime());
 const weekendRe=/(^|[\s,.;:!?])σκ($|[\s,.;:!?])|σαββατοκυριακ|weekend/i;
@@ -72,7 +87,7 @@ function explicitDate(text:string,now=new Date()){
     if(validDate(d))return d;
   }
 
-  const normalized=norm(text);
+  const normalized=fold(text);
   const named=normalized.match(/(?:^|\s)(\d{1,2})\s+(ιανουαρι(?:ου)?|ιαν|φεβρουαρι(?:ου)?|φεβ|μαρτι(?:ου)?|μαρ|απριλι(?:ου)?|απρ|μαι(?:ου)?|μαι|ιουνι(?:ου)?|ιουν|ιουλι(?:ου)?|ιουλ|αυγουστ(?:ου|ο)?|αυγ|σεπτεμβρι(?:ου)?|σεπτ|οκτωβρι(?:ου)?|οκτ|νοεμβρι(?:ου)?|νοε|δεκεμβρι(?:ου)?|δεκ)(?:\s+(\d{4}))?(?=\s|$|[,.!?;:])/);
   if(named){
     const day=Number(named[1]),monthToken=named[2].replace(/ου$/,"").replace(/ο$/,""),month=greekMonths[monthToken];
@@ -89,7 +104,7 @@ function explicitDate(text:string,now=new Date()){
 }
 
 export function parseNaturalWindowV50(text:string,answer:string|undefined,now=new Date()){
-  const combined=[text,answer??""].join(" ").trim(),normalized=norm(combined);
+  const combined=[text,answer??""].join(" ").trim(),normalized=fold(combined);
   const range=normalized.match(/(?:^|\s)(\d{1,2})\s*[-–]\s*(\d{1,2})\s+(ιανουαρι(?:ου)?|φεβρουαρι(?:ου)?|μαρτι(?:ου)?|απριλι(?:ου)?|μαι(?:ου)?|ιουνι(?:ου)?|ιουλι(?:ου)?|αυγουστ(?:ου|ο)?|σεπτεμβρι(?:ου)?|οκτωβρι(?:ου)?|νοεμβρι(?:ου)?|δεκεμβρι(?:ου)?)(?:\s+(\d{4}))?(?=\s|$|[,.!?;:])/);
   if(range){
     const from=explicitDate(range[1]+" "+range[3]+(range[4]?" "+range[4]:""),now),to=explicitDate(range[2]+" "+range[3]+(range[4]?" "+range[4]:""),now);
@@ -97,7 +112,7 @@ export function parseNaturalWindowV50(text:string,answer:string|undefined,now=ne
   }
 
   const anchor=explicitDate(combined,now);
-  const isWeekend=weekendRe.test(combined);
+  const isWeekend=weekendRe.test(fold(combined));
   const after=/μετ[αά]\s*(τις|την)?|after/i.test(combined);
   const flexible=after||/ευελικ|flex|οποτε|όποτε|οποιο|whatever/i.test(combined);
   const thisWeekend=/αυτ[οό]\s*το\s*σκ|this weekend/i.test(combined);
@@ -118,7 +133,7 @@ export function parseNaturalWindowV50(text:string,answer:string|undefined,now=ne
 }
 
 function inferTraveler(text:string,answer?:string):V50TravelerType|null{
-  const t=norm([text,answer??""].join(" "));
+  const t=fold([text,answer??""].join(" "));
   if(/παιδ|οικογεν|family|kids|children/.test(t))return"family";
   if(/φιλ|παρεα|friends|group/.test(t))return"friends";
   if(/μονος|μονη|solo|alone/.test(t))return"solo";
@@ -128,21 +143,21 @@ function inferTraveler(text:string,answer?:string):V50TravelerType|null{
 }
 
 function inferOutcome(text:string,answer:string|undefined,filters:V50Filters){
-  const t=norm([text,answer??""].join(" "));
+  const t=fold([text,answer??""].join(" "));
   if(/ξεκουρ|ηρεμ|χαλαρ|reset|rest|relax|αποφορ/.test(t)||filters.calm>=78)return"restore" as const;
   if(/δραση|περιπετ|ενεργ|adventure|nightlife|party/.test(t)||filters.discovery>=82||filters.nightlife>=78)return"stimulating" as const;
   return"balanced" as const;
 }
 
 function inferSocial(text:string,filters:V50Filters){
-  const t=norm(text);
+  const t=fold(text);
   if(/ησυχ|χωρις κοσμο|χωρις πολυ κοσμο|quiet|low crowd/.test(t)||filters.calm>=82)return"quiet" as const;
   if(/nightlife|party|ζωνταν|μπαρ|club/.test(t)||filters.nightlife>=72)return"lively" as const;
   return"balanced" as const;
 }
 
 function inferMustHave(text:string,filters:V50Filters){
-  const t=norm(text);
+  const t=fold(text);
   if(/βουν|ορειν|mountain|chalet|σαλε|φυση|nature|forest|δασ/.test(t)||filters.nature>=88)return"nature" as const;
   if(/θαλασσ|παραλι|beach|sea|νησι/.test(t))return"sea" as const;
   if(/πολιτισ|μουσει|ιστορ|culture|museum|heritage/.test(t))return"culture" as const;
@@ -151,7 +166,7 @@ function inferMustHave(text:string,filters:V50Filters){
 }
 
 function inferAvoid(text:string,friction:string|undefined,filters:V50Filters){
-  const t=norm([text,friction??""].join(" "));
+  const t=fold([text,friction??""].join(" "));
   if(/χωρις κοσμο|πολυκοσ|τουριστ|crowd/.test(t)||filters.calm>=88)return"crowds" as const;
   if(/οικονομ|φθην|budget|cheap|κοστος|κόστος/.test(t)||filters.value>=88)return"high-cost" as const;
   if(/κοντα|κοντά|ευκολ|χωρις ταλαιπωρ|short drive|easy access/.test(t)||friction==="easy-hop")return"long-travel" as const;
@@ -161,14 +176,14 @@ function inferAvoid(text:string,friction:string|undefined,filters:V50Filters){
 function inferDistance(friction:string|undefined,text:string){
   if(friction==="easy-hop")return"easy-hop" as const;
   if(friction==="road-trip")return"any" as const;
-  const t=norm(text);
+  const t=fold(text);
   if(/κοντα|κοντά|ευκολ|2 ωρ|3 ωρ|short drive/.test(t))return"easy-hop" as const;
   if(/road trip|οδικ|διαδρομ/.test(t))return"any" as const;
   return"any" as const;
 }
 
 function inferMoods(text:string,filters:V50Filters):TripRequest["moods"]{
-  const t=norm(text),scores:Array<[TripRequest["moods"][number],number]>=[
+  const t=fold(text),scores:Array<[TripRequest["moods"][number],number]>=[
     ["relax",filters.calm],["food",filters.food],["nature",filters.nature],
     ["culture",filters.discovery*.78],["adventure",filters.discovery],["city",filters.nightlife],
     ["romantic",/ρομαν|ζευγ|couple|partner/.test(t)?90:Math.round((filters.calm+filters.discovery)/2)]
@@ -189,9 +204,9 @@ export function interpretV50Conversation(input:V50ConversationInput,now=new Date
   const travelerType=inferTraveler(compactText,input.answers?.companions);
   const desiredEnergy=inferOutcome(compactText,input.answers?.outcome,filters);
   const socialPreference=inferSocial(compactText,filters);
-  const noveltyPreference=/μοναδικ|διαφορετικ|surprise|unique|hidden/i.test(norm(compactText))||filters.discovery>=76?"surprise":"balanced";
+  const noveltyPreference=/μοναδικ|διαφορετικ|surprise|unique|hidden/i.test(fold(compactText))||filters.discovery>=76?"surprise":"balanced";
   const mustHave=inferMustHave(compactText,filters);
-  const terrainIntent=/βουν|ορειν|mountain|chalet|σαλε/i.test(norm(compactText))?"mountain" as const:null;
+  const terrainIntent=/βουν|ορειν|mountain|chalet|σαλε/i.test(fold(compactText))?"mountain" as const:null;
   const avoid=inferAvoid(compactText,input.answers?.friction,filters);
   const distancePreference=inferDistance(input.answers?.friction,compactText);
   const moods=inferMoods(compactText,filters);
