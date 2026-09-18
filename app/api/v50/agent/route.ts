@@ -11,7 +11,7 @@ import {
   nextV50Question,
   type V50ConversationInput
 } from "@/lib/ai/v50-agent-state";
-import { loadV8StayOffers } from "@/lib/data/destination-v8";
+import { loadV8DestinationCatalog,loadV8StayOffers } from "@/lib/data/destination-v8";
 import { assessStayAvailabilityV20 } from "@/lib/decision/stay-availability-v20";
 import type { V8Recommendation,V8StayOffer } from "@/lib/decision/v8-types";
 
@@ -177,7 +177,7 @@ export async function POST(request:Request){
         summary:recommendation.intent.summary,
         profileSummary:recommendation.profileSummary,
         startDate:trip.startDate,endDate:trip.endDate,nights:trip.nights,
-        mustHave:interpreted.mustHave,travelerType:interpreted.travelerType
+        mustHave:interpreted.mustHave,terrainIntent:interpreted.terrainIntent,travelerType:interpreted.travelerType
       },
       trip,
       inventory:{
