@@ -1,361 +1,307 @@
 "use client";
 
-import { useEffect,useMemo,useRef,useState,type CSSProperties } from "react";
-import type { LayerGroup,Map as LeafletMap,Marker,TileLayer } from "leaflet";
-import {
-  ArrowRight,
-  Brain,
-  Compass,
-  ForkKnife,
-  Leaf,
-  MapPin,
-  MoonStars,
-  Mountains,
-  PaperPlaneTilt,
-  Sparkle,
-  Wallet
-} from "@phosphor-icons/react";
+import { useEffect,useMemo,useRef,useState } from "react";
+import type { LayerGroup,Map as LeafletMap,TileLayer } from "leaflet";
+import { ArrowRight,Brain,ChatCircleDots,Crosshair,MapPin,PaperPlaneTilt,Sparkle } from "@phosphor-icons/react";
 import styles from "./v50-travel-intelligence-home.module.css";
 
 type BaseMode="map"|"satellite"|"terrain";
 type FilterKey="calm"|"food"|"nature"|"discovery"|"nightlife"|"value";
 type Filters=Record<FilterKey,number>;
-type Question={id:string;text:string;quickReplies:Array<{label:string;value:string}>};
-type Turn={id:string;role:"user"|"agent";text:string};
-type StayPin={
- productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;
- category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;
- onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;
-};
-type Solution={
- rank:number;score:number;
- destination:{
-  slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;
-  explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[];
-  weather?:unknown;
- };
- stay:{
-  productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;
-  currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;
-  availabilityConfidence:string;distanceKm:number|null;
- };
- liveOfferCount:number;
-};
-type TripContext={origin:string;startDate:string;endDate:string;budget:number;travelerType:string;moods:string[]};
-type AgentPayload={
- ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:Question;
- interpreted?:{confidence?:number;signals?:string[];summary?:string;profileSummary?:string;startDate?:string;endDate?:string;nights?:number;mustHave?:string;travelerType?:string};
- inventory?:{catalogSize:number;eligibleCount:number;resultCount:number;stayVerifiedSolutions:number};
- feasibility?:string;solutions?:Solution[];trip?:TripContext;
-};
-type MapPayload={count:number;locationCount:number;products:StayPin[];fullUniverse?:boolean};
+type Question={id:"dates"|"companions"|"outcome"|"friction";text:string;quickReplies:Array<{label:string;value:string}>};
+type Message={id:string;role:"user"|"agent";text:string};
+type StayPin={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string};
+type MapPayload={count:number;locationCount:number;products:StayPin[]};
+type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null};liveOfferCount:number};
+type AgentPayload={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:Question;interpreted?:{summary?:string;profileSummary?:string;startDate?:string;endDate?:string;signals?:string[];confidence?:number};inventory?:{catalogSize:number;eligibleCount:number;resultCount:number;stayVerifiedSolutions:number};feasibility?:string;solutions?:Solution[]};
 
 const tileConfig:Record<BaseMode,{url:string;attribution:string;maxZoom:number}>={
  map:{url:"https://tile.openstreetmap.org/{z}/{x}/{y}.png",attribution:"© OpenStreetMap contributors",maxZoom:19},
- satellite:{url:"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{x}/{y}.png",attribution:"Tiles © Esri",maxZoom:19},
- terrain:{url:"https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",attribution:"© OpenStreetMap · SRTM · OpenTopoMap",maxZoom:17}
+ satellite:{url:"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",attribution:"Tiles © Esri",maxZoom:19},
+ terrain:{url:"https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",attribution:"© OpenStreetMap contributors · OpenTopoMap",maxZoom:17}
 };
 
-const filterMeta:Array<{key:FilterKey;label:string;icon:typeof Leaf}>=[
- {key:"calm",label:"Ηρεμία",icon:MoonStars},
- {key:"food",label:"Γεύση",icon:ForkKnife},
- {key:"nature",label:"Φύση",icon:Leaf},
- {key:"discovery",label:"Ανακάλυψη",icon:Compass},
- {key:"nightlife",label:"Ζωντάνια",icon:Sparkle},
- {key:"value",label:"Αξία",icon:Wallet}
+const filterMeta:Array<{key:FilterKey;label:string;caption:string}>=[
+ {key:"calm",label:"Ηρεμία",caption:"ρυθμός"},
+ {key:"food",label:"Γεύση",caption:"φαγητό"},
+ {key:"nature",label:"Φύση",caption:"τοπίο"},
+ {key:"discovery",label:"Ανακάλυψη",caption:"novelty"},
+ {key:"nightlife",label:"Ζωντάνια",caption:"βράδυ"},
+ {key:"value",label:"Αξία",caption:"budget"}
 ];
 
-const seedFilters:Filters={calm:72,food:66,nature:70,discovery:70,nightlife:28,value:68};
-const uid=()=>Math.random().toString(36).slice(2);
-const money=(value:number|null,currency="EUR")=>value&&value>0
- ?new Intl.NumberFormat("el-GR",{style:"currency",currency,maximumFractionDigits:0}).format(value)
- :"Τιμή στον πάροχο";
+const defaults:Filters={calm:72,food:68,nature:70,discovery:64,nightlife:24,value:74};
+const id=()=>Math.random().toString(36).slice(2);
+const money=(n:number|null,c="EUR")=>n?new Intl.NumberFormat("el-GR",{style:"currency",currency:c,maximumFractionDigits:0}).format(n):"τιμή στον πάροχο";
 
 export function V50TravelIntelligenceHome(){
- const[baseMode,setBaseMode]=useState<BaseMode>("satellite");
- const[inventory,setInventory]=useState<StayPin[]>([]);
- const[mapMeta,setMapMeta]=useState({count:0,locationCount:0,fullUniverse:false});
- const[filters,setFilters]=useState<Filters>(seedFilters);
- const[origin,setOrigin]=useState("Αθήνα");
- const[budget,setBudget]=useState(800);
- const[input,setInput]=useState("");
- const[turns,setTurns]=useState<Turn[]>([
-  {id:"welcome",role:"agent",text:"Πες μου την απόδραση όπως θα την έλεγες σε έναν άνθρωπο. Αν κάτι σημαντικό λείπει, θα σε ρωτήσω πριν σου προτείνω."}
+ const [baseMode,setBaseMode]=useState<BaseMode>("satellite");
+ const [filters,setFilters]=useState<Filters>(defaults);
+ const [origin,setOrigin]=useState("Αθήνα");
+ const [budget,setBudget]=useState(800);
+ const [draft,setDraft]=useState("");
+ const [messages,setMessages]=useState<Message[]>([
+   {id:id(),role:"agent",text:"Πες μου τι θα έκανε αυτή την απόδραση να αξίζει πραγματικά για σένα. Δεν χρειάζεται να ξέρεις προορισμό."}
  ]);
- const[answers,setAnswers]=useState<Record<string,string>>({});
- const[question,setQuestion]=useState<Question|null>(null);
- const[phase,setPhase]=useState<"ready"|"thinking"|"results"|"error">("ready");
- const[solutions,setSolutions]=useState<Solution[]>([]);
- const[tripContext,setTripContext]=useState<TripContext|null>(null);
- const[activeIndex,setActiveIndex]=useState(0);
- const[activePin,setActivePin]=useState<StayPin|null>(null);
- const[mapReady,setMapReady]=useState(false);
- const[filtersOpen,setFiltersOpen]=useState(true);
-
+ const [answers,setAnswers]=useState<Record<string,string>>({});
+ const [question,setQuestion]=useState<Question|null>(null);
+ const [busy,setBusy]=useState(false);
+ const [solutions,setSolutions]=useState<Solution[]>([]);
+ const [active,setActive]=useState(0);
+ const [inventory,setInventory]=useState<StayPin[]>([]);
+ const [mapMeta,setMapMeta]=useState({count:0,locationCount:0});
+ const [selectedPin,setSelectedPin]=useState<StayPin|null>(null);
+ const [showAll,setShowAll]=useState(true);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
- const tileLayer=useRef<TileLayer|null>(null);
- const inventoryLayer=useRef<LayerGroup|null>(null);
- const topLayer=useRef<LayerGroup|null>(null);
- const markerRefs=useRef<Map<string,Marker>>(new Map());
- const transcript=useRef<HTMLDivElement|null>(null);
+ const tileRef=useRef<TileLayer|null>(null);
+ const markerLayer=useRef<LayerGroup|null>(null);
+ const [mapReady,setMapReady]=useState(false);
 
- const currentSolution=solutions[activeIndex]??null;
+ const activeSolution=solutions[active]??null;
  const topIds=useMemo(()=>new Set(solutions.map(x=>x.stay.productId)),[solutions]);
+ const heroImages=useMemo(()=>inventory.filter(x=>x.imageUrl).slice(0,8).map(x=>x.imageUrl as string),[inventory]);
+ const hero=activeSolution?.stay.imageUrl??heroImages[0]??null;
+ const detail=activeSolution?.stay.imageUrl??heroImages[1]??hero;
+ const userHistory=messages.filter(x=>x.role==="user").map(x=>x.text).join(" · ").slice(-900);
 
  useEffect(()=>{
-  transcript.current?.scrollTo({top:transcript.current.scrollHeight,behavior:"smooth"});
- },[turns,question,phase]);
-
- useEffect(()=>{
-  let dead=false;
-  fetch("/api/v50/map-stays?limit=1800",{cache:"no-store"})
-   .then(async r=>{if(!r.ok)throw new Error("map");return await r.json() as MapPayload})
-   .then(data=>{
-    if(dead)return;
-    const products=Array.isArray(data.products)?data.products:[];
-    setInventory(products);
-    setMapMeta({count:data.count??products.length,locationCount:data.locationCount??0,fullUniverse:data.fullUniverse!==false});
-   })
-   .catch(()=>{if(!dead)setTurns(v=>[...v,{id:uid(),role:"agent",text:"Ο live χάρτης δεν φόρτωσε όλα τα stays. Η συνομιλία παραμένει διαθέσιμη και δεν θα επινοήσω pins."}])});
-  return()=>{dead=true};
+  fetch("/api/v50/map-stays?limit=1800",{cache:"no-store"}).then(r=>r.json()).then((p:MapPayload)=>{
+    setInventory(Array.isArray(p.products)?p.products:[]);
+    setMapMeta({count:p.count??0,locationCount:p.locationCount??0});
+  }).catch(()=>{});
  },[]);
 
  useEffect(()=>{
-  let dead=false;
+  let cancelled=false;
   void import("leaflet").then(L=>{
-   if(dead||!mapHost.current||mapRef.current)return;
-   const map=L.map(mapHost.current,{zoomControl:false,attributionControl:true,minZoom:5,maxZoom:19,worldCopyJump:false,preferCanvas:true}).setView([38.55,23.4],6);
-   mapRef.current=map;
-   L.control.zoom({position:"bottomright"}).addTo(map);
-   const cfg=tileConfig[baseMode],tile=L.tileLayer(cfg.url,{maxZoom:cfg.maxZoom,attribution:cfg.attribution});
-   tile.addTo(map);tileLayer.current=tile;
-   setMapReady(true);
-   window.setTimeout(()=>map.invalidateSize(),120);
+    if(cancelled||!mapHost.current||mapRef.current)return;
+    const map=L.map(mapHost.current,{zoomControl:false,attributionControl:true,minZoom:5,maxZoom:19}).setView([38.35,23.45],6);
+    L.control.zoom({position:"bottomright"}).addTo(map);
+    mapRef.current=map;
+    const cfg=tileConfig[baseMode];
+    tileRef.current=L.tileLayer(cfg.url,{attribution:cfg.attribution,maxZoom:cfg.maxZoom}).addTo(map);
+    setMapReady(true);
   });
-  return()=>{dead=true;mapRef.current?.remove();mapRef.current=null;inventoryLayer.current=null;topLayer.current=null;markerRefs.current.clear()};
+  return()=>{cancelled=true;mapRef.current?.remove();mapRef.current=null};
  },[]);
 
  useEffect(()=>{
   if(!mapReady||!mapRef.current)return;
-  let dead=false;
   void import("leaflet").then(L=>{
-   if(dead||!mapRef.current)return;
-   tileLayer.current?.remove();
-   const cfg=tileConfig[baseMode],tile=L.tileLayer(cfg.url,{maxZoom:cfg.maxZoom,attribution:cfg.attribution});
-   tile.addTo(mapRef.current);tileLayer.current=tile;
+    tileRef.current?.remove();
+    const cfg=tileConfig[baseMode];
+    tileRef.current=L.tileLayer(cfg.url,{attribution:cfg.attribution,maxZoom:cfg.maxZoom}).addTo(mapRef.current!);
   });
-  return()=>{dead=true};
  },[baseMode,mapReady]);
 
  useEffect(()=>{
   if(!mapReady||!mapRef.current)return;
-  let dead=false;
+  let cancelled=false;
   void import("leaflet").then(L=>{
-   if(dead||!mapRef.current)return;
-   inventoryLayer.current?.remove();
-   const group=L.layerGroup().addTo(mapRef.current);inventoryLayer.current=group;
-   const topSet=topIds;
-   for(const p of inventory){
-    if(topSet.has(p.productId))continue;
-    const marker=L.circleMarker([p.latitude,p.longitude],{
-      radius:2.6,weight:1,color:"#f3eadb",fillColor:"#62877a",fillOpacity:.54,opacity:.34
-    }).addTo(group);
-    marker.on("mouseover",()=>setActivePin(p));
-    marker.on("mouseout",()=>setActivePin(current=>current?.productId===p.productId?null:current));
-    marker.on("click",()=>void challengeStay(p));
-   }
+    if(cancelled||!mapRef.current)return;
+    markerLayer.current?.remove();
+    const group=L.layerGroup().addTo(mapRef.current);
+    markerLayer.current=group;
+    if(showAll){
+      for(const p of inventory){
+        if(topIds.has(p.productId))continue;
+        const m=L.circleMarker([p.latitude,p.longitude],{radius:2.8,weight:1,color:"#d5e2dc",fillColor:"#6d8f82",fillOpacity:.5,opacity:.45}).addTo(group);
+        m.on("click",()=>{setSelectedPin(p);void challengeStay(p)});
+      }
+    }
+    solutions.forEach((s,index)=>{
+      const isActive=index===active;
+      const html='<div class="v50Pin '+(isActive?"is-active":"")+'"><span class="v50PinRank">'+(index+1)+'</span><span class="v50PinScore">'+Math.round(s.score)+'%</span></div>';
+      const icon=L.divIcon({className:"v50PinHost",html,iconSize:[64,64],iconAnchor:[32,55]});
+      const m=L.marker([s.stay.latitude,s.stay.longitude],{icon,zIndexOffset:1000-index*10}).addTo(group);
+      m.on("click",()=>{setActive(index);setSelectedPin(null);mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75})});
+    });
   });
-  return()=>{dead=true};
- },[inventory,mapReady,solutions]);
+  return()=>{cancelled=true};
+ },[inventory,solutions,active,showAll,mapReady]);
 
  useEffect(()=>{
-  if(!mapReady||!mapRef.current)return;
-  let dead=false;
-  void import("leaflet").then(L=>{
-   if(dead||!mapRef.current)return;
-   topLayer.current?.remove();markerRefs.current.clear();
-   const group=L.layerGroup().addTo(mapRef.current);topLayer.current=group;
-   for(const [i,s] of solutions.entries()){
-    const active=i===activeIndex;
-    const html=`<div class="${styles.rankMarker} ${active?styles.rankMarkerActive:""}">
-      <span class="${styles.rankMarkerHalo}"></span>
-      <span class="${styles.rankMarkerNum}">${i+1}</span>
-      <span class="${styles.rankMarkerScore}">${Math.round(s.score)}%</span>
-    </div>`;
-    const icon=L.divIcon({html,className:styles.rankMarkerHost,iconSize:[58,58],iconAnchor:[29,50]});
-    const marker=L.marker([s.stay.latitude,s.stay.longitude],{icon,zIndexOffset:1000-i*10}).addTo(group);
-    marker.on("click",()=>focusSolution(i));
-    marker.on("mouseover",()=>focusSolution(i,false));
-    markerRefs.current.set(s.stay.productId,marker);
-   }
-  });
-  return()=>{dead=true};
- },[solutions,activeIndex,mapReady]);
+  if(activeSolution&&mapRef.current){
+    mapRef.current.flyTo([activeSolution.stay.latitude,activeSolution.stay.longitude],11,{duration:.8});
+  }
+ },[activeSolution?.stay.productId]);
 
- async function callAgent(userText:string,nextAnswers=answers,selectedStay?:StayPin){
-  const clean=userText.trim();if(!clean)return;
-  setPhase("thinking");setQuestion(null);
-  const prior=turns.filter(t=>t.role==="user").map(t=>t.text).join(" · ").slice(-1000);
-  setTurns(v=>[...v,{id:uid(),role:"user",text:clean}]);
+ async function callAgent(text:string,nextAnswers=answers,selected?:StayPin){
+  const clean=text.trim();
+  if(!clean&&!selected)return;
+  setBusy(true);
+  if(clean)setMessages(v=>[...v,{id:id(),role:"user",text:clean}]);
   try{
     const response=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-      userText:clean,priorUserText:prior,origin,budget,filters,answers:nextAnswers,
+      userText:clean||"Θέλω να συγκρίνεις αυτή την επιλογή.",
+      priorUserText:userHistory,
+      origin,budget,filters,answers:nextAnswers,
       currentTopIds:solutions.map(x=>x.stay.productId),
-      selectedStay:selectedStay?{productId:selectedStay.productId,name:selectedStay.name,location:selectedStay.location,price:selectedStay.price}:null
+      selectedStay:selected?{productId:selected.productId,name:selected.name,location:selected.location,price:selected.price}:null
     })});
     const payload=await response.json() as AgentPayload;
-    if(!response.ok||!payload.ok)throw new Error(payload.agentMessage||"agent_failed");
-    setTurns(v=>[...v,{id:uid(),role:"agent",text:payload.agentMessage}]);
-    if(payload.state==="clarify"){
-      setQuestion(payload.question??null);setPhase("ready");return;
+    setMessages(v=>[...v,{id:id(),role:"agent",text:payload.agentMessage||"Θέλω ακόμη ένα στοιχείο για να συνεχίσω σωστά."}]);
+    setQuestion(payload.question??null);
+    if(payload.state==="results"&&payload.solutions){
+      setSolutions(payload.solutions);
+      setActive(0);
+      setSelectedPin(null);
     }
-    if(payload.state==="challenge"){
-      setPhase(solutions.length?"results":"ready");return;
-    }
-    const next=payload.solutions??[];
-    setSolutions(next);setActiveIndex(0);setPhase("results");
-    if(next.length&&mapRef.current){
-      const L=await import("leaflet");
-      const bounds=L.latLngBounds(next.map(s=>[s.stay.latitude,s.stay.longitude] as [number,number]));
-      mapRef.current.fitBounds(bounds,{paddingTopLeft:[470,100],paddingBottomRight:[360,220],maxZoom:9});
-    }
-  }catch(error){
-    setPhase("error");
-    setTurns(v=>[...v,{id:uid(),role:"agent",text:error instanceof Error?error.message:"Δεν ολοκληρώθηκε ο έλεγχος. Δεν θα σου δώσω πρόχειρη απάντηση."}]);
+  }catch{
+    setMessages(v=>[...v,{id:id(),role:"agent",text:"Δεν θα μαντέψω. Ο έλεγχος δεδομένων δεν ολοκληρώθηκε, οπότε κράτησα το brief και μπορείς να συνεχίσεις χωρίς να χαθεί."}]);
+  }finally{
+    setBusy(false);setDraft("");
   }
  }
 
- function submit(){
-  const clean=input.trim();if(!clean)return;
-  setInput("");void callAgent(clean);
- }
-
- function answerQuick(reply:{label:string;value:string}){
+ async function replyQuick(label:string,value:string){
   if(!question)return;
-  const next={...answers,[question.id]:reply.value};setAnswers(next);
-  void callAgent(reply.label,next);
+  const next={...answers,[question.id]:value};
+  setAnswers(next);
+  setMessages(v=>[...v,{id:id(),role:"user",text:label}]);
+  setBusy(true);
+  try{
+    const response=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+      userText:label,priorUserText:userHistory,origin,budget,filters,answers:next
+    })});
+    const payload=await response.json() as AgentPayload;
+    setMessages(v=>[...v,{id:id(),role:"agent",text:payload.agentMessage}]);
+    setQuestion(payload.question??null);
+    if(payload.state==="results"&&payload.solutions){setSolutions(payload.solutions);setActive(0)}
+  }finally{setBusy(false)}
  }
 
- async function challengeStay(pin:StayPin){
-  setActivePin(pin);
-  if(!solutions.length||topIds.has(pin.productId))return;
-  await callAgent(`Μου άρεσε το ${pin.name}. Τι λες;`,answers,pin);
+ async function challengeStay(p:StayPin){
+  if(!solutions.length)return;
+  await callAgent("",answers,p);
  }
 
- function focusSolution(index:number,fly=true){
-  const s=solutions[index];if(!s)return;
-  setActiveIndex(index);setActivePin(null);
-  if(fly&&mapRef.current)mapRef.current.flyTo([s.stay.latitude,s.stay.longitude],Math.max(11,mapRef.current.getZoom()),{duration:.82});
+ function focus(index:number){
+  setActive(index);setSelectedPin(null);
+  const s=solutions[index];
+  if(s)mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75});
  }
 
- function updateFilter(key:FilterKey,value:number){setFilters(v=>({...v,[key]:value}))}
-
- function buildTripUrl(solution:Solution){
-  const q=new URLSearchParams({offer:solution.stay.productId,lang:"el"});
-  if(tripContext){
-    q.set("start",tripContext.startDate);
-    q.set("end",tripContext.endDate);
-    q.set("budget",String(tripContext.budget));
-    q.set("origin",tripContext.origin);
-    q.set("travelerType",tripContext.travelerType);
-    if(tripContext.moods[0])q.set("mood",tripContext.moods[0]);
-  }
-  return "/escape/"+encodeURIComponent(solution.destination.slug)+"?"+q.toString();
- }
-
- return <main className={styles.experience}>
-  <div ref={mapHost} className={styles.map}/>
-  <div className={styles.mapGrade}/>
-
-  <header className={styles.nav}>
-    <a className={styles.brand} href="/" aria-label="TravelAI home"><span>TRAVEL</span><b>AI</b></a>
-    <div className={styles.navCenter}><span className={styles.liveDot}/><span>{mapMeta.count?mapMeta.count.toLocaleString("el-GR"):"…"} πραγματικά stays</span><i/> <span>Agentic Escape Intelligence</span></div>
-    <div className={styles.mapModes}>
-      {(["map","satellite","terrain"] as BaseMode[]).map(mode=><button key={mode} className={baseMode===mode?styles.mapModeActive:""} onClick={()=>setBaseMode(mode)}>{mode==="map"?"MAP":mode==="satellite"?"SATELLITE":"TERRAIN"}</button>)}
-    </div>
+ return <main className={styles.shell}>
+  <header className={styles.topbar}>
+    <a href="/" className={styles.brand}>TRAVEL<b>AI</b></a>
+    <div className={styles.live}><i/> AGENT ONLINE · LIVE INVENTORY</div>
+    <div className={styles.topMeta}><span>{mapMeta.count?mapMeta.count.toLocaleString("el-GR"):"…"} stays</span><span>{mapMeta.locationCount?mapMeta.locationCount.toLocaleString("el-GR"):"…"} areas</span></div>
   </header>
 
-  <section className={styles.agentDeck}>
-    <div className={styles.agentHero}>
-      <div className={styles.agentSeal}><Brain weight="fill"/><span>TRAVEL<br/>INTELLIGENCE</span></div>
-      <div>
-        <p className={styles.eyebrow}>YOUR ESCAPE, UNDERSTOOD</p>
-        <h1>Δεν ψάχνω μέρος.<br/><em>Καταλαβαίνω την απόδραση.</em></h1>
+  <section className={styles.stage}>
+    <div className={styles.story}>
+      <div className={styles.heroMedia} style={hero?{backgroundImage:"url("+hero+")"}:undefined}>
+        <div className={styles.heroVeil}/>
+        <div className={styles.heroCopy}>
+          <p className={styles.eyebrow}><Sparkle weight="fill"/> AI ESCAPE INTELLIGENCE</p>
+          <h1>Δεν ψάχνεις<br/><em>προορισμό.</em><br/>Ψάχνεις το σωστό <span>feeling.</span></h1>
+          <p>Μίλα φυσικά. Ο agent ρωτά μόνο ό,τι χρειάζεται, συγκρίνει πραγματικές επιλογές και σε σταματά όταν η επιλογή σου δεν ταιριάζει σε αυτό που ζήτησες.</p>
+        </div>
+        {detail?<div className={styles.droneCircle} style={{backgroundImage:"url("+detail+")"}}><span>LIVE<br/>DETAIL</span></div>:null}
+        <div className={styles.heroIndex}><span>01</span><b>UNDERSTAND</b><i/></div>
       </div>
+
+      <section className={styles.agentPanel}>
+        <div className={styles.agentHeader}>
+          <div><Brain weight="fill"/><span><b>Travel Agent</b><small>persistent memory · live tools</small></span></div>
+          <span className={styles.confidence}>{busy?"thinking…":"ready"}</span>
+        </div>
+
+        <div className={styles.thread}>
+          {messages.slice(-6).map(m=><div key={m.id} className={m.role==="agent"?styles.agentBubble:styles.userBubble}>
+            {m.role==="agent"?<ChatCircleDots weight="fill"/>:null}
+            <p>{m.text}</p>
+          </div>)}
+          {busy?<div className={styles.typing}><i/><i/><i/></div>:null}
+        </div>
+
+        {question?<div className={styles.quickReplies}>
+          {question.quickReplies.map(x=><button key={x.value} onClick={()=>void replyQuick(x.label,x.value)} disabled={busy}>{x.label}</button>)}
+        </div>:null}
+
+        <div className={styles.composer}>
+          <textarea value={draft} onChange={e=>setDraft(e.target.value)} placeholder="π.χ. Θέλω ένα μοναδικό ΣΚ βουνό μετά τις 01/10/2026…" onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();void callAgent(draft)}}}/>
+          <button onClick={()=>void callAgent(draft)} disabled={busy||!draft.trim()} aria-label="Στείλε στον AI agent"><PaperPlaneTilt weight="fill"/></button>
+        </div>
+        <div className={styles.practical}>
+          <label><span>ΑΦΕΤΗΡΙΑ</span><input value={origin} onChange={e=>setOrigin(e.target.value)}/></label>
+          <label><span>BUDGET</span><input type="number" value={budget} onChange={e=>setBudget(Number(e.target.value)||800)}/></label>
+        </div>
+      </section>
+
+      <section className={styles.dnaPanel}>
+        <div className={styles.sectionTitle}><div><span>02</span><h2>Travel DNA</h2></div><p>Τα φίλτρα μιλούν στον ίδιο agent. Δεν είναι διακόσμηση.</p></div>
+        <div className={styles.dnaGrid}>
+          {filterMeta.map(item=><label key={item.key} className={styles.dnaItem}>
+            <div className={styles.gauge} style={{"--p":filters[item.key]} as React.CSSProperties}><strong>{filters[item.key]}</strong><small>{item.caption}</small></div>
+            <span>{item.label}</span>
+            <input type="range" min="0" max="100" value={filters[item.key]} onChange={e=>setFilters(v=>({...v,[item.key]:Number(e.target.value)}))}/>
+          </label>)}
+        </div>
+      </section>
+
+      {solutions.length?<section className={styles.resultsPanel}>
+        <div className={styles.sectionTitle}><div><span>03</span><h2>Οι 5 λύσεις σου</h2></div><p>Κάθε μία έχει περάσει από agent reasoning και live stay verification.</p></div>
+        <div className={styles.solutionRail}>
+          {solutions.map((s,index)=><article key={s.stay.productId} className={index===active?styles.solutionActive:""} onMouseEnter={()=>focus(index)}>
+            <div className={styles.solutionImage} style={s.stay.imageUrl?{backgroundImage:"url("+s.stay.imageUrl+")"}:undefined}>
+              <span className={styles.solutionRank}>0{index+1}</span>
+              <span className={styles.solutionScore}>{Math.round(s.score)}%</span>
+            </div>
+            <div className={styles.solutionBody}>
+              <small>{s.destination.explorationRole.replaceAll("_"," ")}</small>
+              <h3>{s.destination.name}</h3>
+              <p>{s.stay.name}</p>
+              <div><span>{money(s.stay.price,s.stay.currency)}</span><span>{s.destination.effortLabel}</span></div>
+              <button onClick={()=>focus(index)}>ΔΕΣ ΣΤΟΝ ΧΑΡΤΗ <ArrowRight/></button>
+            </div>
+          </article>)}
+        </div>
+      </section>:null}
     </div>
 
-    <div className={styles.transcript} ref={transcript}>
-      {turns.map(turn=><div key={turn.id} className={turn.role==="agent"?styles.agentTurn:styles.userTurn}>
-        <span className={styles.turnRole}>{turn.role==="agent"?"AI AGENT":"ΕΣΥ"}</span>
-        <p>{turn.text}</p>
-      </div>)}
-      {phase==="thinking"?<div className={styles.thinkingTurn}><span/><span/><span/><small>Ελέγχω intent, μνήμη, πραγματικά stays και constraints…</small></div>:null}
-      {question?.quickReplies?.length?<div className={styles.quickReplies}>
-        {question.quickReplies.map(reply=><button key={reply.value} onClick={()=>answerQuick(reply)}>{reply.label}<ArrowRight/></button>)}
+    <section className={styles.mapStage}>
+      <div ref={mapHost} className={styles.map}/>
+      <div className={styles.mapShade}/>
+      <div className={styles.mapModes}>
+        {(["map","satellite","terrain"] as BaseMode[]).map(mode=><button key={mode} className={baseMode===mode?styles.modeActive:""} onClick={()=>setBaseMode(mode)}>{mode.toUpperCase()}</button>)}
+      </div>
+      <button className={styles.inventoryToggle} onClick={()=>setShowAll(v=>!v)}><MapPin weight="fill"/>{showAll?"ALL STAYS":"TOP 5 ONLY"}</button>
+      <div className={styles.mapNarrative}>
+        <span>LIVE TRAVEL UNIVERSE</span>
+        <b>{solutions.length?solutions.length+" AI solutions":mapMeta.count?mapMeta.count.toLocaleString("el-GR")+" real stays":"loading inventory…"}</b>
+        <small>zoom · hover · select · challenge the agent</small>
+      </div>
+
+      {activeSolution?<aside className={styles.intelCard}>
+        <div className={styles.intelImage} style={activeSolution.stay.imageUrl?{backgroundImage:"url("+activeSolution.stay.imageUrl+")"}:undefined}>
+          <div className={styles.intelDrone} style={activeSolution.stay.imageUrl?{backgroundImage:"url("+activeSolution.stay.imageUrl+")"}:undefined}/>
+        </div>
+        <div className={styles.intelBody}>
+          <small>#{active+1} · {activeSolution.destination.explorationRole.replaceAll("_"," ")}</small>
+          <h2>{activeSolution.destination.name}</h2>
+          <p>{activeSolution.destination.why}</p>
+          <div className={styles.intelStats}>
+            <span><b>{Math.round(activeSolution.score)}%</b>match</span>
+            <span><b>{activeSolution.liveOfferCount}</b>offers</span>
+            <span><b>{money(activeSolution.stay.price,activeSolution.stay.currency)}</b>stay</span>
+          </div>
+          <div className={styles.intelActions}>
+            <a href={activeSolution.stay.trackingUrl} target="_blank" rel="sponsored nofollow noopener noreferrer">ΔΕΣ ΠΡΟΣΦΟΡΑ <ArrowRight/></a>
+            <button onClick={()=>setDraft("Μου αρέσει η επιλογή "+activeSolution.destination.name+". Σύγκρινέ την με κάτι καλύτερο αν υπάρχει.")}>ΡΩΤΑ ΤΟΝ AGENT</button>
+          </div>
+        </div>
+      </aside>:null}
+
+      {selectedPin&&solutions.length&&!topIds.has(selectedPin.productId)?<div className={styles.challengeToast}>
+        <Brain weight="fill"/>
+        <div><small>AI CHALLENGE</small><b>{selectedPin.name}</b><p>Το επέλεξες από τον χάρτη, αλλά δεν είναι στο τρέχον Top 5. Ο agent το σύγκρινε χωρίς να σου πει απλώς «ναι».</p></div>
       </div>:null}
-    </div>
 
-    <div className={styles.contextStrip}>
-      <label><span>Αφετηρία</span><input value={origin} onChange={e=>setOrigin(e.target.value)}/></label>
-      <label><span>Budget</span><div><b>€</b><input type="number" min={150} max={5000} step={50} value={budget} onChange={e=>setBudget(Number(e.target.value)||150)}/></div></label>
-      <button onClick={()=>setFiltersOpen(v=>!v)}><Sparkle/> Travel DNA</button>
-    </div>
-
-    <div className={styles.composer}>
-      <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submit()}}} placeholder="Πες μου τι θέλεις, τι σε κουράζει, τι δεν θέλεις…"/>
-      <button onClick={submit} disabled={phase==="thinking"||!input.trim()} aria-label="Στείλε στον AI agent"><PaperPlaneTilt weight="fill"/></button>
-    </div>
-    <p className={styles.agentPromise}>Δεν θα σου πετάξω προορισμούς αν δεν έχω καταλάβει αρκετά. Θα ρωτήσω πρώτα.</p>
+      <div className={styles.mapCorner}><Crosshair/><span>Ο χάρτης παραμένει ο ίδιος εγκέφαλος με τη συνομιλία και τα φίλτρα.</span></div>
+    </section>
   </section>
-
-  <section className={styles.filterDock} data-open={filtersOpen}>
-    <button className={styles.filterToggle} onClick={()=>setFiltersOpen(v=>!v)}><Sparkle/><span>TRAVEL DNA</span></button>
-    <div className={styles.filterRail}>
-      {filterMeta.map(item=>{
-        const Icon=item.icon,value=filters[item.key];
-        return <label key={item.key} className={styles.dial} style={{"--value":value+"%"} as CSSProperties}>
-          <span className={styles.dialRing}><Icon/><b>{value}</b></span>
-          <span className={styles.dialLabel}>{item.label}</span>
-          <input aria-label={item.label} type="range" min="0" max="100" value={value} onChange={e=>updateFilter(item.key,Number(e.target.value))}/>
-        </label>;
-      })}
-    </div>
-  </section>
-
-  {solutions.length?<section className={styles.resultRail}>
-    <div className={styles.resultRailHead}><span>AI SHORTLIST</span><b>{solutions.length} λύσεις που πέρασαν τον έλεγχο</b></div>
-    <div className={styles.resultCards}>
-      {solutions.map((s,i)=><button key={s.stay.productId} className={i===activeIndex?styles.resultCardActive:styles.resultCard} onClick={()=>focusSolution(i)}>
-        <span className={styles.cardRank}>0{i+1}</span>
-        <span className={styles.cardCopy}><small>{s.destination.explorationRole.replaceAll("_"," ")}</small><strong>{s.destination.name}</strong><em>{s.stay.name}</em></span>
-        <span className={styles.cardScore}>{s.score}%</span>
-      </button>)}
-    </div>
-  </section>:null}
-
-  {currentSolution?<aside className={styles.storyCard}>
-    <div className={styles.storyImage} style={currentSolution.stay.imageUrl?{backgroundImage:`url("${currentSolution.stay.imageUrl}")`}:undefined}>
-      <div className={styles.photoGrade}/>
-      <div className={styles.photoBadge}><span>0{activeIndex+1}</span><small>AI PICK</small></div>
-      <div className={styles.droneLens} style={currentSolution.stay.imageUrl?{backgroundImage:`url("${currentSolution.stay.imageUrl}")`}:undefined}><span>AREA<br/>LENS</span></div>
-      <div className={styles.imageCaption}><small>{currentSolution.destination.explorationRole.replaceAll("_"," ")}</small><h2>{currentSolution.destination.name}</h2></div>
-    </div>
-    <div className={styles.storyBody}>
-      <div className={styles.storyMetric}><span>FIT</span><b>{currentSolution.score}%</b></div>
-      <div className={styles.storyMetric}><span>LIVE OPTIONS</span><b>{currentSolution.liveOfferCount}</b></div>
-      <div className={styles.storyMetric}><span>STAY</span><b>{money(currentSolution.stay.price,currentSolution.stay.currency)}</b></div>
-      <p>{currentSolution.destination.why}</p>
-      <div className={styles.storyFacts}><span><Mountains/> {currentSolution.destination.effortLabel}</span><span><MapPin/> {currentSolution.stay.distanceKm==null?"περιοχή":currentSolution.stay.distanceKm.toFixed(1)+" km από κέντρο"}</span></div>
-      <div className={styles.storyStay}><small>ΠΡΑΓΜΑΤΙΚΟ STAY</small><strong>{currentSolution.stay.name}</strong><span>{currentSolution.destination.seasonNote}</span></div>
-      <div className={styles.storyActions}><a className={styles.buildButton} href={buildTripUrl(currentSolution)}>ΧΤΙΣΕ ΤΗΝ ΑΠΟΔΡΑΣΗ <ArrowRight/></a><a className={styles.offerButton} href={currentSolution.stay.trackingUrl} target="_blank" rel="sponsored nofollow noopener noreferrer">ΔΕΣ ΠΡΟΣΦΟΡΑ ↗</a></div>
-    </div>
-  </aside>:null}
-
-  {activePin&&!currentSolution?<aside className={styles.hoverCard}>
-    <span>LIVE INVENTORY</span><strong>{activePin.name}</strong><small>{activePin.location}</small><b>{money(activePin.price,activePin.currency)}</b>
-  </aside>:null}
-
-  <div className={styles.mapHint}><MapPin/><span>Τα μικρά pins είναι το inventory σου. Τα μεγάλα ranked pins είναι οι λύσεις του agent.</span></div>
- </main>
+ </main>;
 }
