@@ -15,6 +15,15 @@ assert.equal(interpreted.mustHave,"nature");
 assert.equal(interpreted.noveltyPreference,"surprise");
 assert(interpreted.moods.includes("nature"),"mountain intent must include nature mood");
 
+const natural=interpretV50Conversation({userText:"το πρώτο ΣΚ μετά τις 10 Οκτωβρίου"},now);
+assert.equal(natural.startDate,"2026-10-16","Greek month without year must resolve to the next future occurrence");
+assert.equal(natural.endDate,"2026-10-18");
+assert.equal(natural.weekend,true);
+
+const range=interpretV50Conversation({userText:"15-17 Νοεμβρίου"},now);
+assert.equal(range.startDate,"2026-11-15","Greek day range must parse naturally");
+assert.equal(range.endDate,"2026-11-17");
+
 const firstQuestion=nextV50Question(interpreted,{});
 assert.equal(firstQuestion?.id,"companions","agent should ask the highest-value missing context instead of guessing companions");
 
