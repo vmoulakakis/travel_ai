@@ -67,6 +67,8 @@ function trip(overrides:Partial<TripRequest>={}):TripRequest{
   const ranked=applyKnowledgePriorV45(items,prior);
   const chania=ranked.find(x=>x.destination.slug==="chania");
   const athens=ranked.find(x=>x.destination.slug==="athens");
+  assert.ok(chania,"matched destination must remain in ranking");
+  assert.ok(athens,"unmatched destination must remain in ranking");
   assert.equal(chania.score,84,"knowledge retrieval may add at most four points");
   assert.equal(athens.score,80,"unmatched candidate must not receive semantic lift");
 }
