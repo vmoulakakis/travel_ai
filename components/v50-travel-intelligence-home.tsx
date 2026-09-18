@@ -31,7 +31,7 @@ const filterMeta:Array<{key:FilterKey;label:string;caption:string}>=[
 ];
 
 const defaults:Filters={calm:72,food:68,nature:70,discovery:64,nightlife:24,value:74};
-const id=()=>Math.random().toString(36).slice(2);
+const id=()=>typeof crypto!=="undefined"&&"randomUUID" in crypto?crypto.randomUUID():String(Date.now());
 const money=(n:number|null,c="EUR")=>n?new Intl.NumberFormat("el-GR",{style:"currency",currency:c,maximumFractionDigits:0}).format(n):"τιμή στον πάροχο";
 
 export function V50TravelIntelligenceHome(){
@@ -41,7 +41,7 @@ export function V50TravelIntelligenceHome(){
  const [budget,setBudget]=useState(800);
  const [draft,setDraft]=useState("");
  const [messages,setMessages]=useState<Message[]>([
-   {id:id(),role:"agent",text:"Πες μου τι θα έκανε αυτή την απόδραση να αξίζει πραγματικά για σένα. Δεν χρειάζεται να ξέρεις προορισμό."}
+   {id:"agent-initial",role:"agent",text:"Πες μου τι θα έκανε αυτή την απόδραση να αξίζει πραγματικά για σένα. Δεν χρειάζεται να ξέρεις προορισμό."}
  ]);
  const [answers,setAnswers]=useState<Record<string,string>>({});
  const [question,setQuestion]=useState<Question|null>(null);
@@ -63,7 +63,7 @@ export function V50TravelIntelligenceHome(){
  const heroImages=useMemo(()=>inventory.filter(x=>x.imageUrl).slice(0,8).map(x=>x.imageUrl as string),[inventory]);
  const hero=activeSolution?.stay.imageUrl??heroImages[0]??null;
  const detail=activeSolution?.stay.imageUrl??heroImages[1]??hero;
- const userHistory=messages.filter(x=>x.role==="user").map(x=>x.text).join(" · ").slice(-900);
+ const userHistory=messages.filter(x=>x.role==="user").slice(-5).map(x=>x.text).join(" · ").slice(-700);
 
  useEffect(()=>{
   fetch("/api/v50/map-stays?limit=1800",{cache:"no-store"}).then(r=>r.json()).then((p:MapPayload)=>{
