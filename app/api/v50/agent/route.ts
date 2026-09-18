@@ -46,7 +46,7 @@ function offerScore(offer:V8StayOffer,budget:number,start:string,end:string){
   const truth=truthScore(offer,start,end);
   if(!truth)return -1;
   const distance=offer.distanceKm==null?52:offer.distanceKm<=3?96:offer.distanceKm<=10?84:offer.distanceKm<=25?66:44;
-  const price=moneyFit(offer.price,budget);
+  const price=moneyFit(offer.price??null,budget);
   return truth*.52+distance*.18+price*.30;
 }
 
