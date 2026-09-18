@@ -324,12 +324,28 @@ export function V50TravelIntelligenceHome(){
           <div className={styles.intelStats}>
             <span><b>{Math.round(activeSolution.score)}%</b>match</span>
             <span><b>{activeSolution.liveOfferCount}</b>offers</span>
-            <span><b>{money(activeSolution.stay.price,activeSolution.stay.currency)}</b>stay</span>
+            <span><b>{money(activeSolution.stay.price,activeSolution.stay.currency)}</b>stay</span><span><b>{ratings[activeSolution.stay.productId]?.label??"—"}</b>{ratings[activeSolution.stay.productId]?.provider??"verified rating"}</span>
           </div>
           <div className={styles.intelActions}>
-            <a href={activeSolution.stay.trackingUrl} target="_blank" rel="sponsored nofollow noopener noreferrer">ΔΕΣ ΠΡΟΣΦΟΡΑ <ArrowRight/></a>
+            <a href={landingUrl(activeSolution.destination.slug,activeSolution.stay.productId)??"#"}>ΔΕΣ ΤΟ ΚΑΤΑΛΥΜΑ <ArrowRight/></a>
             <button onClick={()=>setDraft("Μου αρέσει η επιλογή "+activeSolution.destination.name+". Σύγκρινέ την με κάτι καλύτερο αν υπάρχει.")}>ΡΩΤΑ ΤΟΝ AGENT</button>
           </div>
+        </div>
+      </aside>:null}
+
+      {hoverPin?<aside className={styles.hoverStayCard}>
+        <div className={styles.hoverStayImage} style={hoverPin.imageUrl?{backgroundImage:"url("+hoverPin.imageUrl+")"}:undefined}>
+          <span>★</span>
+        </div>
+        <div className={styles.hoverStayBody}>
+          <small>LIVE STAY · {hoverPin.location||hoverPin.address||"Ελλάδα"}</small>
+          <h3>{hoverPin.name}</h3>
+          <p>{hoverPin.onSale?"Ενεργή προσφορά · ":""}{hoverPin.category||"Κατάλυμα"} · {money(hoverPin.price,hoverPin.currency)}</p>
+          <div className={styles.hoverStayFacts}>
+            <span><b>{ratings[hoverPin.productId]?.label??"—"}</b>{ratings[hoverPin.productId]?.provider??"verified rating"}</span>
+            <span><b>{hoverPin.location||"—"}</b>περιοχή</span>
+          </div>
+          {hoverPin.destinationSlug?<a href={landingUrl(hoverPin.destinationSlug,hoverPin.productId)??"#"}>ΔΕΣ LANDING & FUNNEL <ArrowRight/></a>:<button onClick={()=>void challengeStay(hoverPin)}>ΡΩΤΑ ΤΟΝ AGENT ΓΙ' ΑΥΤΟ</button>}
         </div>
       </aside>:null}
 
