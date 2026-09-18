@@ -13,6 +13,7 @@ import {
 } from "@/lib/ai/v50-agent-state";
 import { loadV8DestinationCatalog,loadV8StayOffers } from "@/lib/data/destination-v8";
 import { assessStayAvailabilityV20 } from "@/lib/decision/stay-availability-v20";
+import { createLLMRequestBudgetV16,generateJsonWithRoutingV16 } from "@/lib/ai/model-router-v9";
 import type { V8Recommendation,V8StayOffer } from "@/lib/decision/v8-types";
 
 export const runtime="nodejs";
@@ -87,6 +88,41 @@ function humanClarification(question:ReturnType<typeof nextV50Question>,interpre
     return `Και στις μετακινήσεις; Προτιμάς κάτι κοντινό, σου αρέσει η οδήγηση ή δεν σε περιορίζει ιδιαίτερα η απόσταση;`;
   }
   return question.text;
+}
+
+
+async function adaptiveClarification(
+  question:ReturnType<typeof nextV50Question>,
+  interpreted:ReturnType<typeof interpretV50Conversation>,
+  input:V50ConversationInput,
+  lastQuestionId?:string
+){
+  const fallback=humanClarification(question,interpreted,lastQuestionId);
+  if(!question)return fallback;
+  const known={
+    dates:interpreted.startDate&&interpreted.endDate?[interpreted.startDate,interpreted.endDate]:null,
+    travelerType:interpreted.travelerType,
+    energy:interpreted.desiredEnergy,
+    social:interpreted.socialPreference,
+    novelty:interpreted.noveltyPreference,
+    mustHave:interpreted.mustHave,
+    avoid:interpreted.avoid,
+    distance:interpreted.distancePreference,
+    signals:interpreted.signals
+  };
+  const system=`You are TravelAI, a sharp Greek travel concierge. The deterministic parser has already extracted known facts. Ask exactly ONE useful missing question and never repeat information the user already gave. Sound natural, specific and concise, not like a questionnaire. Reference one known fact when useful. Never recommend a destination yet and never invent prices, weather, availability, ratings or events. Do not say you are an AI model. Reply in Greek. Return JSON only: {"reply":"max 220 chars"}.`;
+  const routed=await generateJsonWithRoutingV16<{reply:string}>({
+    context:{task:"intent",text:[input.priorUserText,input.userText].filter(Boolean).join(" · "),deterministicConfidence:interpreted.confidence,forceSemantic:true},
+    budget:createLLMRequestBudgetV16(),
+    system,
+    prompt:JSON.stringify({missing:question.id,known,lastQuestionId:lastQuestionId??null,currentUserText:input.userText,history:input.priorUserText??"",fallbackQuestion:question.text}),
+    preference:"critical",
+    validate:value=>{
+      const reply=typeof value.reply==="string"?value.reply.trim().slice(0,240):"";
+      return reply.length>=12?{reply}:null;
+    }
+  }).catch(()=>null);
+  return routed?.value.reply||fallback;
 }
 
 
@@ -210,9 +246,10 @@ export async function POST(request:Request){
 
   const question=nextV50Question(interpreted,input.answers);
   if(question){
+    const clarification=await adaptiveClarification(question,interpreted,input,body.lastQuestionId);
     return responseWithProfile({
       ok:true,state:"clarify",
-      agentMessage:humanClarification(question,interpreted,body.lastQuestionId),
+      agentMessage:clarification,
       question,
       interpreted:{
         confidence:interpreted.confidence,

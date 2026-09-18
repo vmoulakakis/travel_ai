@@ -2,7 +2,7 @@
 
 import { useEffect,useMemo,useRef,useState } from "react";
 import type { LayerGroup,Map as LeafletMap,TileLayer } from "leaflet";
-import { ArrowRight,Brain,ChatCircleDots,Crosshair,MapPin,PaperPlaneTilt,Sparkle } from "@phosphor-icons/react";
+import { ArrowRight,Brain,CalendarBlank,ChatCircleDots,Crosshair,MapPin,PaperPlaneTilt,Sparkle } from "@phosphor-icons/react";
 import styles from "./v50-travel-intelligence-home.module.css";
 
 type BaseMode="map"|"satellite"|"terrain";
@@ -16,6 +16,7 @@ type HeroMedia={id:string;location:string;imageUrl:string;propertyCount:number;m
 type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null};liveOfferCount:number};
 type AgentPayload={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:Question;interpreted?:{summary?:string;profileSummary?:string;startDate?:string;endDate?:string;signals?:string[];confidence?:number};inventory?:{catalogSize:number;eligibleCount:number;resultCount:number;stayVerifiedSolutions:number};feasibility?:string;solutions?:Solution[];trip?:{startDate:string;endDate:string;travelerType:string;moods:string[];budget:number;origin:string}};
 type RatingView={label:string;provider:string;reviewCount:number|null;summary?:string};
+type DateWindow={id:string;label:string;note:string;start:string;end:string;reason:string;confidence:"HIGH"|"MEDIUM"};
 
 const tileConfig:Record<BaseMode,{url:string;attribution:string;maxZoom:number}>={
  map:{url:"https://tile.openstreetmap.org/{z}/{x}/{y}.png",attribution:"© OpenStreetMap contributors",maxZoom:19},
@@ -59,6 +60,12 @@ export function V50TravelIntelligenceHome(){
  const [lastTrip,setLastTrip]=useState<AgentPayload["trip"]|null>(null);
  const [showAll,setShowAll]=useState(true);
  const [cinematicTarget,setCinematicTarget]=useState<string|null>(null);
+ const [heroIndex,setHeroIndex]=useState(0);
+ const [dateWindows,setDateWindows]=useState<DateWindow[]>([]);
+ const [dateBusy,setDateBusy]=useState(false);
+ const [dateDuration,setDateDuration]=useState(3);
+ const [dateFrom,setDateFrom]=useState("");
+ const [dateTo,setDateTo]=useState("");
  const mapHost=useRef<HTMLDivElement|null>(null);
  const resultsRef=useRef<HTMLElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
@@ -69,9 +76,15 @@ export function V50TravelIntelligenceHome(){
  const activeSolution=solutions[active]??null;
  const topIds=useMemo(()=>new Set(solutions.map(x=>x.stay.productId)),[solutions]);
  const heroImages=useMemo(()=>heroMedia.length?heroMedia.map(x=>x.imageUrl):inventory.filter(x=>x.imageUrl).slice(0,8).map(x=>x.imageUrl as string),[heroMedia,inventory]);
- const hero=activeSolution?.stay.imageUrl??heroImages[0]??null;
- const detail=activeSolution?.stay.imageUrl??heroImages[1]??hero;
- const userHistory=messages.filter(x=>x.role==="user").slice(-5).map(x=>x.text).join(" · ").slice(-700);
+ const hero=activeSolution?.stay.imageUrl??(heroImages.length?heroImages[heroIndex%heroImages.length]:null);
+ const detail=activeSolution?.stay.imageUrl??(heroImages.length?heroImages[(heroIndex+1)%heroImages.length]:hero);
+ const userHistory=messages.filter(x=>x.role==="user").slice(-7).map(x=>x.text).join(" · ").slice(-1000);
+
+ useEffect(()=>{
+  if(activeSolution||heroImages.length<2)return;
+  const timer=window.setInterval(()=>setHeroIndex(v=>(v+1)%heroImages.length),5200);
+  return()=>window.clearInterval(timer);
+ },[activeSolution?.stay.productId,heroImages.length]);
 
  function landingUrl(slug:string|null|undefined,productId:string){
   if(!slug)return null;
@@ -83,6 +96,30 @@ export function V50TravelIntelligenceHome(){
   }
   const suffix=q.toString()?"?"+q.toString():"";
   return "/escape/"+encodeURIComponent(slug)+"/stay/"+encodeURIComponent(productId)+suffix;
+ }
+
+ async function loadDateWindows(){
+  setDateBusy(true);
+  try{
+   const traveler=(answers.companions==="solo"||answers.companions==="couple"||answers.companions==="family"||answers.companions==="friends")?answers.companions:"unknown";
+   const desiredEnergy=filters.calm>=76?"restore":(filters.discovery>=78||filters.nightlife>=72)?"stimulating":"balanced";
+   const socialPreference=filters.calm>=82?"quiet":filters.nightlife>=72?"lively":"balanced";
+   const noveltyPreference=filters.discovery>=76?"surprise":"balanced";
+   const avoid=filters.value>=88?"high-cost":filters.calm>=88?"crowds":"none";
+   const moods=[...filterMeta].sort((a,b)=>filters[b.key]-filters[a.key]).slice(0,3).map(x=>x.key);
+   const response=await fetch("/api/escape/date-opportunities",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+    locale:"el",initialText:(draft||userHistory).slice(-650),duration:dateDuration,horizonDays:120,
+    profile:{travelerType:traveler,desiredEnergy,socialPreference,noveltyPreference,avoid,moods}
+   })});
+   const payload=await response.json() as {windows?:DateWindow[]};
+   setDateWindows(Array.isArray(payload.windows)?payload.windows:[]);
+  }catch{setDateWindows([])}finally{setDateBusy(false)}
+ }
+
+ async function applyDateWindow(start:string,end:string,label:string){
+  const next={...answers,dates:start+" – "+end};
+  setAnswers(next);setDateFrom(start);setDateTo(end);
+  await callAgent(label+" · "+start+" → "+end,next);
  }
 
  async function ensureRating(productId:string,propertyName:string,destinationSlug:string|null|undefined,destinationName:string,latitude:number,longitude:number){
@@ -302,6 +339,7 @@ export function V50TravelIntelligenceHome(){
           <p>Μίλα φυσικά. Ο agent ρωτά μόνο ό,τι χρειάζεται, συγκρίνει πραγματικές επιλογές και σε σταματά όταν η επιλογή σου δεν ταιριάζει σε αυτό που ζήτησες.</p>
         </div>
         {detail?<div className={styles.droneCircle} style={{backgroundImage:"url("+detail+")"}}><span>LIVE<br/>DETAIL</span></div>:null}
+        {heroImages.length>1?<div className={styles.heroFilmstrip}>{heroImages.slice(0,6).map((src,i)=><button key={src} className={i===heroIndex%heroImages.length?styles.heroThumbActive:""} style={{backgroundImage:"url("+src+")"}} onClick={()=>setHeroIndex(i)} aria-label={"Photo "+(i+1)}/>)}</div>:null}
         <div className={styles.heroIndex}><span>01</span><b>UNDERSTAND</b><i/></div>
       </div>
 
@@ -322,6 +360,22 @@ export function V50TravelIntelligenceHome(){
         {question?<div className={styles.quickReplies}>
           {question.quickReplies.map(x=><button key={x.value} onClick={()=>void replyQuick(x.label,x.value)} disabled={busy}>{x.label}</button>)}
         </div>:null}
+        {question?.id==="dates"?<section className={styles.dateStudio}>
+          <div className={styles.dateStudioHead}>
+            <div><CalendarBlank weight="fill"/><span><b>Διάλεξε εύκολα πότε</b><small>AI παράθυρα ή ακριβείς ημερομηνίες</small></span></div>
+            <div className={styles.durationPills}>{[2,3,4,5,7].map(n=><button key={n} className={dateDuration===n?styles.durationActive:""} onClick={()=>setDateDuration(n)}>{n} νύχτες</button>)}</div>
+          </div>
+          <div className={styles.dateActions}>
+            <button onClick={()=>void loadDateWindows()} disabled={dateBusy}>{dateBusy?"Ο AI ψάχνει παράθυρα…":"✦ ΔΩΣΕ ΜΟΥ 3 AI ΕΠΙΛΟΓΕΣ"}</button>
+            <span>ή</span>
+            <label>Από<input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></label>
+            <label>Έως<input type="date" value={dateTo} min={dateFrom||undefined} onChange={e=>setDateTo(e.target.value)}/></label>
+            <button disabled={!dateFrom||!dateTo||dateTo<=dateFrom||busy} onClick={()=>void applyDateWindow(dateFrom,dateTo,"Δικές μου ημερομηνίες")}>ΧΡΗΣΙΜΟΠΟΙΗΣΕ ΤΙΣ</button>
+          </div>
+          {dateWindows.length?<div className={styles.dateWindowGrid}>{dateWindows.map(w=><button key={w.id} onClick={()=>void applyDateWindow(w.start,w.end,w.label)} disabled={busy}>
+            <small>{w.note}</small><b>{w.label}</b><strong>{new Intl.DateTimeFormat("el-GR",{day:"numeric",month:"short"}).format(new Date(w.start+"T00:00:00Z"))} → {new Intl.DateTimeFormat("el-GR",{day:"numeric",month:"short"}).format(new Date(w.end+"T00:00:00Z"))}</strong><span>{w.reason}</span>
+          </button>)}</div>:null}
+        </section>:null}
 
         <div className={styles.composer}>
           <textarea value={draft} onChange={e=>setDraft(e.target.value)} placeholder="π.χ. Θέλω ένα μοναδικό ΣΚ βουνό μετά τις 01/10/2026…" onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();void callAgent(draft)}}}/>
@@ -347,7 +401,11 @@ export function V50TravelIntelligenceHome(){
       {solutions.length?<section ref={resultsRef} className={styles.resultsPanel}>
         <div className={styles.sectionTitle}><div><span>03</span><h2>Οι καλύτερες επιλογές τώρα</h2></div><p>Πραγματικά stays που πέρασαν το τρέχον brief και τα διαθέσιμα travel-fit checks.</p></div>
         <div className={styles.solutionRail}>
-          {solutions.map((s,index)=><article key={s.stay.productId} className={index===active?styles.solutionActive:""} onMouseEnter={()=>focus(index)}>
+          {solutions.map((s,index)=><article key={s.stay.productId} className={index===active?styles.solutionActive:""} onMouseEnter={()=>{
+            focus(index);
+            setHoverPin({productId:s.stay.productId,placeId:s.stay.productId,name:s.stay.name,location:s.destination.name,address:s.destination.regionGroup,latitude:s.stay.latitude,longitude:s.stay.longitude,category:"AI TOP MATCH",imageUrl:s.stay.imageUrl,price:s.stay.price,fullPrice:s.stay.fullPrice,discount:s.stay.discount,currency:s.stay.currency,onSale:Boolean(s.stay.discount&&s.stay.discount>0),availability:s.stay.availability,validTo:null,demandScore:null,trackingUrl:s.stay.trackingUrl,destinationSlug:s.destination.slug});
+            void ensureRating(s.stay.productId,s.stay.name,s.destination.slug,s.destination.name,s.stay.latitude,s.stay.longitude);
+          }}>
             <div className={styles.solutionImage} style={s.stay.imageUrl?{backgroundImage:"url("+s.stay.imageUrl+")"}:undefined}>
               <span className={styles.solutionRank}>0{index+1}</span>
               <span className={styles.solutionScore}>{Math.round(s.score)}%</span>

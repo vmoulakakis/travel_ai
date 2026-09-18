@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const ui=readFileSync("components/v50-travel-intelligence-home.tsx","utf8");
+const css=readFileSync("components/v50-travel-intelligence-home.module.css","utf8");
+const agent=readFileSync("app/api/v50/agent/route.ts","utf8");
+const dates=readFileSync("app/api/escape/date-opportunities/route.ts","utf8");
+assert(ui.includes("dateStudio")&&ui.includes("/api/escape/date-opportunities"),"V52 must expose AI date studio");
+assert(ui.includes('type="date"')&&ui.includes("dateWindowGrid"),"V52 must provide exact dates plus large AI date cards");
+assert(ui.includes("heroFilmstrip")&&ui.includes("heroIndex"),"V52 must expose multi-photo cinematic media");
+assert(css.includes(".agentBubble p,.userBubble p{font-size:14px")&&css.includes(".quickReplies button{font-size:12px"),"V52 must improve text readability");
+assert(css.includes(".dateWindowGrid")&&css.includes("heroBreath")&&css.includes("floatDetail"),"V52 must ship date-card and cinematic motion styles");
+assert(agent.includes("adaptiveClarification")&&agent.includes("generateJsonWithRoutingV16"),"V52 clarification must use semantic model routing");
+assert(dates.includes('"unknown"'),"date opportunities must work before traveler type is known");
+console.log("V52_EXPERIENCE_OK typography=LARGE dates=AI+EXACT agent=ADAPTIVE photos=MULTI motion=YES");

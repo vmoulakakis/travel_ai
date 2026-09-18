@@ -24,6 +24,11 @@ const range=interpretV50Conversation({userText:"15-17 Νοεμβρίου"},now);
 assert.equal(range.startDate,"2026-11-15","Greek day range must parse naturally");
 assert.equal(range.endDate,"2026-11-17");
 
+const exactUiRange=interpretV50Conversation({userText:"Δικές μου ημερομηνίες",answers:{dates:"2026-10-20 – 2026-10-24"}},now);
+assert.equal(exactUiRange.startDate,"2026-10-20","UI ISO range must preserve exact start");
+assert.equal(exactUiRange.endDate,"2026-10-24","UI ISO range must preserve exact end");
+assert.equal(exactUiRange.nights,4);
+
 const firstQuestion=nextV50Question(interpreted,{});
 assert.equal(firstQuestion?.id,"companions","agent should ask the highest-value missing context instead of guessing companions");
 
