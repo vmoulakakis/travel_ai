@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordV8OfferEvent } from "@/lib/data/match-learning-v8";
+import { recordTravelerSignalV45,travelerProfileKeyFromRequest } from "@/lib/ai/travel-intelligence-v45";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,11 +9,13 @@ const safeId = /^[a-zA-Z0-9:_-]{1,160}$/;
 
 export async function POST(request: Request) {
   const sessionId = request.headers.get("cookie")?.match(cookie)?.[1] ?? null;
+  const profileKey=travelerProfileKeyFromRequest(request);
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   const eventName = body?.eventName;
   const destinationId = typeof body?.destinationId === "string" ? body.destinationId : "";
   const sourceProductId = typeof body?.sourceProductId === "string" ? body.sourceProductId : "";
   if (!sessionId || eventName !== "outbound_click" || !safeId.test(destinationId) || !safeId.test(sourceProductId)) return NextResponse.json({ ok: false }, { status: 400 });
   const ok = await recordV8OfferEvent(sessionId, "outbound_click", destinationId, sourceProductId);
+  if(profileKey)await recordTravelerSignalV45({profileKey,sessionId,eventType:"outbound_click",subjectType:"destination",subjectKey:destinationId,context:{sourceProductId}}).catch(()=>null);
   return NextResponse.json({ ok }, { status: ok ? 200 : 202, headers: { "cache-control": "no-store" } });
 }
