@@ -251,6 +251,19 @@ export function V50TravelIntelligenceHome(){
 
  function updateFilter(key:FilterKey,value:number){setFilters(v=>({...v,[key]:value}))}
 
+ function buildTripUrl(solution:Solution){
+  const q=new URLSearchParams({offer:solution.stay.productId,lang:"el"});
+  if(tripContext){
+    q.set("start",tripContext.startDate);
+    q.set("end",tripContext.endDate);
+    q.set("budget",String(tripContext.budget));
+    q.set("origin",tripContext.origin);
+    q.set("travelerType",tripContext.travelerType);
+    if(tripContext.moods[0])q.set("mood",tripContext.moods[0]);
+  }
+  return "/escape/"+encodeURIComponent(solution.destination.slug)+"?"+q.toString();
+ }
+
  return <main className={styles.experience}>
   <div ref={mapHost} className={styles.map}/>
   <div className={styles.mapGrade}/>
