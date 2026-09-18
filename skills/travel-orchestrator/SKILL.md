@@ -1,80 +1,110 @@
-# Travel Orchestrator — Canonical V44 Skill
+# Travel Orchestrator — Canonical V45 Skill
 
 ## Mission
-Run one authoritative travel decision workflow that converts a traveller's real intent into a small set of evidence-aware, inventory-backed trip solutions. Preserve hard constraints, separate user fit from commercial value, and make every important ranking movement explainable.
+Run one authoritative evidence-first travel decision workflow. Convert the traveller's current intent into a small, explainable portfolio while using persistent knowledge and memory without allowing either to override explicit current constraints.
 
-This file is the canonical orchestration contract for the current TravelAI product. Older V35/V38/V40 names describe implementation history, not competing product rules.
+V45 activates the V44 intelligence fabric around the proven deterministic ranking core. Version labels in older implementation files are lineage, not competing product rules.
 
-## Current product contract
+## Canonical runtime
+`current request -> persistent traveler context -> deterministic hard gates -> hybrid knowledge retrieval -> candidate ranking -> inventory/current evidence -> skeptical audit -> traveler advocate -> final 3 -> telemetry -> bounded learning`
 
-The engine may maintain a broad internal candidate set and the V42 inventory solver may rank up to 8 inventory-backed solutions. The consumer discovery UI reveals **exactly 3 strongest solutions** at a time. This distinction is deliberate:
+### Current request is highest priority
+Parse explicit dates, origin, budget, group, must-have, avoid, transport, accommodation constraints and free text.
 
-`broad candidate universe -> deterministic/semantic ranking -> real inventory pass -> top 3 decision surface`
+Current explicit user intent always outranks persistent memory, historical behavior, semantic similarity, popularity, commercial value and model opinion.
 
-Do not change the public choice count merely because an internal endpoint can return more candidates.
+### Persistent traveler context
+Read `traveler_intelligence_profiles_v44` through `get_traveler_context_v45`. Persistent memory contains structured preference weights, bounded learned preferences, avoidances and compact history. It is a soft prior, never a permanent hard constraint.
 
-## Runtime sequence
-1. Parse and normalize the request.
-2. Extract explicit hard constraints deterministically.
-3. Use semantic interpretation only for intent that deterministic parsing cannot safely resolve.
-4. Load independent destination knowledge.
-5. Pre-rank by traveller fit, season, effort, duration and budget.
-6. Enrich current evidence only where freshness changes the decision.
-7. Verify consistency and hard constraints before commerce enters the flow.
-8. Fetch the real stay inventory once for the requested window where the current solver supports it.
-9. Score stays against persistent product knowledge vectors plus lexical/structured evidence.
-10. Combine destination fit and stay viability without allowing commission to distort suitability.
-11. Keep a broader internal solution set for resilience and comparison.
-12. Present the strongest **3** solutions in the discovery surface with reason and trade-off.
-13. Continue into destination/stay detail and 360° planning only after the traveller chooses.
-14. Record bounded telemetry for later evaluation and learning.
+Do not persist private chain-of-thought. Prefer structured fields over raw conversation.
 
-## Dual-pass reasoning
-First ask: `Which destinations fit this traveller?`
-Then ask: `Which of those trips are actually supportable by the stay inventory for these dates and constraints?`
+### Hard gates
+Geography, dates, explicit exclusions, stay must-haves, inventory validity and other non-negotiables execute before soft ranking. Retrieval/model/memory may not rescue a failed candidate.
 
-Inventory may move a solution up or down. It must never rewrite factual destination suitability, violate a hard constraint, or turn an unknown into a confirmed fact.
+### Hybrid travel knowledge
+Canonical knowledge:
+- `travel_knowledge_entities_v44`
+- `travel_knowledge_facts_v44`
+- `travel_knowledge_evidence_v44`
+- `travel_fact_evidence_v44`
+- `travel_knowledge_edges_v44`
 
-## Agent runtime policy — 2026
-Use the MyAgenticTeam control plane before adding or changing agents.
+Use `search_travel_knowledge_v45` for candidate retrieval. V45 combines structured 16-dimensional travel-intent similarity, lexical retrieval, reciprocal-rank fusion, knowledge quality and freshness.
 
-- deterministic functions, retrieval and validation before model calls;
-- smallest capable agent set;
-- bounded tool loops with explicit stop conditions;
-- one shared request budget across model/tool stages;
-- tool discovery only when the available tool set is genuinely large;
-- durable/background execution only for work that can safely outlive a request;
-- human approval for sensitive or irreversible actions;
-- structured traces, latency, failure stage and evidence state rather than private chain-of-thought;
-- reusable skills loaded progressively instead of injecting every skill into every prompt.
+The 16d vector is an interpretable travel preference vector, not a dense language embedding. Do not describe it as multilingual sentence embeddings.
 
-## Agent boundaries
-- Facts come from tools/data, not model memory.
-- Hard geography, date, must-have and stay constraints execute before preference or inventory scoring.
-- Affiliate commission, EPC or commercial payout never raises destination/user-fit score.
-- Exact affiliate `tracking_url` is preserved unchanged.
-- Feed price remains a price signal unless provider semantics establish a full trip total.
-- Unknown stock, room type, final price, weather or transport cost is never presented as confirmed.
-- A tool/model failure degrades to verified fallback or a clear no-result/recovery path, never fabricated output.
-- The interface may show human-readable progress only for backend work that actually occurs.
+Retrieval is a bounded evidence prior. It may break close ties among already eligible candidates but may not override hard constraints or deterministic truth.
 
-## Public result contract
-The initial decision surface returns 3 distinct solutions when evidence supports them. Each needs:
-- destination;
-- real stay or explicit inventory state;
-- overall fit;
-- concise reason;
-- one meaningful trade-off or uncertainty;
-- relevant evidence state;
-- a clear next action.
+## Dual-pass decision
+First ask: **Which destinations fit this traveller?**
 
-If fewer than 3 defensible solutions exist, show the real count and a recovery path. Never manufacture filler.
+Then ask: **Which surviving trips are actually supportable by current stay evidence for these dates and constraints?**
 
-## Cost and latency policy
-Use deterministic code for repeated facts, inventory filtering and high-volume scoring. Use models for ambiguous intent, grounded synthesis and concise explanation. Parallelize independent I/O. Prefer a single inventory read over sequential per-destination lookups. Reserve expensive verification for cases where it can change the decision.
+Affiliate economics never improve destination/user-fit ranking.
+
+## Runtime agents
+The canonical V44/V45 registry is `travel_agent_registry_v44`. Active roles include Decision Orchestrator, Intent & Constraint Interpreter, Location Truth, Destination Scout, Inventory Grounder, Season & Weather Analyst, Route & Friction Analyst, Local Experience Scout, Food Scout, Value Analyst, Skeptical Auditor, Traveler Advocate and Decision Synthesizer.
+
+Do not add another overlapping agent when an existing role owns the capability.
+
+## Tool contract
+Agent tools are not prompt suggestions. Every tool named in `allowed_tools` must resolve in `travel_tool_registry_v45`.
+
+Inspect a role through `get_travel_agent_tool_contract_v45(agent_id)`.
+
+Every tool binding defines implementation kind/reference, trust level, freshness requirement, read/write boundary, latency budget and failure policy.
+
+Examples:
+- `knowledge-search` -> `search_travel_knowledge_v45`
+- `traveler-profile` -> `get_traveler_context_v45`
+- `destination-catalog` -> canonical destination catalog
+- `stay-offers` -> current stay inventory
+- `weather-evidence` -> current weather/climatology pipeline
+- `web-evidence` -> bounded research/verification
+- `facts/evidence` -> evidence-linked V44 knowledge
+
+A fail-closed tool may not be silently replaced by model memory.
+
+## Reasoning policy
+Each material stage follows:
+`RETRIEVE -> FILTER/GATE -> VERIFY -> SCORE/REASON -> CRITIQUE -> ACT/RETURN -> RECORD`
+
+Models may interpret ambiguous language, compare verified evidence, explain trade-offs and challenge a candidate.
+
+Models may not invent destination/stay facts, manufacture route schedules/weather/prices/availability, turn unknown into confirmed, override hard gates or use affiliate payout as traveller-fit evidence.
+
+Do not store hidden chain-of-thought. Store compact decisions, score components, evidence IDs, objections, confidence and tool usage.
+
+## Public portfolio
+The engine may keep a broad internal candidate universe. The first consumer decision surface returns the strongest **3 distinct defensible solutions** when available.
+
+Each public solution needs destination, fit score/status, concise reason, meaningful trade-off/uncertainty, evidence/availability state and a clear next action.
+
+If fewer than 3 survive, return the real count and recovery options. Never create filler.
 
 ## Observability
-Record stage timing, hard constraints, candidate IDs, inventory rows checked, surviving solutions, rank movement, fallback path and final slugs. Do not log secrets, raw private conversations when structured fields suffice, or private chain-of-thought.
+A material recommendation run should write:
+- `travel_agent_runs_v44`
+- `travel_agent_steps_v44`
+- stage/agent
+- `tool_keys`
+- bounded evidence refs
+- confidence
+- duration/failure state
+- final portfolio summary
 
-## Release invariant
-Current discovery UI uses `V40DiscoveryExperience` for compatibility and calls `/api/escape/solve-v42`. Version labels are not architecture. Do not replace these production interfaces merely to make names look current. Changes must pass typecheck, strict regression tests, production build, responsive/a11y review and runtime verification before GREEN.
+The user result is not enough to diagnose agent quality; the trace must show which evidence path produced it.
+
+## Failure behavior
+- missing memory -> continue without personalization
+- missing optional research -> continue with verified deterministic evidence
+- missing current weather -> label climatology/unknown correctly
+- missing required inventory for a hard stay constraint -> fail closed
+- ambiguous geography -> clarify/reject silent substitution
+- model failure -> deterministic verified fallback
+- tool failure -> obey the tool's registered failure policy
+
+## Release gate
+V45 is GREEN only when typecheck, strict regressions and production build pass; migrations are applied; `travel_agent_tool_health_v45.unresolved_tool_bindings = 0`; hybrid retrieval and memory attribution/cap smoke tests pass; current hard constraints beat memory/retrieval/model in adversarial tests; and runtime traces contain usable tool/evidence state.
+
+Deployment success alone is not proof of agent correctness.
