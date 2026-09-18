@@ -31,7 +31,8 @@ export type V50ConversationInterpretation={
   desiredEnergy:"restore"|"balanced"|"stimulating";
   socialPreference:"quiet"|"balanced"|"lively";
   noveltyPreference:"familiar"|"balanced"|"surprise";
-  mustHave:"sea"|"nature"|"culture"|"nightlife"|"none";\n  terrainIntent:"mountain"|null;
+  mustHave:"sea"|"nature"|"culture"|"nightlife"|"none";
+  terrainIntent:"mountain"|null;
   avoid:"long-travel"|"high-cost"|"crowds"|"none";
   distancePreference:"nearby"|"easy-hop"|"island"|"any";
   moods:TripRequest["moods"];
@@ -158,7 +159,8 @@ export function interpretV50Conversation(input:V50ConversationInput,now=new Date
   const desiredEnergy=inferOutcome(compactText,input.answers?.outcome,filters);
   const socialPreference=inferSocial(compactText,filters);
   const noveltyPreference=/μοναδικ|διαφορετικ|surprise|unique|hidden/i.test(norm(compactText))||filters.discovery>=76?"surprise":"balanced";
-  const mustHave=inferMustHave(compactText,filters);\n  const terrainIntent=/βουν|ορειν|mountain|chalet|σαλε/i.test(norm(compactText))?"mountain" as const:null;
+  const mustHave=inferMustHave(compactText,filters);
+  const terrainIntent=/βουν|ορειν|mountain|chalet|σαλε/i.test(norm(compactText))?"mountain" as const:null;
   const avoid=inferAvoid(compactText,input.answers?.friction,filters);
   const distancePreference=inferDistance(input.answers?.friction,compactText);
   const moods=inferMoods(compactText,filters);
