@@ -199,3 +199,37 @@ Mobile:
 - strict regression suite passes;
 - production build passes;
 - production deployment is verified before declaring GREEN.
+
+
+## V50 production art-direction lock
+The production homepage must not regress into a dark SaaS form shell. Keep the map/zoom interaction, but the surrounding experience is editorial and cinematic.
+
+Required composition:
+- full-bleed real travel imagery before UI chrome;
+- conversational agent as a visible, calm decision partner, not a generic chat bubble;
+- one high-information question at a time until the brief is sufficiently understood;
+- infographic Travel DNA controls write into the same decision state as conversation;
+- Top-5 results reveal on the map with ranked pins, active halo, score and hover intelligence;
+- the user may explore any stay, but a non-Top-5 choice is challenged rather than blindly validated;
+- no fake demand/weather/event metrics.
+
+## Photography standard
+Stay and destination photography uses real provider/user-owned source assets as source of truth.
+For each displayed image:
+1. reject broken, tiny, duplicated, badly compressed or obviously irrelevant assets;
+2. choose a focal crop for desktop and mobile;
+3. apply consistent cinematic grading through non-destructive presentation treatment;
+4. use editorial veil/contrast only to support legibility;
+5. add a circular “drone detail” inset only as a crop/detail of the same real source image unless a separately sourced aerial photo is verified;
+6. AI enhancement/upscale may improve a real asset, but must not create nonexistent architecture, amenities or scenery and then present it as documentary truth;
+7. always retain original source/provider provenance in the data layer.
+
+## Visual QA gate
+Before merge:
+- screenshot desktop 1440px and mobile 390px;
+- confirm first viewport has a clear focal path: feeling -> agent -> map;
+- confirm no giant form dominates the page;
+- confirm typography has editorial hierarchy and does not resemble generic AI SaaS;
+- confirm Top-5 pins remain legible over map/satellite/terrain;
+- confirm active result, map focus and agent thread remain synchronized;
+- confirm reduced-motion, keyboard interaction and touch targets.
