@@ -162,7 +162,7 @@ export async function POST(request:Request){
     const stayRows=await Promise.all(candidates.map(async rec=>({rec,...await bestStay(rec,trip.budget,trip.startDate,trip.endDate)})));
     const solutions=stayRows
       .filter((row):row is typeof row & {best:NonNullable<typeof row.best>}=>Boolean(row.best))
-      .slice(0,5)
+      .slice(0,10)
       .map((row,index)=>{
         const {offer,availability}=row.best;
         const destination=row.rec;
@@ -207,7 +207,7 @@ export async function POST(request:Request){
 
     const solutionCount=solutions.length;
     const agentMessage=solutionCount>=5
-      ? `Τώρα το έχω αρκετά καθαρά. Έλεγξα το brief σου, τις ημερομηνίες, τη μόνιμη travel μνήμη και πραγματικές stay offers. Σου κρατάω τις 5 πιο δυνατές λύσεις — όχι απλώς τους πιο δημοφιλείς προορισμούς.`
+      ? `Τώρα το έχω αρκετά καθαρά. Έλεγξα το brief σου, τις ημερομηνίες, τη μόνιμη travel μνήμη και πραγματικές stay offers. Σου κρατάω τις 10 πιο δυνατές λύσεις — όχι απλώς τους πιο δημοφιλείς προορισμούς.`
       : `Κατάλαβα το brief σου, αλλά μόνο ${solutionCount} λύσεις πέρασαν και το live stay check για αυτές τις ημερομηνίες. Προτιμώ να σου δείξω λιγότερες πραγματικές επιλογές παρά να γεμίσω τη λίστα με άσχετες.`;
 
     return responseWithProfile({
