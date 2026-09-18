@@ -22,7 +22,7 @@ assert(agentApi.includes("loadV8StayOffers")&&agentApi.includes("assessStayAvail
 assert(agentApi.includes(".slice(0,10)"),"V50 public portfolio must cap at ten verified solutions");
 assert(state.includes("nextV50Question")&&state.includes("parseNaturalWindowV50"),"V50 must clarify missing information and parse natural dates");
 assert(mapApi.includes("SUPABASE_SERVICE_ROLE_KEY"),"full-inventory API must remain server-side");
-assert(mapApi.includes('status:"not-trained"'),"untrained demand must not be fabricated");
+assert(mapApi.includes('status:"disabled"')&&mapApi.includes("Demand forecasting is not used for public ranking"),"disabled demand forecasting must be explicit and must not be fabricated into public ranking");
 for(const mode of ["map","satellite","terrain"])assert(ui.includes('"'+mode+'"'),"missing map mode "+mode);
 assert(css.includes("@media(max-width:820px)")&&css.includes("prefers-reduced-motion"),"V50 needs responsive and reduced-motion contracts");
 assert(css.includes(".droneCircle")&&css.includes(".heroMedia")&&css.includes(".intelDrone"),"V50 must apply the cinematic image-treatment system");
