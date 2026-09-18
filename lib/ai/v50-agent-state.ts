@@ -33,7 +33,7 @@ export type V50ConversationInterpretation={
   noveltyPreference:"familiar"|"balanced"|"surprise";
   mustHave:"sea"|"nature"|"culture"|"nightlife"|"none";
   avoid:"long-travel"|"high-cost"|"crowds"|"none";
-  distancePreference:"easy-hop"|"road-trip"|"any";
+  distancePreference:"nearby"|"easy-hop"|"island"|"any";
   moods:TripRequest["moods"];
   confidence:number;
   signals:string[];
@@ -128,10 +128,10 @@ function inferAvoid(text:string,friction:string|undefined,filters:V50Filters){
 
 function inferDistance(friction:string|undefined,text:string){
   if(friction==="easy-hop")return"easy-hop" as const;
-  if(friction==="road-trip")return"road-trip" as const;
+  if(friction==="road-trip")return"any" as const;
   const t=norm(text);
   if(/κοντα|κοντά|ευκολ|2 ωρ|3 ωρ|short drive/.test(t))return"easy-hop" as const;
-  if(/road trip|οδικ|διαδρομ/.test(t))return"road-trip" as const;
+  if(/road trip|οδικ|διαδρομ/.test(t))return"any" as const;
   return"any" as const;
 }
 
