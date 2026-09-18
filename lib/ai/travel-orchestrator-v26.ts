@@ -57,7 +57,9 @@ export async function runTravelOrchestratorV26(trip:TripRequest,sessionId:string
    writeRecommendationAudit({sessionId,status:"no-result",stage:"intent-clarification",timingsMs:{...timings,total:Date.now()-started},intentSource:intent.source,hardConstraint:hardConstraint?.id??null,stayRequirements:stayRequirementAudit(stayRequirements),llmBudget:llmBudget.snapshot(),catalogSize:catalog.length,auditor:{roles}});
    throw new TravelDecisionError(422,trip.language==="en"?"I could not understand the free-text note with enough confidence. Add one concrete thing you want or want to avoid.":"Δεν κατάλαβα το ελεύθερο κείμενο με αρκετή βεβαιότητα. Γράψε ένα συγκεκριμένο πράγμα που θέλεις ή δεν θέλεις.","intent-clarification");
   }
-  signal("understand:ready",24,{summary:intent.summary,semanticSource:intent.source,semanticPriorities:intent.semantic?.priorities??[],hardStayRequirements:stayRequirements.hard,agent:"intent-constraint"});signal("catalog:ready",36,{catalogSize:catalog.length,verifiedChoiceProfiles:choiceProfiles.size,agent:"orchestrator"});
+  signal("understand:ready",24,{summary:intent.summary,semanticSource:intent.source,semanticPriorities:intent.semantic?.priorities??[],hardStayRequirements:stayRequirements.hard,agent:"intent-constraint"});
+  signal("scope:ready",30,{origin:trip.origin,hardConstraint:hardConstraint?.id??null,constrainedCatalogSize:constrainedCatalog.length,agent:"location-truth"});
+  signal("catalog:ready",36,{catalogSize:catalog.length,verifiedChoiceProfiles:choiceProfiles.size,agent:"orchestrator"});
 
   stage="knowledge";const knowledge=await loadTravelKnowledgePriorV45(trip,intent).catch(()=>({enabled:false,hits:[],bySlug:new Map<string,number>()}));mark("knowledge");
   signal("knowledge:ready",38,{enabled:knowledge.enabled,matched:knowledge.hits.length,top:knowledge.hits.slice(0,5).map(hit=>({key:hit.canonical_key,score:hit.final_score})),agent:"destination-scout"});
