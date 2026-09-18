@@ -140,7 +140,7 @@ export function V50TravelIntelligenceHome(){
     const rank=topRank.get(product.productId),isTop=rank!=null;
     const marker=L.circleMarker([product.latitude,product.longitude],{
      radius:isTop?9:3.2,weight:isTop?2:1,color:isTop?"#ffbe6b":"#dbe8df",
-     fillColor:isTop?"#ff8f3d":"#5d7d72",fillOpacity:isTop?.96:.56,opacity:isTop?1:.5
+     fillColor:isTop?"#ff8f3d":"#5d7d72",fillOpacity:isTop ? .96 : .56,opacity:isTop?1:.5
     }).addTo(group);
     marker.on("mouseover",()=>setHovered(product));
     marker.on("mouseout",()=>setHovered(current=>current?.productId===product.productId?null:current));
