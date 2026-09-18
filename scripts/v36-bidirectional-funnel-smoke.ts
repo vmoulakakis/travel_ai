@@ -47,7 +47,7 @@ expect(
   "destination media must remain cinematic and sourced"
 );
 expect(
-  isV50?activeSolver.includes(".slice(0,5)"):(home.includes("slice(0,3)")||home.includes("slice(0, 3)")),
+  isV50?activeSolver.includes(".slice(0,10)"):(home.includes("slice(0,3)")||home.includes("slice(0, 3)")),
   "active discovery must expose multiple bounded options"
 );
 expect(
@@ -74,4 +74,4 @@ expect(
 );
 
 if(failures.length){console.error("Bidirectional funnel compatibility smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log(`Bidirectional funnel compatibility smoke passed: active=${isV50?"V50 persistent agent + Top 5 live stays":"V40/V42 semantic shell"}, legacy V36 fallback retained.`);
+console.log(`Bidirectional funnel compatibility smoke passed: active=${isV50?"V50 persistent agent + Top 10 live stays":"V40/V42 semantic shell"}, legacy V36 fallback retained.`);
