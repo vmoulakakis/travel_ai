@@ -21,6 +21,9 @@ export type KnowledgePriorV45={enabled:boolean;hits:KnowledgeHitV45[];bySlug:Map
 const clamp=(n:number,a=0,b=1)=>Math.max(a,Math.min(b,n));
 const baseUrl=()=>process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co";
 const serviceKey=()=>process.env.SUPABASE_SERVICE_ROLE_KEY??"";
+export const TRAVEL_PROFILE_COOKIE="travel_profile_key";
+const profileCookiePattern=/(?:^|;\s*)travel_profile_key=([0-9a-f-]{36})(?:;|$)/i;
+export function travelerProfileKeyFromRequest(request:Request){return request.headers.get("cookie")?.match(profileCookiePattern)?.[1]??null}
 function headers(){const key=serviceKey();return key?{apikey:key,Authorization:`Bearer ${key}`,"content-type":"application/json"}:null}
 
 async function rpc<T>(name:string,body:JsonRecord,timeout=3000):Promise<T|null>{
@@ -119,8 +122,15 @@ export async function recordTravelerSignalV45(input:{profileKey:string;sessionId
 }
 
 export async function startTravelAgentRunV45(sessionId:string,objective:string,input:JsonRecord){
- const id=await rpc<string>("start_travel_agent_run_v44",{p_session_id:sessionId,p_mission_id:null,p_objective:objective,p_input:input},2200);
- return typeof id==="string"?id:null;
+ const h=headers();if(!h)return null;
+ try{
+  const r=await fetch(`${baseUrl().replace(/\/$/,"")}/rest/v1/travel_agent_runs_v44`,{
+   method:"POST",headers:{...h,Prefer:"return=representation"},cache:"no-store",signal:AbortSignal.timeout(2200),
+   body:JSON.stringify({session_id:sessionId,workflow_key:"vacation-discovery-v44",orchestrator_version:"V45",status:"running",objective,input_snapshot:input,started_at:new Date().toISOString()})
+  });
+  if(!r.ok)return null;
+  const rows=await r.json() as Array<{id?:string}>;return rows[0]?.id??null;
+ }catch{return null}
 }
 
 export async function writeTravelAgentStepV45(input:{runId:string;stageKey:string;agentId:string;status?:"succeeded"|"failed"|"partial";inputSnapshot?:JsonRecord;outputSnapshot?:JsonRecord;evidenceRefs?:unknown;confidence?:number|null;durationMs?:number;llmCalls?:number;error?:string|null}){
