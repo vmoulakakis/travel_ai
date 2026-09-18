@@ -234,6 +234,19 @@ export function V50TravelIntelligenceHome(){
   await callAgent("",answers,p);
  }
 
+ function openCinematicSolution(solution:Solution){
+  const url=landingUrl(solution.destination.slug,solution.stay.productId);
+  if(!url)return;
+  const index=solutions.findIndex(x=>x.stay.productId===solution.stay.productId);
+  if(index>=0)setActive(index);
+  setSelectedPin(null);
+  setHoverPin(null);
+  setBaseMode("satellite");
+  setCinematicTarget(solution.stay.productId);
+  mapRef.current?.flyTo([solution.stay.latitude,solution.stay.longitude],15,{duration:1.05});
+  window.setTimeout(()=>window.location.assign(url),780);
+ }
+
  function focus(index:number){
   setActive(index);setSelectedPin(null);
   const s=solutions[index];
@@ -355,7 +368,7 @@ export function V50TravelIntelligenceHome(){
           </div>
           <div className={styles.intelActions}>
             <a href={landingUrl(activeSolution.destination.slug,activeSolution.stay.productId)??"#"}>ΔΕΣ ΤΟ ΚΑΤΑΛΥΜΑ <ArrowRight/></a>
-            <a className={styles.agentCinematicCta} href={landingUrl(activeSolution.destination.slug,activeSolution.stay.productId)??"#"} onClick={()=>{setActive(Math.max(0,solutions.findIndex(x=>x.stay.productId===activeSolution.stay.productId)));setBaseMode("satellite");setCinematicTarget(activeSolution.stay.productId)}}>ΡΩΤΑ ΤΟΝ AGENT · 360° <ArrowRight/></a>
+            <button className={styles.agentCinematicCta} type="button" onClick={()=>openCinematicSolution(activeSolution)}>ΡΩΤΑ ΤΟΝ AGENT · ΑΝΟΙΞΕ 360° <ArrowRight/></button>
           </div>
         </div>
       </aside>:null}
