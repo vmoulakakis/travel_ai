@@ -36,11 +36,11 @@ The 16d vector is an interpretable travel preference vector, not a dense languag
 Retrieval is a bounded evidence prior. It may break close ties among already eligible candidates but may not override hard constraints or deterministic truth.
 
 ## Dual-pass decision
-First ask: **Which destinations fit this traveller?**
+Dual-pass reasoning separates traveller fit from commercial inventory. First ask: **Which destinations fit this traveller?**
 
-Then ask: **Which surviving trips are actually supportable by current stay evidence for these dates and constraints?**
+Then run an **Inventory Reality Pass / Reverse Check**: **Which surviving trips are actually supportable by real stay inventory and current evidence for these dates and constraints?**
 
-Affiliate economics never improve destination/user-fit ranking.
+Commission never enters the fit score and never raises destination/user-fit score. Affiliate economics may only affect link attribution after an eligible trip has survived the evidence and inventory gates.
 
 ## Runtime agents
 The canonical V44/V45 registry is `travel_agent_registry_v44`. Active roles include Decision Orchestrator, Intent & Constraint Interpreter, Location Truth, Destination Scout, Inventory Grounder, Season & Weather Analyst, Route & Friction Analyst, Local Experience Scout, Food Scout, Value Analyst, Skeptical Auditor, Traveler Advocate and Decision Synthesizer.
