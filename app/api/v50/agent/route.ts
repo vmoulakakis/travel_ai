@@ -287,9 +287,11 @@ export async function POST(request:Request){
       });
 
     const solutionCount=solutions.length;
-    const agentMessage=solutionCount>=5
-      ? `Τώρα το έχω αρκετά καθαρά. Έλεγξα το brief σου, τις ημερομηνίες, τη μόνιμη travel μνήμη και πραγματικές stay offers. Σου κρατάω τις 10 πιο δυνατές λύσεις — όχι απλώς τους πιο δημοφιλείς προορισμούς.`
-      : `Κατάλαβα το brief σου, αλλά μόνο ${solutionCount} λύσεις πέρασαν και το live stay check για αυτές τις ημερομηνίες. Προτιμώ να σου δείξω λιγότερες πραγματικές επιλογές παρά να γεμίσω τη λίστα με άσχετες.`;
+    const topNames=solutions.slice(0,3).map(x=>x.destination.name).filter(Boolean);
+    const dateText=trip.startDate&&trip.endDate?` για ${greekDate(trip.startDate)}–${greekDate(trip.endDate)}`:"";
+    const agentMessage=solutionCount
+      ? `Έχω ${solutionCount} πραγματικές επιλογές${dateText}. Πρώτες τώρα: ${topNames.join(" · ")}. Τις άνοιξα αμέσως από κάτω με κατάλυμα, τιμή και γιατί ταιριάζει η καθεμία.`
+      : `Το brief σου είναι καθαρό, αλλά δεν βρήκα αυτή τη στιγμή επιβεβαιωμένη stay-backed επιλογή που να αξίζει να σου δείξω. Κρατάω τα κριτήριά σου και δεν θα γεμίσω τη λίστα με άσχετους προορισμούς.`;
 
     return responseWithProfile({
       ok:true,state:"results",agentMessage,
