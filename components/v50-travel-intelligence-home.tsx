@@ -58,7 +58,7 @@ export function V50TravelIntelligenceHome(){
  const [ratings,setRatings]=useState<Record<string,RatingView|null>>({});
  const [lastTrip,setLastTrip]=useState<AgentPayload["trip"]|null>(null);
  const [showAll,setShowAll]=useState(true);
- const mapHost=useRef<HTMLDivElement|null>(null);
+ const mapHost=useRef<HTMLDivElement|null>(null);\n const resultsRef=useRef<HTMLElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
  const tileRef=useRef<TileLayer|null>(null);
  const markerLayer=useRef<LayerGroup|null>(null);
@@ -198,6 +198,7 @@ export function V50TravelIntelligenceHome(){
       setLastTrip(payload.trip??null);
       setActive(0);
       setSelectedPin(null);
+      requestAnimationFrame(()=>resultsRef.current?.scrollIntoView({behavior:"smooth",block:"start"}));
     }
   }catch{
     setQuestion(null);
@@ -219,7 +220,7 @@ export function V50TravelIntelligenceHome(){
     });
     setMessages(v=>[...v,{id:id(),role:"agent",text:payload.agentMessage}]);
     setQuestion(payload.question??null);
-    if(payload.state==="results"&&payload.solutions){setSolutions(payload.solutions);setLastTrip(payload.trip??null);setActive(0)}
+    if(payload.state==="results"&&payload.solutions){setSolutions(payload.solutions);setLastTrip(payload.trip??null);setActive(0);requestAnimationFrame(()=>resultsRef.current?.scrollIntoView({behavior:"smooth",block:"start"}))}
   }catch{
     setQuestion(null);
     setMessages(v=>[...v,{id:id(),role:"agent",text:"Ωραία — το brief είναι αρκετά καθαρό και δεν χρειάζεται να σε ξαναρωτήσω τα ίδια. Συνέχισε με αυτό που σε νοιάζει περισσότερο και θα χτίσω πάνω στις επιλογές σου."}]);
@@ -267,7 +268,7 @@ export function V50TravelIntelligenceHome(){
 
       <section className={styles.agentPanel}>
         <div className={styles.agentHeader}>
-          <div><Brain weight="fill"/><span><b>Travel Agent</b><small>persistent memory · live tools</small></span></div>
+          <div><Brain weight="fill"/><span><b>Travel Agent</b><small>travel profile · live inventory</small></span></div>
           <span className={styles.confidence}>{busy?"thinking…":"ready"}</span>
         </div>
 
@@ -304,8 +305,8 @@ export function V50TravelIntelligenceHome(){
         </div>
       </section>
 
-      {solutions.length?<section className={styles.resultsPanel}>
-        <div className={styles.sectionTitle}><div><span>03</span><h2>Οι 10 λύσεις σου</h2></div><p>Δέκα λύσεις, όλες περασμένες από agent reasoning και live stay verification.</p></div>
+      {solutions.length?<section ref={resultsRef} className={styles.resultsPanel}>
+        <div className={styles.sectionTitle}><div><span>03</span><h2>Οι καλύτερες επιλογές τώρα</h2></div><p>Πραγματικά stays που πέρασαν το τρέχον brief και τα διαθέσιμα travel-fit checks.</p></div>
         <div className={styles.solutionRail}>
           {solutions.map((s,index)=><article key={s.stay.productId} className={index===active?styles.solutionActive:""} onMouseEnter={()=>focus(index)}>
             <div className={styles.solutionImage} style={s.stay.imageUrl?{backgroundImage:"url("+s.stay.imageUrl+")"}:undefined}>
