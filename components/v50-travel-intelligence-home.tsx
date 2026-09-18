@@ -71,6 +71,31 @@ export function V50TravelIntelligenceHome(){
  const detail=activeSolution?.stay.imageUrl??heroImages[1]??hero;
  const userHistory=messages.filter(x=>x.role==="user").slice(-5).map(x=>x.text).join(" · ").slice(-700);
 
+ function landingUrl(slug:string|null|undefined,productId:string){
+  if(!slug)return null;
+  const q=new URLSearchParams();
+  if(lastTrip){
+   q.set("start",lastTrip.startDate);q.set("end",lastTrip.endDate);q.set("budget",String(lastTrip.budget));
+   q.set("origin",lastTrip.origin);q.set("travelerType",lastTrip.travelerType);
+   if(lastTrip.moods?.[0])q.set("mood",lastTrip.moods[0]);
+  }
+  const suffix=q.toString()?"?"+q.toString():"";
+  return "/escape/"+encodeURIComponent(slug)+"/stay/"+encodeURIComponent(productId)+suffix;
+ }
+
+ async function ensureRating(productId:string,propertyName:string,destinationSlug:string|null|undefined,destinationName:string,latitude:number,longitude:number){
+  if(!destinationSlug||Object.prototype.hasOwnProperty.call(ratings,productId))return;
+  setRatings(v=>({...v,[productId]:null}));
+  try{
+   const response=await fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+    propertyName,sourceProductId:productId,destinationSlug,destinationName,latitude,longitude
+   })});
+   const payload=await response.json() as {ok?:boolean;result?:{primary?:{rating:number;scale:number;provider:string;reviewCount:number|null}|null}};
+   const p=payload.result?.primary;
+   setRatings(v=>({...v,[productId]:p?{label:(p.scale===5?p.rating.toFixed(1)+"★":Math.round(p.rating)+"/"+p.scale),provider:p.provider,reviewCount:p.reviewCount}:null}));
+  }catch{setRatings(v=>({...v,[productId]:null}))}
+ }
+
  useEffect(()=>{
   fetch("/api/v50/map-stays?limit=1800",{cache:"no-store"}).then(r=>r.json()).then((p:MapPayload)=>{
     setInventory(Array.isArray(p.products)?p.products:[]);
@@ -113,16 +138,19 @@ export function V50TravelIntelligenceHome(){
     if(showAll){
       for(const p of inventory){
         if(topIds.has(p.productId))continue;
-        const m=L.circleMarker([p.latitude,p.longitude],{radius:2.8,weight:1,color:"#d5e2dc",fillColor:"#6d8f82",fillOpacity:.5,opacity:.45}).addTo(group);
-        m.on("click",()=>{setSelectedPin(p);void challengeStay(p)});
+        const icon=L.divIcon({className:"v50StayStarHost",html:'<div class="v50StayStar" aria-hidden="true">★</div>',iconSize:[18,18],iconAnchor:[9,9]});
+        const m=L.marker([p.latitude,p.longitude],{icon,zIndexOffset:50}).addTo(group);
+        m.on("mouseover",()=>{setHoverPin(p);void ensureRating(p.productId,p.name,p.destinationSlug,p.location||p.address||"Ελλάδα",p.latitude,p.longitude)});
+        m.on("click",()=>{setHoverPin(p);setSelectedPin(p);void challengeStay(p)});
       }
     }
     solutions.forEach((s,index)=>{
       const isActive=index===active;
-      const html='<div class="v50Pin '+(isActive?"is-active":"")+'"><span class="v50PinRank">'+(index+1)+'</span><span class="v50PinScore">'+Math.round(s.score)+'%</span></div>';
-      const icon=L.divIcon({className:"v50PinHost",html,iconSize:[64,64],iconAnchor:[32,55]});
-      const m=L.marker([s.stay.latitude,s.stay.longitude],{icon,zIndexOffset:1000-index*10}).addTo(group);
-      m.on("click",()=>{setActive(index);setSelectedPin(null);mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75})});
+      const html='<div class="v50TopStar '+(isActive?"is-active":"")+'"><span class="v50StarGlyph">★</span><span class="v50StarRank">'+(index+1)+'</span><span class="v50StarScore">'+Math.round(s.score)+'%</span></div>';
+      const icon=L.divIcon({className:"v50PinHost",html,iconSize:[72,72],iconAnchor:[36,36]});
+      const m=L.marker([s.stay.latitude,s.stay.longitude],{icon,zIndexOffset:1200-index*10}).addTo(group);
+      m.on("mouseover",()=>{setActive(index);setHoverPin(null);void ensureRating(s.stay.productId,s.stay.name,s.destination.slug,s.destination.name,s.stay.latitude,s.stay.longitude)});
+      m.on("click",()=>{setActive(index);setSelectedPin(null);setHoverPin(null);mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75})});
     });
   });
   return()=>{cancelled=true};
@@ -132,6 +160,7 @@ export function V50TravelIntelligenceHome(){
   if(activeSolution&&mapRef.current){
     mapRef.current.flyTo([activeSolution.stay.latitude,activeSolution.stay.longitude],11,{duration:.8});
   }
+  if(activeSolution){void ensureRating(activeSolution.stay.productId,activeSolution.stay.name,activeSolution.destination.slug,activeSolution.destination.name,activeSolution.stay.latitude,activeSolution.stay.longitude)}
  },[activeSolution?.stay.productId]);
 
  async function callAgent(text:string,nextAnswers=answers,selected?:StayPin){
