@@ -42,7 +42,7 @@ type OfferRow={
 type Product={
  productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;
  category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;
- onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;
+ onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null;
 };
 
 const base=()=>process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co";
