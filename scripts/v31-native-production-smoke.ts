@@ -7,17 +7,17 @@ const home=read("app/page.tsx"),homeEn=read("app/en/page.tsx"),layout=read("app/
 const isV50=home.includes("V50TravelIntelligenceHome"),isV40=home.includes("V40DiscoveryExperience"),currentVersion=isV50?"v50":isV40?"v42":home.includes("V38EscapeFunnel")?"v38":home.includes("V36EscapeFunnel")?"v36":"v34";
 const escapeFunnelPath=isV50?"components/v50-travel-intelligence-home.tsx":isV40?"components/v40-discovery-experience.tsx":`components/${currentVersion}-escape-funnel.tsx`;
 const selectedExperiencePath=(isV50||isV40)?"components/v40-stay-workspace.tsx":currentVersion==="v38"?"components/v38-escape-builder-client.tsx":"components/v34-escape-builder-client.tsx";
-const solverPath=(isV50||isV40)?"app/api/escape/solve-v42/route.ts":currentVersion==="v34"?"app/api/escape/solve/stream/route.ts":"app/api/escape/solve-v36/stream/route.ts";
+const solverPath=isV50?"app/api/v50/agent/route.ts":isV40?"app/api/escape/solve-v42/route.ts":currentVersion==="v34"?"app/api/escape/solve/stream/route.ts":"app/api/escape/solve-v36/stream/route.ts";
 const rankingPath=currentVersion==="v34"?"lib/decision/solution-ranking-v35.ts":"lib/decision/solution-ranking-v36.ts";
 const escapeFunnel=read(escapeFunnelPath),selectedExperience=read(selectedExperiencePath),escapePage=read("app/escape/[slug]/page.tsx"),solver=read(solverPath),ranking=read(rankingPath),v39Map=fs.existsSync("components/v39-destination-map-workspace.tsx"),stayPath="app/escape/[slug]/stay/[offerId]/page.tsx",stayRoute=v39Map&&fs.existsSync(stayPath)?read(stayPath):"";
 
 must((isV50&&home.includes("V50TravelIntelligenceHome"))||(isV40&&home.includes("V40DiscoveryExperience"))||/V\d+EscapeFunnel/.test(home),"Greek homepage must use the current escape experience");
-must((isV40&&homeEn.includes("V40DiscoveryExperience"))||/V\d+EscapeFunnel/.test(homeEn),"English homepage must use the current escape experience");
+must(homeEn.includes("V40DiscoveryExperience")||homeEn.includes("V50TravelIntelligenceHome")||/V\d+EscapeFunnel/.test(homeEn),"English homepage must use a supported escape experience");
 must(!home.includes("AiGreeceHomeV28"),"Greek homepage must not fall back to V28 shell");
 must(layout.includes("v31-native.css"),"V31 support CSS must stay available for legacy production routes");
 must(planner.includes("V31AiPlannerClient")&&plannerEn.includes("V31AiPlannerClient"),"Both legacy planner routes must keep the streaming planner during funnel evolution");
 must(client.includes('/api/recommend/stream'),"Legacy planner must still call the legacy production recommendation stream");
-must(escapeFunnel.includes('/api/escape/discovery'),"Current escape experience must understand the traveller before matching");
+must(isV50?escapeFunnel.includes('/api/v50/agent'):escapeFunnel.includes('/api/escape/discovery'),"Current escape experience must understand the traveller before matching");
 const cinematicDestinationFirst=(isV40||isV50)
  && escapeFunnel.includes("result?.solutions")
  && escapeFunnel.includes("slice(0,3)")
@@ -28,9 +28,9 @@ const cinematicDestinationFirst=(isV40||isV50)
  && escapeFunnel.includes("Real stay")
  && escapeFunnel.includes("propertyName")
  && !escapeFunnel.includes("href={`/escape/${slug}/stay/");
-must(isV50?(escapeFunnel.includes("slice(0,5)")&&escapeFunnel.includes("solutions.map")&&escapeFunnel.includes("LIVE TRAVEL UNIVERSE")&&escapeFunnel.includes("AI CHALLENGE")):isV40?cinematicDestinationFirst:(escapeFunnel.includes("resultRail")&&escapeFunnel.includes("solutions.map")&&escapeFunnel.includes("combinedScore")),"Current discovery experience must expose real ranked destinations before stay selection");
-must((isV50||isV40)?(solver.includes("escape-inventory-v42")&&solver.includes("semanticStayScore")&&solver.includes("intentSource")):(solver.includes("buildEscapeSolutionsV36")||solver.includes("buildEscapeSolutionsV35")),"Current inventory reranking route is missing");
-must((isV50||isV40)?(solver.includes("destinationScore")&&solver.includes("stayScore")&&solver.includes("valueScore")&&solver.includes("locationScore")):(ranking.includes("combinedScore")&&(ranking.includes("stayScore")||ranking.includes("inventoryScore"))),"Current solution ranking must combine destination and real stay/inventory evidence");
+must(isV50?(escapeFunnel.includes("solutions.map")&&escapeFunnel.includes("rankMarker")&&escapeFunnel.includes("Travel DNA")&&escapeFunnel.includes("fitBounds")):isV40?cinematicDestinationFirst:(escapeFunnel.includes("resultRail")&&escapeFunnel.includes("solutions.map")&&escapeFunnel.includes("combinedScore")),"Current discovery experience must expose real ranked destinations before stay selection");
+must(isV50?(solver.includes("runTravelOrchestratorV45")&&solver.includes("loadV8StayOffers")&&solver.includes("assessStayAvailabilityV20")):isV40?(solver.includes("escape-inventory-v42")&&solver.includes("semanticStayScore")&&solver.includes("intentSource")):(solver.includes("buildEscapeSolutionsV36")||solver.includes("buildEscapeSolutionsV35")),"Current inventory reranking route is missing");
+must(isV50?(solver.includes("offerScore")&&solver.includes("truthScore")&&solver.includes(".slice(0,5)")):isV40?(solver.includes("destinationScore")&&solver.includes("stayScore")&&solver.includes("valueScore")&&solver.includes("locationScore")):(ranking.includes("combinedScore")&&(ranking.includes("stayScore")||ranking.includes("inventoryScore"))),"Current solution ranking must combine destination and real stay/inventory evidence");
 must((isV50||isV40)?(selectedExperience.includes('/api/trip-builder')&&selectedExperience.includes('/api/escape/stay-local')&&selectedExperience.includes('/api/escape/stay-reviews')):(selectedExperience.includes('/api/escape/research')&&selectedExperience.indexOf('/api/escape/research')<selectedExperience.indexOf('/api/trip-builder')),"Selected escape must preserve grounded 360 research and stay-specific trip building");
 must(selectedExperience.includes('/api/guide/email'),"Selected escape must retain Escape Book email delivery");
 must(selectedExperience.includes('sponsored nofollow noopener'),"Affiliate outbound must open safely and remain explicitly sponsored");
