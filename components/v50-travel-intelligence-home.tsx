@@ -57,7 +57,7 @@ export function V50TravelIntelligenceHome(){
  const [hoverPin,setHoverPin]=useState<StayPin|null>(null);
  const [ratings,setRatings]=useState<Record<string,RatingView|null>>({});
  const [lastTrip,setLastTrip]=useState<AgentPayload["trip"]|null>(null);
- const [showAll,setShowAll]=useState(true);
+ const [showAll,setShowAll]=useState(true);\n const [cinematicTarget,setCinematicTarget]=useState<string|null>(null);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const resultsRef=useRef<HTMLElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
@@ -239,6 +239,16 @@ export function V50TravelIntelligenceHome(){
   if(s)mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75});
  }
 
+ function openCinematicSolution(solution:Solution){
+  const href=landingUrl(solution.destination.slug,solution.stay.productId);
+  if(!href)return;
+  setActive(Math.max(0,solutions.findIndex(x=>x.stay.productId===solution.stay.productId)));
+  setBaseMode("satellite");
+  setCinematicTarget(solution.stay.productId);
+  mapRef.current?.flyTo([solution.stay.latitude,solution.stay.longitude],14,{duration:1.15});
+  window.setTimeout(()=>{window.location.assign(href)},1100);
+ }
+
  function showAllSolutions(){
   if(!mapRef.current||!solutions.length)return;
   void import("leaflet").then(L=>{
@@ -326,7 +336,7 @@ export function V50TravelIntelligenceHome(){
       </section>:null}
     </div>
 
-    <section className={styles.mapStage}>
+    <section className={`${styles.mapStage} ${cinematicTarget?styles.cinematicLaunch:""}`}>
       <div ref={mapHost} className={styles.map}/>
       <div className={styles.mapShade}/>
       <div className={styles.mapModes}>
@@ -354,7 +364,7 @@ export function V50TravelIntelligenceHome(){
           </div>
           <div className={styles.intelActions}>
             <a href={landingUrl(activeSolution.destination.slug,activeSolution.stay.productId)??"#"}>ΔΕΣ ΤΟ ΚΑΤΑΛΥΜΑ <ArrowRight/></a>
-            <button onClick={()=>setDraft("Μου αρέσει η επιλογή "+activeSolution.destination.name+". Σύγκρινέ την με κάτι καλύτερο αν υπάρχει.")}>ΡΩΤΑ ΤΟΝ AGENT</button>
+            <button onClick={()=>openCinematicSolution(activeSolution)}>ΡΩΤΑ ΤΟΝ AGENT</button>
           </div>
         </div>
       </aside>:null}
@@ -380,7 +390,7 @@ export function V50TravelIntelligenceHome(){
         <div><small>AI CHALLENGE</small><b>{selectedPin.name}</b><p>Το επέλεξες από τον χάρτη, αλλά δεν είναι στο τρέχον Top 5. Ο agent το σύγκρινε χωρίς να σου πει απλώς «ναι».</p></div>
       </div>:null}
 
-      <div className={styles.mapCorner}><Crosshair/><span>Ο χάρτης παραμένει ο ίδιος εγκέφαλος με τη συνομιλία και τα φίλτρα.</span></div>
+      <div className={styles.mapCorner}><Crosshair/><span>Ο χάρτης παραμένει ο ίδιος εγκέφαλος με τη συνομιλία και τα φίλτρα.</span></div>{cinematicTarget?<div className={styles.cinematicOverlay}><span>CINEMATIC ROUTE</span><b>Κλειδώνω stay · περιοχή · καιρό · 360° dossier</b></div>:null}
     </section>
   </section>
  </main>;
