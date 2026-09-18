@@ -65,6 +65,14 @@ async function page(offset:number,limit:number){
 export async function GET(request:Request){
  try{
   const requested=Number(new URL(request.url).searchParams.get("limit")??1800),limit=Math.max(100,Math.min(2000,Number.isFinite(requested)?Math.round(requested):1800));
+  if(!key()){
+   const fallbackUrl=new URL(process.env.SUPABASE_STAY_PRODUCT_MAP_V32_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/stay-product-map-v32");
+   fallbackUrl.searchParams.set("limit","300");
+   const fallback=await fetch(fallbackUrl,{headers:{accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(8000)});
+   if(!fallback.ok)throw new Error("fallback_map_unavailable");
+   const payload=await fallback.json() as Record<string,unknown>;
+   return NextResponse.json({...payload,version:50,fullUniverse:false,demandLayer:{status:"not-trained",reason:"Preview fallback uses the existing capped public inventory feed; V50 demand forecasting is not trained yet."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-prototype-fallback"}});
+  }
   const rows:OfferRow[]=[];
   for(let offset=0;offset<3000&&rows.length<Math.max(limit*2,2000);offset+=1000){
    const batch=await page(offset,1000);rows.push(...batch);if(batch.length<1000)break;
