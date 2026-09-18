@@ -54,7 +54,13 @@ function nextFriday(anchor:Date,strictAfter:boolean){
   return d;
 }
 
-function explicitDate(text:string){
+const greekMonths:Record<string,number>={
+  ιανουαρι:0,ιαν:0,φεβρουαρι:1,φεβ:1,μαρτι:2,μαρ:2,απριλι:3,απρ:3,μαιο:4,μαι:4,
+  ιουνι:5,ιουν:5,ιουλι:6,ιουλ:6,αυγουστο:7,αυγουστ:7,αυγ:7,σεπτεμβρι:8,σεπτ:8,οκτωβρι:9,οκτ:9,
+  νοεμβρι:10,νοε:10,δεκεμβρι:11,δεκ:11
+};
+
+function explicitDate(text:string,now=new Date()){
   let m=text.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\b/);
   if(m){
     const d=new Date(Date.UTC(Number(m[3]),Number(m[2])-1,Number(m[1])));
@@ -65,25 +71,50 @@ function explicitDate(text:string){
     const d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])));
     if(validDate(d))return d;
   }
+
+  const normalized=norm(text);
+  const named=normalized.match(/(?:^|\s)(\d{1,2})\s+(ιανουαρι(?:ου)?|ιαν|φεβρουαρι(?:ου)?|φεβ|μαρτι(?:ου)?|μαρ|απριλι(?:ου)?|απρ|μαι(?:ου)?|μαι|ιουνι(?:ου)?|ιουν|ιουλι(?:ου)?|ιουλ|αυγουστ(?:ου|ο)?|αυγ|σεπτεμβρι(?:ου)?|σεπτ|οκτωβρι(?:ου)?|οκτ|νοεμβρι(?:ου)?|νοε|δεκεμβρι(?:ου)?|δεκ)(?:\s+(\d{4}))?(?=\s|$|[,.!?;:])/);
+  if(named){
+    const day=Number(named[1]),monthToken=named[2].replace(/ου$/,"").replace(/ο$/,""),month=greekMonths[monthToken];
+    if(month!=null){
+      let year=named[3]?Number(named[3]):now.getUTCFullYear();
+      let d=new Date(Date.UTC(year,month,day));
+      if(!named[3]&&d.getTime()<new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())).getTime()){
+        year+=1;d=new Date(Date.UTC(year,month,day));
+      }
+      if(validDate(d)&&d.getUTCDate()===day&&d.getUTCMonth()===month)return d;
+    }
+  }
   return null;
 }
 
 export function parseNaturalWindowV50(text:string,answer:string|undefined,now=new Date()){
-  const combined=[text,answer??""].join(" ").trim();
-  const anchor=explicitDate(combined);
+  const combined=[text,answer??""].join(" ").trim(),normalized=norm(combined);
+  const range=normalized.match(/(?:^|\s)(\d{1,2})\s*[-–]\s*(\d{1,2})\s+(ιανουαρι(?:ου)?|φεβρουαρι(?:ου)?|μαρτι(?:ου)?|απριλι(?:ου)?|μαι(?:ου)?|ιουνι(?:ου)?|ιουλι(?:ου)?|αυγουστ(?:ου|ο)?|σεπτεμβρι(?:ου)?|οκτωβρι(?:ου)?|νοεμβρι(?:ου)?|δεκεμβρι(?:ου)?)(?:\s+(\d{4}))?(?=\s|$|[,.!?;:])/);
+  if(range){
+    const from=explicitDate(range[1]+" "+range[3]+(range[4]?" "+range[4]:""),now),to=explicitDate(range[2]+" "+range[3]+(range[4]?" "+range[4]:""),now);
+    if(from&&to&&to>from)return{startDate:iso(from),endDate:iso(to),nights:Math.max(1,Math.round((to.getTime()-from.getTime())/86400000)),weekend:weekendRe.test(combined),flexible:false};
+  }
+
+  const anchor=explicitDate(combined,now);
   const isWeekend=weekendRe.test(combined);
   const after=/μετ[αά]\s*(τις|την)?|after/i.test(combined);
   const flexible=after||/ευελικ|flex|οποτε|όποτε|οποιο|whatever/i.test(combined);
-  if(!anchor&&!/αυτ[οό]\\s*το\\s*σκ|this weekend|επομεν|επόμεν|next weekend|ευελικ|flex|οποτε|όποτε/i.test(combined))return null;
+  const thisWeekend=/αυτ[οό]\s*το\s*σκ|this weekend/i.test(combined);
+  const nextWeekend=/επομεν[οό]\s*σκ|next weekend/i.test(combined);
+  if(!anchor&&!thisWeekend&&!nextWeekend&&!/ευελικ|flex|οποτε|όποτε/i.test(combined))return null;
 
   let start:Date;
   if(anchor){
     start=isWeekend?nextFriday(anchor,after):new Date(anchor.getTime());
+  }else if(thisWeekend){
+    const day=now.getUTCDay();
+    start=day===5?new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())):day===6?new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())):nextFriday(now,false);
   }else{
     start=nextFriday(now,true);
   }
-  const nights=isWeekend?2:3,end=new Date(start.getTime()+nights*86400000);
-  return{startDate:iso(start),endDate:iso(end),nights,weekend:isWeekend,flexible};
+  const nights=isWeekend||thisWeekend||nextWeekend?2:3,end=new Date(start.getTime()+nights*86400000);
+  return{startDate:iso(start),endDate:iso(end),nights,weekend:isWeekend||thisWeekend||nextWeekend,flexible};
 }
 
 function inferTraveler(text:string,answer?:string):V50TravelerType|null{

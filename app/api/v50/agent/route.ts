@@ -20,6 +20,7 @@ export const dynamic="force-dynamic";
 export const maxDuration=60;
 
 type Input=V50ConversationInput & {
+  lastQuestionId?:string;
   currentTopIds?:string[];
   selectedStay?:{
     productId:string;
@@ -57,6 +58,35 @@ async function bestStay(recommendation:V8Recommendation,budget:number,start:stri
     .filter(x=>x.score>=0)
     .sort((a,b)=>b.score-a.score);
   return{best:ranked[0]??null,offerCount:ranked.length};
+}
+
+function greekDate(iso:string|null|undefined){
+  if(!iso)return null;
+  const d=new Date(iso+"T00:00:00Z");
+  if(!Number.isFinite(d.getTime()))return null;
+  return new Intl.DateTimeFormat("el-GR",{day:"numeric",month:"long",timeZone:"UTC"}).format(d);
+}
+
+function humanClarification(question:ReturnType<typeof nextV50Question>,interpreted:ReturnType<typeof interpretV50Conversation>,lastQuestionId?:string){
+  if(!question)return"";
+  const dates=interpreted.startDate&&interpreted.endDate?greekDate(interpreted.startDate)+"–"+greekDate(interpreted.endDate):null;
+  if(question.id==="dates"){
+    return lastQuestionId==="dates"
+      ?"Δεν θέλω να σε ξαναρωτήσω μηχανικά το ίδιο. Δεν κατάλαβα με ασφάλεια την ημερομηνία. Γράψε μου όπως θα το έλεγες σε άνθρωπο, π.χ. «το πρώτο ΣΚ μετά τις 10 Οκτωβρίου» ή «15–17 Νοεμβρίου»."
+      :question.text;
+  }
+  if(question.id==="companions"){
+    return dates
+      ?`Ωραία — κρατάω ${dates}. Με ποιον θα πας; Αυτό αλλάζει αρκετά το είδος διαμονής και την περιοχή που θα προτείνω.`
+      :question.text;
+  }
+  if(question.id==="outcome"){
+    return `Το βασικό πλαίσιο το έχω. Τι θέλεις να κερδίσεις περισσότερο από αυτή την απόδραση: ξεκούραση, εμπειρίες ή ισορροπία;`;
+  }
+  if(question.id==="friction"){
+    return `Τελευταίο ουσιαστικό φίλτρο: πόση μετακίνηση δέχεσαι; Θέλω να αποφύγω να σου προτείνω κάτι εντυπωσιακό αλλά κουραστικό.`;
+  }
+  return question.text;
 }
 
 function responseWithProfile(payload:Record<string,unknown>,profileKey:string,status=200){
@@ -101,7 +131,7 @@ export async function POST(request:Request){
   if(question){
     return responseWithProfile({
       ok:true,state:"clarify",
-      agentMessage:question.text,
+      agentMessage:humanClarification(question,interpreted,body.lastQuestionId),
       question,
       interpreted:{
         confidence:interpreted.confidence,
@@ -132,7 +162,7 @@ export async function POST(request:Request){
     const stayRows=await Promise.all(candidates.map(async rec=>({rec,...await bestStay(rec,trip.budget,trip.startDate,trip.endDate)})));
     const solutions=stayRows
       .filter((row):row is typeof row & {best:NonNullable<typeof row.best>}=>Boolean(row.best))
-      .slice(0,5)
+      .slice(0,10)
       .map((row,index)=>{
         const {offer,availability}=row.best;
         const destination=row.rec;
@@ -177,7 +207,7 @@ export async function POST(request:Request){
 
     const solutionCount=solutions.length;
     const agentMessage=solutionCount>=5
-      ? `Τώρα το έχω αρκετά καθαρά. Έλεγξα το brief σου, τις ημερομηνίες, τη μόνιμη travel μνήμη και πραγματικές stay offers. Σου κρατάω τις 5 πιο δυνατές λύσεις — όχι απλώς τους πιο δημοφιλείς προορισμούς.`
+      ? `Τώρα το έχω αρκετά καθαρά. Έλεγξα το brief σου, τις ημερομηνίες, τη μόνιμη travel μνήμη και πραγματικές stay offers. Σου κρατάω τις 10 πιο δυνατές λύσεις — όχι απλώς τους πιο δημοφιλείς προορισμούς.`
       : `Κατάλαβα το brief σου, αλλά μόνο ${solutionCount} λύσεις πέρασαν και το live stay check για αυτές τις ημερομηνίες. Προτιμώ να σου δείξω λιγότερες πραγματικές επιλογές παρά να γεμίσω τη λίστα με άσχετες.`;
 
     return responseWithProfile({

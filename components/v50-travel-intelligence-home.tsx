@@ -10,11 +10,12 @@ type FilterKey="calm"|"food"|"nature"|"discovery"|"nightlife"|"value";
 type Filters=Record<FilterKey,number>;
 type Question={id:"dates"|"companions"|"outcome"|"friction";text:string;quickReplies:Array<{label:string;value:string}>};
 type Message={id:string;role:"user"|"agent";text:string};
-type StayPin={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string};
+type StayPin={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null};
 type MapPayload={count:number;locationCount:number;products:StayPin[]};
 type HeroMedia={id:string;location:string;imageUrl:string;propertyCount:number;minPrice:number|null;currency:string;latitude:number|null;longitude:number|null};
 type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null};liveOfferCount:number};
-type AgentPayload={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:Question;interpreted?:{summary?:string;profileSummary?:string;startDate?:string;endDate?:string;signals?:string[];confidence?:number};inventory?:{catalogSize:number;eligibleCount:number;resultCount:number;stayVerifiedSolutions:number};feasibility?:string;solutions?:Solution[]};
+type AgentPayload={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:Question;interpreted?:{summary?:string;profileSummary?:string;startDate?:string;endDate?:string;signals?:string[];confidence?:number};inventory?:{catalogSize:number;eligibleCount:number;resultCount:number;stayVerifiedSolutions:number};feasibility?:string;solutions?:Solution[];trip?:{startDate:string;endDate:string;travelerType:string;moods:string[];budget:number;origin:string}};
+type RatingView={label:string;provider:string;reviewCount:number|null;summary?:string};
 
 const tileConfig:Record<BaseMode,{url:string;attribution:string;maxZoom:number}>={
  map:{url:"https://tile.openstreetmap.org/{z}/{x}/{y}.png",attribution:"© OpenStreetMap contributors",maxZoom:19},
@@ -53,6 +54,9 @@ export function V50TravelIntelligenceHome(){
  const [heroMedia,setHeroMedia]=useState<HeroMedia[]>([]);
  const [mapMeta,setMapMeta]=useState({count:0,locationCount:0});
  const [selectedPin,setSelectedPin]=useState<StayPin|null>(null);
+ const [hoverPin,setHoverPin]=useState<StayPin|null>(null);
+ const [ratings,setRatings]=useState<Record<string,RatingView|null>>({});
+ const [lastTrip,setLastTrip]=useState<AgentPayload["trip"]|null>(null);
  const [showAll,setShowAll]=useState(true);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
@@ -66,6 +70,31 @@ export function V50TravelIntelligenceHome(){
  const hero=activeSolution?.stay.imageUrl??heroImages[0]??null;
  const detail=activeSolution?.stay.imageUrl??heroImages[1]??hero;
  const userHistory=messages.filter(x=>x.role==="user").slice(-5).map(x=>x.text).join(" · ").slice(-700);
+
+ function landingUrl(slug:string|null|undefined,productId:string){
+  if(!slug)return null;
+  const q=new URLSearchParams();
+  if(lastTrip){
+   q.set("start",lastTrip.startDate);q.set("end",lastTrip.endDate);q.set("budget",String(lastTrip.budget));
+   q.set("origin",lastTrip.origin);q.set("travelerType",lastTrip.travelerType);
+   if(lastTrip.moods?.[0])q.set("mood",lastTrip.moods[0]);
+  }
+  const suffix=q.toString()?"?"+q.toString():"";
+  return "/escape/"+encodeURIComponent(slug)+"/stay/"+encodeURIComponent(productId)+suffix;
+ }
+
+ async function ensureRating(productId:string,propertyName:string,destinationSlug:string|null|undefined,destinationName:string,latitude:number,longitude:number){
+  if(!destinationSlug||Object.prototype.hasOwnProperty.call(ratings,productId))return;
+  setRatings(v=>({...v,[productId]:null}));
+  try{
+   const response=await fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+    propertyName,sourceProductId:productId,destinationSlug,destinationName,latitude,longitude
+   })});
+   const payload=await response.json() as {ok?:boolean;result?:{primary?:{rating:number;scale:number;provider:string;reviewCount:number|null}|null}};
+   const p=payload.result?.primary;
+   setRatings(v=>({...v,[productId]:p?{label:(p.scale===5?p.rating.toFixed(1)+"★":Math.round(p.rating)+"/"+p.scale),provider:p.provider,reviewCount:p.reviewCount}:null}));
+  }catch{setRatings(v=>({...v,[productId]:null}))}
+ }
 
  useEffect(()=>{
   fetch("/api/v50/map-stays?limit=1800",{cache:"no-store"}).then(r=>r.json()).then((p:MapPayload)=>{
@@ -109,16 +138,19 @@ export function V50TravelIntelligenceHome(){
     if(showAll){
       for(const p of inventory){
         if(topIds.has(p.productId))continue;
-        const m=L.circleMarker([p.latitude,p.longitude],{radius:2.8,weight:1,color:"#d5e2dc",fillColor:"#6d8f82",fillOpacity:.5,opacity:.45}).addTo(group);
-        m.on("click",()=>{setSelectedPin(p);void challengeStay(p)});
+        const icon=L.divIcon({className:"v50StayStarHost",html:'<div class="v50StayStar" aria-hidden="true">★</div>',iconSize:[18,18],iconAnchor:[9,9]});
+        const m=L.marker([p.latitude,p.longitude],{icon,zIndexOffset:50}).addTo(group);
+        m.on("mouseover",()=>{setHoverPin(p);void ensureRating(p.productId,p.name,p.destinationSlug,p.location||p.address||"Ελλάδα",p.latitude,p.longitude)});
+        m.on("click",()=>{setHoverPin(p);setSelectedPin(p);void challengeStay(p)});
       }
     }
     solutions.forEach((s,index)=>{
       const isActive=index===active;
-      const html='<div class="v50Pin '+(isActive?"is-active":"")+'"><span class="v50PinRank">'+(index+1)+'</span><span class="v50PinScore">'+Math.round(s.score)+'%</span></div>';
-      const icon=L.divIcon({className:"v50PinHost",html,iconSize:[64,64],iconAnchor:[32,55]});
-      const m=L.marker([s.stay.latitude,s.stay.longitude],{icon,zIndexOffset:1000-index*10}).addTo(group);
-      m.on("click",()=>{setActive(index);setSelectedPin(null);mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75})});
+      const html='<div class="v50TopStar '+(isActive?"is-active":"")+'"><span class="v50StarGlyph">★</span><span class="v50StarRank">'+(index+1)+'</span><span class="v50StarScore">'+Math.round(s.score)+'%</span></div>';
+      const icon=L.divIcon({className:"v50PinHost",html,iconSize:[72,72],iconAnchor:[36,36]});
+      const m=L.marker([s.stay.latitude,s.stay.longitude],{icon,zIndexOffset:1200-index*10}).addTo(group);
+      m.on("mouseover",()=>{setActive(index);setHoverPin(null);void ensureRating(s.stay.productId,s.stay.name,s.destination.slug,s.destination.name,s.stay.latitude,s.stay.longitude)});
+      m.on("click",()=>{setActive(index);setSelectedPin(null);setHoverPin(null);mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75})});
     });
   });
   return()=>{cancelled=true};
@@ -128,6 +160,7 @@ export function V50TravelIntelligenceHome(){
   if(activeSolution&&mapRef.current){
     mapRef.current.flyTo([activeSolution.stay.latitude,activeSolution.stay.longitude],11,{duration:.8});
   }
+  if(activeSolution){void ensureRating(activeSolution.stay.productId,activeSolution.stay.name,activeSolution.destination.slug,activeSolution.destination.name,activeSolution.stay.latitude,activeSolution.stay.longitude)}
  },[activeSolution?.stay.productId]);
 
  async function callAgent(text:string,nextAnswers=answers,selected?:StayPin){
@@ -140,6 +173,7 @@ export function V50TravelIntelligenceHome(){
       userText:clean||"Θέλω να συγκρίνεις αυτή την επιλογή.",
       priorUserText:userHistory,
       origin,budget,filters,answers:nextAnswers,
+      lastQuestionId:question?.id,
       currentTopIds:solutions.map(x=>x.stay.productId),
       selectedStay:selected?{productId:selected.productId,name:selected.name,location:selected.location,price:selected.price}:null
     })});
@@ -148,6 +182,7 @@ export function V50TravelIntelligenceHome(){
     setQuestion(payload.question??null);
     if(payload.state==="results"&&payload.solutions){
       setSolutions(payload.solutions);
+      setLastTrip(payload.trip??null);
       setActive(0);
       setSelectedPin(null);
     }
@@ -166,12 +201,12 @@ export function V50TravelIntelligenceHome(){
   setBusy(true);
   try{
     const response=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-      userText:label,priorUserText:userHistory,origin,budget,filters,answers:next
+      userText:label,priorUserText:userHistory,origin,budget,filters,answers:next,lastQuestionId:question?.id
     })});
     const payload=await response.json() as AgentPayload;
     setMessages(v=>[...v,{id:id(),role:"agent",text:payload.agentMessage}]);
     setQuestion(payload.question??null);
-    if(payload.state==="results"&&payload.solutions){setSolutions(payload.solutions);setActive(0)}
+    if(payload.state==="results"&&payload.solutions){setSolutions(payload.solutions);setLastTrip(payload.trip??null);setActive(0)}
   }finally{setBusy(false)}
  }
 
@@ -184,6 +219,14 @@ export function V50TravelIntelligenceHome(){
   setActive(index);setSelectedPin(null);
   const s=solutions[index];
   if(s)mapRef.current?.flyTo([s.stay.latitude,s.stay.longitude],12,{duration:.75});
+ }
+
+ function showAllSolutions(){
+  if(!mapRef.current||!solutions.length)return;
+  void import("leaflet").then(L=>{
+   const bounds=L.latLngBounds(solutions.map(s=>[s.stay.latitude,s.stay.longitude] as [number,number]));
+   mapRef.current?.fitBounds(bounds,{padding:[70,70],maxZoom:9});
+  });
  }
 
  return <main className={styles.shell}>
@@ -246,7 +289,7 @@ export function V50TravelIntelligenceHome(){
       </section>
 
       {solutions.length?<section className={styles.resultsPanel}>
-        <div className={styles.sectionTitle}><div><span>03</span><h2>Οι 5 λύσεις σου</h2></div><p>Κάθε μία έχει περάσει από agent reasoning και live stay verification.</p></div>
+        <div className={styles.sectionTitle}><div><span>03</span><h2>Οι 10 λύσεις σου</h2></div><p>Δέκα λύσεις, όλες περασμένες από agent reasoning και live stay verification.</p></div>
         <div className={styles.solutionRail}>
           {solutions.map((s,index)=><article key={s.stay.productId} className={index===active?styles.solutionActive:""} onMouseEnter={()=>focus(index)}>
             <div className={styles.solutionImage} style={s.stay.imageUrl?{backgroundImage:"url("+s.stay.imageUrl+")"}:undefined}>
@@ -275,7 +318,7 @@ export function V50TravelIntelligenceHome(){
       <div className={styles.mapNarrative}>
         <span>LIVE TRAVEL UNIVERSE</span>
         <b>{solutions.length?solutions.length+" AI solutions":mapMeta.count?mapMeta.count.toLocaleString("el-GR")+" real stays":"loading inventory…"}</b>
-        <small>zoom · hover · select · challenge the agent</small>
+        <small>zoom · hover · select · challenge the agent</small>{solutions.length?<button className={styles.showAllSolutions} onClick={showAllSolutions}>SHOW ALL {solutions.length} ★</button>:null}
       </div>
 
       {activeSolution?<aside className={styles.intelCard}>
@@ -289,12 +332,28 @@ export function V50TravelIntelligenceHome(){
           <div className={styles.intelStats}>
             <span><b>{Math.round(activeSolution.score)}%</b>match</span>
             <span><b>{activeSolution.liveOfferCount}</b>offers</span>
-            <span><b>{money(activeSolution.stay.price,activeSolution.stay.currency)}</b>stay</span>
+            <span><b>{money(activeSolution.stay.price,activeSolution.stay.currency)}</b>stay</span><span><b>{ratings[activeSolution.stay.productId]?.label??"—"}</b>{ratings[activeSolution.stay.productId]?.provider??"verified rating"}</span>
           </div>
           <div className={styles.intelActions}>
-            <a href={activeSolution.stay.trackingUrl} target="_blank" rel="sponsored nofollow noopener noreferrer">ΔΕΣ ΠΡΟΣΦΟΡΑ <ArrowRight/></a>
+            <a href={landingUrl(activeSolution.destination.slug,activeSolution.stay.productId)??"#"}>ΔΕΣ ΤΟ ΚΑΤΑΛΥΜΑ <ArrowRight/></a>
             <button onClick={()=>setDraft("Μου αρέσει η επιλογή "+activeSolution.destination.name+". Σύγκρινέ την με κάτι καλύτερο αν υπάρχει.")}>ΡΩΤΑ ΤΟΝ AGENT</button>
           </div>
+        </div>
+      </aside>:null}
+
+      {hoverPin?<aside className={styles.hoverStayCard}>
+        <div className={styles.hoverStayImage} style={hoverPin.imageUrl?{backgroundImage:"url("+hoverPin.imageUrl+")"}:undefined}>
+          <span>★</span>
+        </div>
+        <div className={styles.hoverStayBody}>
+          <small>LIVE STAY · {hoverPin.location||hoverPin.address||"Ελλάδα"}</small>
+          <h3>{hoverPin.name}</h3>
+          <p>{hoverPin.onSale?"Ενεργή προσφορά · ":""}{hoverPin.category||"Κατάλυμα"} · {money(hoverPin.price,hoverPin.currency)}</p>
+          <div className={styles.hoverStayFacts}>
+            <span><b>{ratings[hoverPin.productId]?.label??"—"}</b>{ratings[hoverPin.productId]?.provider??"verified rating"}</span>
+            <span><b>{hoverPin.location||"—"}</b>περιοχή</span>
+          </div>
+          {hoverPin.destinationSlug?<a href={landingUrl(hoverPin.destinationSlug,hoverPin.productId)??"#"}>ΔΕΣ LANDING & FUNNEL <ArrowRight/></a>:<button onClick={()=>void challengeStay(hoverPin)}>ΡΩΤΑ ΤΟΝ AGENT ΓΙ' ΑΥΤΟ</button>}
         </div>
       </aside>:null}
 

@@ -19,7 +19,7 @@ const resolvedSiteUrl = getSiteUrl();
 export const metadata: Metadata = {
   metadataBase: new URL(resolvedSiteUrl),
   title: { default: "TravelAI | Ο AI agent που καταλαβαίνει την απόδραση που χρειάζεσαι", template: "%s · TravelAI" },
-  description: "Μίλα φυσικά με έναν persistent AI travel agent που καταλαβαίνει την ανάγκη σου, ρωτά ό,τι λείπει και αποκαλύπτει έως 5 πραγματικές stay-backed λύσεις πάνω σε διαδραστικό χάρτη.",
+  description: "Μίλα φυσικά με έναν persistent AI travel agent που καταλαβαίνει την ανάγκη σου, ρωτά ό,τι λείπει και αποκαλύπτει έως 10 πραγματικές stay-backed λύσεις πάνω σε διαδραστικό χάρτη.",
   applicationName: "AI Travel Escape",
   authors: [{ name: SITE_NAME, url: resolvedSiteUrl }],
   creator: SITE_NAME,
@@ -28,15 +28,15 @@ export const metadata: Metadata = {
   alternates: { canonical: "/", languages: { "el-GR": "/", "en-GB": "/en" } },
   robots: { index: true, follow: true },
   openGraph: {
-    title: "TravelAI — από το travel need σε 5 πραγματικές stay-backed λύσεις",
-    description: "Persistent agentic travel intelligence: φυσική συνομιλία, πραγματικό inventory, Top‑5 λύσεις, interactive map και πλήρες trip build.",
+    title: "TravelAI — από το travel need σε 10 πραγματικές stay-backed λύσεις",
+    description: "Persistent agentic travel intelligence: φυσική συνομιλία, πραγματικό inventory, Top‑10 λύσεις, interactive map και πλήρες trip build.",
     type: "website",
     locale: "el_GR",
     alternateLocale: ["en_GB"],
     siteName: "AI Travel Escape",
     images: [{ url: "/api/og?name=AI%20Travel%20Escape", width: 1200, height: 630, alt: "AI Travel Escape" }],
   },
-  twitter: { card: "summary_large_image", title: "TravelAI", description: "AI travel agent που καταλαβαίνει τι χρειάζεσαι και βρίσκει έως 5 πραγματικές stay-backed λύσεις πάνω σε interactive map.", images: ["/api/og?name=TravelAI"] },
+  twitter: { card: "summary_large_image", title: "TravelAI", description: "AI travel agent που καταλαβαίνει τι χρειάζεσαι και βρίσκει έως 10 πραγματικές stay-backed λύσεις πάνω σε interactive map.", images: ["/api/og?name=TravelAI"] },
   verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : undefined,
 };
 

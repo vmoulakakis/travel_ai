@@ -22,7 +22,7 @@ expect(
 );
 expect(
   isV50
-   ? home.includes("Travel Agent")&&home.includes("solutions.map")&&activeSolver.includes(".slice(0,5)")
+   ? home.includes("Travel Agent")&&home.includes("solutions.map")&&activeSolver.includes(".slice(0,10)")
    : home.includes("Travel Agent")&&home.includes("solutions=result?.solutions.slice(0,3)"),
   "active consumer surface must remain a bounded decision experience"
 );
@@ -47,7 +47,7 @@ expect(
   "destination media must remain cinematic and sourced"
 );
 expect(
-  isV50?activeSolver.includes(".slice(0,5)"):(home.includes("slice(0,3)")||home.includes("slice(0, 3)")),
+  isV50?activeSolver.includes(".slice(0,10)"):(home.includes("slice(0,3)")||home.includes("slice(0, 3)")),
   "active discovery must expose multiple bounded options"
 );
 expect(
@@ -68,10 +68,10 @@ expect(
 );
 expect(legacyRanker.includes("loadV8StayOffers")&&legacyRoute.includes("forward-recovery"),"V36 fallback architecture must remain available");
 expect(
-  (layout.includes("5 πραγματικές stay-backed λύσεις")||layout.includes("έως 5 πραγματικές")||layout.includes("έως 10 πραγματικές λύσεις"))
+  (layout.includes("5 πραγματικές stay-backed λύσεις")||layout.includes("έως 5 πραγματικές")||layout.includes("έως 10 πραγματικές λύσεις")||layout.includes("έως 10 πραγματικές stay-backed λύσεις"))
   &&!layout.includes("3 semantic-matched escapes"),
   "SEO copy must describe the current bounded output without claiming an obsolete three-option engine"
 );
 
 if(failures.length){console.error("Bidirectional funnel compatibility smoke FAILED\n- "+failures.join("\n- "));process.exit(1)}
-console.log(`Bidirectional funnel compatibility smoke passed: active=${isV50?"V50 persistent agent + Top 5 live stays":"V40/V42 semantic shell"}, legacy V36 fallback retained.`);
+console.log(`Bidirectional funnel compatibility smoke passed: active=${isV50?"V50 persistent agent + Top 10 live stays":"V40/V42 semantic shell"}, legacy V36 fallback retained.`);
