@@ -43,12 +43,18 @@ function semanticFromParsed(parsed:Parsed,fallback:V8SemanticIntent,source:V8Sem
  return{positive,negative,priorities:parsed.priorities?.length?parsed.priorities:fallback.priorities,qualifiers,confidence:clamp(parsed.confidence??.9),source,rationale:(parsed.rationale??[]).slice(0,5)};
 }
 
-function applyLearnedPreferencesV45(weights:Record<V8Dimension,number>,learned?:Partial<Record<V8Dimension,number>>,negative?:Partial<Record<V8Dimension,number>>){
+function memoryBlockedByCurrentRequestV45(request:TripRequest,d:V8Dimension,negative?:Partial<Record<V8Dimension,number>>){
+ const rejected=Math.max(0,Math.min(1,Number(negative?.[d]??0)));
+ if(rejected>=.45)return true;
+ if(d==="nightlife"&&(request.socialPreference==="quiet"||request.avoid==="crowds"))return true;
+ if(d==="luxury"&&request.avoid==="high-cost")return true;
+ return false;
+}
+function applyLearnedPreferencesV45(request:TripRequest,weights:Record<V8Dimension,number>,learned?:Partial<Record<V8Dimension,number>>,negative?:Partial<Record<V8Dimension,number>>){
  if(!learned)return weights;
  for(const d of V8_DIMENSIONS){
   const remembered=Math.max(0,Math.min(.35,Number(learned[d]??0)));
-  const rejected=Math.max(0,Math.min(1,Number(negative?.[d]??0)));
-  if(!remembered||rejected>=.45)continue;
+  if(!remembered||memoryBlockedByCurrentRequestV45(request,d,negative))continue;
   // Persistent memory is deliberately a small soft prior, never a hard override.
   weights[d]=Math.min(2,weights[d]+Math.min(.16,remembered*.45));
  }
@@ -70,11 +76,11 @@ function reconcileWeights(request:TripRequest,semantic:V8SemanticIntent,learned?
  if(request.mustHave==="nature")weights.nature=Math.max(weights.nature,.98);
  if(request.mustHave==="culture")weights.culture=Math.max(weights.culture,.98);
  if(request.mustHave==="nightlife")weights.nightlife=Math.max(weights.nightlife,.98);
- return applyLearnedPreferencesV45(weights,learned,semantic.negative);
+ return applyLearnedPreferencesV45(request,weights,learned,semantic.negative);
 }
 
 export function structuredIntent(request:TripRequest,learned?:Partial<Record<V8Dimension,number>>):V8IntentProfile{
- const text=request.tripText?.trim();if(!text)return{weights:applyLearnedPreferencesV45(baseStructuredWeights(request),learned),source:"structured",summary:request.moods.join(" + ")};
+ const text=request.tripText?.trim();if(!text)return{weights:applyLearnedPreferencesV45(request,baseStructuredWeights(request),learned),source:"structured",summary:request.moods.join(" + ")};
  const semantic=deterministicSemanticIntentV18(text);return{weights:reconcileWeights(request,semantic,learned),source:"structured",summary:request.moods.join(" + "),interpretedText:text,semantic};
 }
 
