@@ -1,4 +1,5 @@
 name: Deploy AXIZEI cross-repo
+# cross-repo deployment bridge
 on:
   push:
     branches: [main]
