@@ -1,5 +1,6 @@
 name: Deploy AXIZEI cross-repo
 # cross-repo deployment bridge
+# redeploy marketplace v2
 on:
   push:
     branches: [main]
