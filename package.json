@@ -55,7 +55,7 @@
     "test:v53:awareness": "node --import tsx scripts/v53-situational-awareness-smoke.ts",
     "test:v54:final": "node --import tsx scripts/v54-final-home-smoke.ts",
     "test:v60:100": "node --import tsx scripts/v60-100-traveler-decision-audit.ts",
-    "prebuild": "npm run test:v51:100 && npm run test:v52:experience && npm run test:v53:awareness && npm run test:v54:final && npm run test:v60:100"
+    "prebuild": "npm run test:v10 && npm run test:v51:100 && npm run test:v52:experience && npm run test:v53:awareness && npm run test:v54:final && npm run test:v60:100"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.36",
