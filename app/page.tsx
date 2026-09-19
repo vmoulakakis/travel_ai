@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { V50TravelIntelligenceHome } from "@/components/v50-travel-intelligence-home";
+import { V54FinalHome } from "@/components/v54-final-home";
 
 export const dynamic="force-dynamic";
 export const metadata:Metadata={
@@ -14,5 +14,5 @@ export const metadata:Metadata={
 };
 
 export default function HomePage(){
- return <V50TravelIntelligenceHome/>;
+ return <V54FinalHome/>;
 }
