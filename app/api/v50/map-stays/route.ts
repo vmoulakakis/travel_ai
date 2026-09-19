@@ -66,7 +66,9 @@ async function page(offset:number,limit:number){
 
 export async function GET(request:Request){
  try{
-  const requested=Number(new URL(request.url).searchParams.get("limit")??1800),limit=Math.max(100,Math.min(2000,Number.isFinite(requested)?Math.round(requested):1800));
+  const requestUrl=new URL(request.url),quick=requestUrl.searchParams.get("mode")==="quick";
+  const requested=Number(requestUrl.searchParams.get("limit")??(quick?24:1800));
+  const limit=quick?Math.max(12,Math.min(60,Number.isFinite(requested)?Math.round(requested):24)):Math.max(100,Math.min(2000,Number.isFinite(requested)?Math.round(requested):1800));
   if(!key()){
    const fallbackUrl=new URL(process.env.SUPABASE_STAY_PRODUCT_MAP_V32_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/stay-product-map-v32");
    fallbackUrl.searchParams.set("limit","300");
@@ -77,9 +79,9 @@ export async function GET(request:Request){
   }
   const catalog=await loadV8DestinationCatalog().catch(()=>[]);
   const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
-  const rows:OfferRow[]=[];
-  for(let offset=0;offset<3000&&rows.length<Math.max(limit*2,2000);offset+=1000){
-   const batch=await page(offset,1000);rows.push(...batch);if(batch.length<1000)break;
+  const rows:OfferRow[]=[],rowCeiling=quick?600:Math.max(limit*2,2000),offsetCeiling=quick?1000:3000;
+  for(let offset=0;offset<offsetCeiling&&rows.length<rowCeiling;offset+=1000){
+   const batch=await page(offset,quick?600:1000);rows.push(...batch);if(batch.length<(quick?600:1000))break;
   }
   const seen=new Set<string>(),today=new Date().toISOString().slice(0,10),products:Product[]=[];
   for(const row of rows){
