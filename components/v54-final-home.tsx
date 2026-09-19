@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect,useMemo,useRef,useState } from "react";
-import type { LayerGroup,Map as LeafletMap } from "leaflet";
+import type { LayerGroup,Map as LeafletMap,TileLayer } from "leaflet";
 import {
   ArrowRight,Brain,CalendarBlank,CheckCircle,Compass,Heart,Lightning,MapPin,
   PaperPlaneTilt,ShieldCheck,Sparkle,Star,Users,Wallet
@@ -43,6 +43,7 @@ export function V54FinalHome(){
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
  const layerRef=useRef<LayerGroup|null>(null);
+ const tileRef=useRef<TileLayer|null>(null);
 
  useEffect(()=>{
   Promise.all([
@@ -60,11 +61,25 @@ export function V54FinalHome(){
    if(dead||!mapHost.current||mapRef.current)return;
    const map=L.map(mapHost.current,{zoomControl:false,attributionControl:false,minZoom:5,maxZoom:18}).setView([38.4,23.7],6);
    L.control.zoom({position:"bottomright"}).addTo(map);
-   L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:18}).addTo(map);
+   tileRef.current=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:18}).addTo(map);
    mapRef.current=map;
   });
   return()=>{dead=true;mapRef.current?.remove();mapRef.current=null};
  },[]);
+
+ useEffect(()=>{
+  if(!mapRef.current)return;
+  void import("leaflet").then(L=>{
+   if(!mapRef.current)return;
+   tileRef.current?.remove();
+   tileRef.current=L.tileLayer(
+    showSatellite
+     ?"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+     :"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {maxZoom:18,attribution:showSatellite?"Tiles © Esri":"© OpenStreetMap contributors"}
+   ).addTo(mapRef.current);
+  });
+ },[showSatellite]);
 
  const cards=useMemo<DisplayStay[]>(()=>{
   if(solutions.length)return solutions.map(s=>({
