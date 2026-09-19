@@ -225,3 +225,60 @@
  transform:translateY(-1px);
  filter:brightness(1.02);
 }
+
+
+/* FINAL FLOW — one clear path: setup -> map -> stay -> funnel */
+.hero{
+ display:block!important;
+ min-height:0!important;
+ padding:10px 18px 6px!important;
+ background:transparent!important;
+}
+.heroImage{display:none!important}
+.planner{
+ width:100%!important;
+ max-height:none!important;
+ overflow:visible!important;
+ border:1px solid rgba(25,67,53,.12)!important;
+ border-radius:16px!important;
+ padding:12px 14px!important;
+ display:grid!important;
+ grid-template-columns:1.25fr 1.6fr 1fr 1fr!important;
+ gap:8px 10px!important;
+ box-shadow:0 10px 28px rgba(27,66,52,.08)!important;
+}
+.plannerTitle,.tabs,.chips,.reasonBox,.primary,.chipTitle{
+ grid-column:1/-1!important;
+}
+.dateCard{grid-column:span 2!important}
+.double{grid-column:span 2!important}
+.planner textarea{grid-column:1/-1!important;min-height:64px!important}
+.primary{min-height:42px!important;font-size:11px!important}
+.reasonBox{margin-top:0!important}
+.mapFirstTop h1{font-size:clamp(22px,2.8vw,36px)!important}
+.mapStage{min-height:calc(100vh - 310px)!important}
+.destinations{padding-top:8px!important}
+.discovery{padding-top:8px!important}
+.featured,.socialProof,.why,.footerCta{display:none!important}
+.cardGrid article{cursor:pointer}
+.cardGrid article:after{
+ content:"Δες το funnel →";
+ display:block;
+ padding:8px 12px 10px;
+ font-size:9px;
+ font-weight:800;
+ color:#3d5c51;
+ border-top:1px solid rgba(25,67,53,.08);
+}
+.focusSteps span{font-weight:700}
+.focusSteps span:last-child{color:#9a6b13}
+@media(max-width:900px){
+ .planner{grid-template-columns:1fr 1fr!important}
+ .dateCard,.double{grid-column:1/-1!important}
+ .mapStage{min-height:560px!important}
+}
+@media(max-width:620px){
+ .planner{grid-template-columns:1fr!important}
+ .fieldCard,.dateCard,.double{grid-column:1/-1!important}
+ .hero{padding:8px 10px 4px!important}
+}
