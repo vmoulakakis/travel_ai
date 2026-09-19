@@ -30,6 +30,14 @@ type Input=V50ConversationInput & {
     location:string;
     price?:number|null;
   }|null;
+  mapContext?:{
+    centerLat?:number|null;
+    centerLon?:number|null;
+    zoom?:number|null;
+    visibleDestination?:string|null;
+    hoveredStayId?:string|null;
+    hoveredStayName?:string|null;
+  }|null;
 };
 
 const clamp=(n:number,min=0,max=100)=>Math.max(min,Math.min(max,n));
@@ -276,11 +284,12 @@ export async function POST(request:Request){
     filters:body.filters,
     answers:body.answers
   };
-  let interpreted=interpretV50Conversation(input);
+  const athensRef=new Date(athensToday()+"T12:00:00Z");
+  let interpreted=interpretV50Conversation(input,athensRef);
   const recoveredDate=(!interpreted.startDate||!interpreted.endDate)?await recoverDateIntent(body,input,interpreted):null;
   if(recoveredDate){
     input={...input,answers:{...(input.answers??{}),dates:recoveredDate.startDate+" – "+recoveredDate.endDate}};
-    interpreted=interpretV50Conversation(input);
+    interpreted=interpretV50Conversation(input,athensRef);
   }
 
   if(body.selectedStay&&Array.isArray(body.currentTopIds)&&!body.currentTopIds.includes(body.selectedStay.productId)){
@@ -312,7 +321,17 @@ export async function POST(request:Request){
   }
 
   try{
-    const trip=buildV50Trip(input,interpreted),sessionId=crypto.randomUUID();
+    const baseTrip=buildV50Trip(input,interpreted),sessionId=crypto.randomUUID();
+    const spatial=body.mapContext;
+    const selected=body.selectedStay;
+    const spatialContext=[
+      `TODAY_LOCAL=${athensToday()} Europe/Athens`,
+      spatial?.visibleDestination?`MAP_DESTINATION=${spatial.visibleDestination}`:null,
+      Number.isFinite(Number(spatial?.centerLat))&&Number.isFinite(Number(spatial?.centerLon))?`MAP_CENTER=${Number(spatial?.centerLat).toFixed(5)},${Number(spatial?.centerLon).toFixed(5)} ZOOM=${Number(spatial?.zoom??0).toFixed(1)}`:null,
+      spatial?.hoveredStayName?`USER_IS_EXPLORING=${spatial.hoveredStayName}`:null,
+      selected?.name?`CURRENT_SELECTED_STAY=${selected.name} @ ${selected.location}${selected.price!=null?` price=${selected.price}`:""}`:null
+    ].filter(Boolean).join(" · ");
+    const trip={...baseTrip,tripText:[baseTrip.tripText,spatialContext].filter(Boolean).join(" · ").slice(0,700)};
     const [recommendation,catalog]=await Promise.all([
       runTravelOrchestratorV45(trip,sessionId,profileKey),
       loadV8DestinationCatalog()
