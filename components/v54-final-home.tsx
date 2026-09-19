@@ -328,6 +328,24 @@ export function V54FinalHome(){
       className={i===active&&!selectedMapStay?styles.cardActive:""}>
       <div className={styles.cardPhoto} style={s.image?{backgroundImage:`url(${s.image})`}:undefined}><span>{s.score?Math.round(s.score)+"% MATCH":"LIVE STAY"}</span></div>
       <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={e=>{e.stopPropagation();openStay(s)}}>Δες το funnel <ArrowRight/></button></div></div>
+      <div className={styles.cardHoverPanel} aria-hidden="true">
+       <div className={styles.cardHoverPhoto} style={s.image?{backgroundImage:`linear-gradient(180deg,rgba(7,28,22,.04),rgba(7,28,22,.72)),url(${s.image})`}:undefined}>
+        <div className={styles.cardHoverTop}><span>{s.score?Math.round(s.score)+"% AI MATCH":"LIVE INVENTORY"}</span><b>{money(s.price,s.currency)}</b></div>
+        <div className={styles.cardHoverTitle}><small><MapPin weight="fill"/> {s.location}</small><h3>{s.name}</h3></div>
+       </div>
+       <div className={styles.cardHoverBody}>
+        <p>{s.why}</p>
+        <div className={styles.cardHoverFacts}>
+         <span><CheckCircle weight="fill"/><b>{s.availability.includes("confirmed")?"Active":"Provider check"}</b><small>availability</small></span>
+         <span><Star weight="fill"/><b>{s.score?Math.round(s.score)+"%":"AI fit"}</b><small>match signal</small></span>
+         <span><ShieldCheck weight="fill"/><b>Grounded</b><small>live inventory</small></span>
+        </div>
+        <div className={styles.cardHoverFooter}>
+         <div><small>Από</small><strong>{money(s.price,s.currency)}</strong></div>
+         <button onClick={e=>{e.stopPropagation();openStay(s)}}>Δες λεπτομέρειες <ArrowRight/></button>
+        </div>
+       </div>
+      </div>
     </article>)}</div>
    </div>
 
