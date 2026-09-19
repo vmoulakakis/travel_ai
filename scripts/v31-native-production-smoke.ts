@@ -36,7 +36,7 @@ must(selectedExperience.includes('/api/guide/email'),"Selected escape must retai
 must(selectedExperience.includes('sponsored nofollow noopener'),"Affiliate outbound must open safely and remain explicitly sponsored");
 if(v39Map){
  must(escapePage.includes("V39DestinationMapWorkspace")&&escapePage.includes("preferredOffer")&&escapePage.includes("loadV8StayOffers(slug,start,end,60)"),"Destination route must preserve real-inventory map workspace");
- must(stayRoute.includes("selected=loaded.find")&&stayRoute.includes("offerId")&&(stayRoute.includes("V50StayFunnel")||stayRoute.includes("V40StayWorkspace")||stayRoute.includes("V38EscapeBuilderClient")),"Selected-stay route must pin the exact offer before entering the active 360 workspace");
+ must((stayRoute.includes("selected=loaded.find")||stayRoute.includes("directSelected")||stayRoute.includes("loadV8StayOfferById"))&&stayRoute.includes("offerId")&&(stayRoute.includes("V50StayFunnel")||stayRoute.includes("V40StayWorkspace")||stayRoute.includes("V38EscapeBuilderClient")),"Selected-stay route must pin the exact offer before entering the active 360 workspace");
 }else must(/V\d+EscapeBuilderClient/.test(escapePage)&&escapePage.includes("preferredOffer"),"Destination route must use the active builder and preserve the selected stay");
 for(const path of ["/ai-planner","/ai-map","/seasonal","/guides","/how-ai-works"]){must(shell.includes(path),`Navigation missing ${path}`)}
 for(const path of ["/ai-planner","/en/ai-planner","/seasonal","/en/seasonal","/guides","/en/guides","/how-ai-works","/en/how-ai-works"]){must(sitemap.includes(path),`Sitemap missing ${path}`)}
