@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect,useMemo,useRef,useState } from "react";
-import { useRouter } from "next/navigation";
 import type { LayerGroup,Map as LeafletMap,TileLayer } from "leaflet";
 import {
   ArrowRight,Brain,CalendarBlank,CheckCircle,Compass,Heart,Lightning,MapPin,
@@ -26,7 +25,6 @@ const addDays=(iso:string,days:number)=>{const d=new Date(iso+"T00:00:00Z");d.se
 const html=(v:string)=>v.replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[ch]??ch));
 
 export function V54FinalHome(){
- const router=useRouter();
  const [inventory,setInventory]=useState<Stay[]>([]);
  const [heroMedia,setHeroMedia]=useState<Hero[]>([]);
  const [solutions,setSolutions]=useState<Solution[]>([]);
@@ -192,10 +190,6 @@ export function V54FinalHome(){
   return()=>{dead=true};
  },[inventory,cards,solutions,destination]);
 
- useEffect(()=>{
-  if(activeStay&&mapRef.current)mapRef.current.flyTo([activeStay.lat,activeStay.lon],11,{duration:.8});
- },[activeStay?.id]);
-
  async function runAgent(extra?:string){
   const destinationBrief=destination.trim()?destination.trim()+". ":"";
   const prompt=(extra??freeText).trim()||`${destinationBrief}${intent}, ${traveler==="couple"?"με σύντροφο":traveler}, ${start} έως ${end}. Θέλω τις καλύτερες πραγματικές επιλογές.`;
@@ -222,15 +216,12 @@ export function V54FinalHome(){
 
  function stayHref(stay:DisplayStay){
   if(!stay.slug)return null;
-  const q=new URLSearchParams({start,end,budget:String(budget),origin,travelerType:traveler});
+  const q=new URLSearchParams({start,end,budget:String(budget),origin,travelerType:traveler,dn:stay.location});
   return `/escape/${encodeURIComponent(stay.slug)}/stay/${encodeURIComponent(stay.id)}?${q}`;
- }
- function prefetchStay(stay:DisplayStay){
-  const href=stayHref(stay);if(href)router.prefetch(href);
  }
  function openStay(stay:DisplayStay){
   const href=stayHref(stay);
-  if(href)router.push(href);
+  if(href)window.location.assign(href);
   else if(stay.tracking)window.open(stay.tracking,"_blank","noopener,noreferrer");
  }
 
@@ -341,12 +332,12 @@ export function V54FinalHome(){
    <div className={styles.stayColumn}>
     <div className={styles.sectionHead}><div><small>AI CURATED</small><h2>Προτάσεις διαμονής από την AI</h2></div><button onClick={()=>void runAgent("Βελτιστοποίησε ξανά τις επιλογές με βάση το τρέχον brief.")}>Ανανέωση AI <Sparkle/></button></div>
     <div className={styles.cardGrid}>{cards.slice(0,3).map((s,i)=><article key={s.id}
-      onMouseEnter={()=>{hoveredStayRef.current=s;prefetchStay(s)}}
+      onMouseEnter={()=>{hoveredStayRef.current=s}}
       onMouseLeave={()=>{if(hoveredStayRef.current?.id===s.id)hoveredStayRef.current=null}}
       onClick={()=>{hoveredStayRef.current=s;setSelectedMapStay(null);setActive(i);mapRef.current?.flyTo([s.lat,s.lon],Math.max(mapRef.current?.getZoom()??10,11),{duration:.45})}}
       className={i===active&&!selectedMapStay?styles.cardActive:""}>
       <div className={styles.cardPhoto} style={s.image?{backgroundImage:`url(${s.image})`}:undefined}><span>{s.score?Math.round(s.score)+"% MATCH":"LIVE STAY"}</span><button><Heart/></button></div>
-      <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onMouseEnter={()=>prefetchStay(s)} onFocus={()=>prefetchStay(s)} onClick={e=>{e.stopPropagation();openStay(s)}}>Άνοιξε το κατάλυμα <ArrowRight/></button></div></div>
+      <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={e=>{e.stopPropagation();openStay(s)}}>Άνοιξε το κατάλυμα <ArrowRight/></button></div></div>
     </article>)}</div>
    </div>
 
