@@ -9,7 +9,7 @@ const agentApi=readFileSync("app/api/v50/agent/route.ts","utf8");
 const state=readFileSync("lib/ai/v50-agent-state.ts","utf8");
 const skill=readFileSync("skills/web-design/SKILL.md","utf8");
 
-assert(home.includes("V50TravelIntelligenceHome"),"V50 root must render the current homepage");
+assert(home.includes("V54FinalHome")||home.includes("V50TravelIntelligenceHome"),"Greek root must render V54 final home or the retained V50 homepage");
 assert(ui.includes("/api/v50/map-stays?limit=1800"),"V50 must request the live stay universe");
 assert(ui.includes("/api/v50/agent"),"V50 conversation must use the server-side V50 agent");
 assert(ui.includes("quickReplies")&&ui.includes("Travel DNA"),"V50 must support adaptive conversation and infographic filters");

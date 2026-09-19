@@ -21,6 +21,7 @@ export const dynamic="force-dynamic";
 export const maxDuration=60;
 
 type Input=V50ConversationInput & {
+  conversationContext?:string;
   lastQuestionId?:string;
   currentTopIds?:string[];
   selectedStay?:{
@@ -68,6 +69,47 @@ function greekDate(iso:string|null|undefined){
   return new Intl.DateTimeFormat("el-GR",{day:"numeric",month:"long",timeZone:"UTC"}).format(d);
 }
 
+function athensToday(){
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Athens",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+  const read=(type:string)=>parts.find(p=>p.type===type)?.value??"";
+  return `${read("year")}-${read("month")}-${read("day")}`;
+}
+function addDaysIso(iso:string,days:number){
+  const d=new Date(iso+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);
+}
+function validFutureWindow(start:string,end:string,today:string){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end))return false;
+  const s=Date.parse(start+"T00:00:00Z"),e=Date.parse(end+"T00:00:00Z"),t=Date.parse(today+"T00:00:00Z");
+  const nights=Math.round((e-s)/86400000);
+  return Number.isFinite(s)&&Number.isFinite(e)&&s>=t&&e>s&&nights>=1&&nights<=10&&s<=t+180*86400000;
+}
+async function recoverDateIntent(body:Input,input:V50ConversationInput,interpreted:ReturnType<typeof interpretV50Conversation>){
+  if(interpreted.startDate&&interpreted.endDate)return null;
+  const today=athensToday(),text=input.userText.trim();
+  const delegate=/βρες\s*(εσυ|εσύ)|διαλεξε\s*(εσυ|εσύ)|δεν\s*ξερω|οποτε|όποτε|decide for me|you choose/i.test(text);
+  const routed=await generateJsonWithRoutingV16<{startDate:string;endDate:string;reply:string}>({
+    context:{task:"intent",text:[body.conversationContext,text].filter(Boolean).join("\n"),deterministicConfidence:interpreted.confidence,forceSemantic:true,preferOpenAI:true},
+    budget:createLLMRequestBudgetV16(),
+    system:`You resolve calendar intent for a Greek travel concierge. Current local date is ${today} in Europe/Athens. Read the role-aware conversation and CURRENT USER message. Resolve references like "μετά τις 10", "τότε", "εκείνο το ΣΚ". If the user delegates ("βρες εσύ", "δεν ξέρω", "διάλεξε εσύ"), choose a practical future 2-4 night window within 60 days, preferring a Friday/Saturday start unless the conversation suggests otherwise. Never use dates in AGENT examples as user intent unless the user clearly refers back to them. Return JSON only: {"startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD","reply":"short Greek confirmation"}. If truly impossible to resolve safely, return empty dates.`,
+    prompt:JSON.stringify({today,timezone:"Europe/Athens",delegate,currentUserText:text,conversation:body.conversationContext??"",priorUserText:input.priorUserText??""}),
+    preference:"critical",
+    validate:value=>{
+      const startDate=typeof value.startDate==="string"?value.startDate:"",endDate=typeof value.endDate==="string"?value.endDate:"";
+      const reply=typeof value.reply==="string"?value.reply.trim().slice(0,220):"";
+      if(!validFutureWindow(startDate,endDate,today))return null;
+      return{startDate,endDate,reply:reply||`Κρατάω ${startDate} έως ${endDate} και συνεχίζω.`};
+    }
+  }).catch(()=>null);
+  if(routed?.value)return{...routed.value,model:{tier:routed.tier,label:routed.label}};
+  if(delegate){
+    const d=new Date(today+"T00:00:00Z"),day=d.getUTCDay(),delta=(5-day+7)%7||7;
+    d.setUTCDate(d.getUTCDate()+delta+7);
+    const start=d.toISOString().slice(0,10),end=addDaysIso(start,3);
+    return{startDate:start,endDate:end,reply:`Το αναλαμβάνω: ξεκινάω με ένα πρακτικό 3ήμερο ${start}–${end} και θα το αλλάξω αν τα live δεδομένα δείξουν καλύτερη λύση.`,model:{tier:"fallback",label:"calendar-delegate"}};
+  }
+  return null;
+}
+
 function humanClarification(question:ReturnType<typeof nextV50Question>,interpreted:ReturnType<typeof interpretV50Conversation>,lastQuestionId?:string){
   if(!question)return"";
   const dates=interpreted.startDate&&interpreted.endDate?greekDate(interpreted.startDate)+"–"+greekDate(interpreted.endDate):null;
@@ -112,10 +154,10 @@ async function adaptiveClarification(
   };
   const system=`You are TravelAI, a sharp Greek travel concierge. The deterministic parser has already extracted known facts. Ask exactly ONE useful missing question and never repeat information the user already gave. Sound natural, specific and concise, not like a questionnaire. Reference one known fact when useful. Never recommend a destination yet and never invent prices, weather, availability, ratings or events. Do not say you are an AI model. Reply in Greek. Return JSON only: {"reply":"max 220 chars"}.`;
   const routed=await generateJsonWithRoutingV16<{reply:string}>({
-    context:{task:"intent",text:[input.priorUserText,input.userText].filter(Boolean).join(" · "),deterministicConfidence:interpreted.confidence,forceSemantic:true},
+    context:{task:"intent",text:[input.priorUserText,input.userText].filter(Boolean).join(" · "),deterministicConfidence:interpreted.confidence,forceSemantic:true,preferOpenAI:true},
     budget:createLLMRequestBudgetV16(),
     system,
-    prompt:JSON.stringify({missing:question.id,known,lastQuestionId:lastQuestionId??null,currentUserText:input.userText,history:input.priorUserText??"",fallbackQuestion:question.text}),
+    prompt:JSON.stringify({today:athensToday(),timezone:"Europe/Athens",missing:question.id,known,lastQuestionId:lastQuestionId??null,currentUserText:input.userText,history:input.priorUserText??"",conversation:(input as V50ConversationInput & {conversationContext?:string}).conversationContext??"",fallbackQuestion:question.text}),
     preference:"critical",
     validate:value=>{
       const reply=typeof value.reply==="string"?value.reply.trim().slice(0,240):"";
@@ -225,15 +267,21 @@ export async function POST(request:Request){
   }
 
   const profileKey=travelerProfileKeyFromRequest(request)??crypto.randomUUID();
-  const input:V50ConversationInput={
+  let input:V50ConversationInput & {conversationContext?:string}={
     userText:body.userText.slice(0,500),
     priorUserText:typeof body.priorUserText==="string"?body.priorUserText.slice(-1000):"",
+    conversationContext:typeof body.conversationContext==="string"?body.conversationContext.slice(-1800):"",
     origin:body.origin,
     budget:body.budget,
     filters:body.filters,
     answers:body.answers
   };
-  const interpreted=interpretV50Conversation(input);
+  let interpreted=interpretV50Conversation(input);
+  const recoveredDate=(!interpreted.startDate||!interpreted.endDate)?await recoverDateIntent(body,input,interpreted):null;
+  if(recoveredDate){
+    input={...input,answers:{...(input.answers??{}),dates:recoveredDate.startDate+" – "+recoveredDate.endDate}};
+    interpreted=interpretV50Conversation(input);
+  }
 
   if(body.selectedStay&&Array.isArray(body.currentTopIds)&&!body.currentTopIds.includes(body.selectedStay.productId)){
     return responseWithProfile({
@@ -250,6 +298,7 @@ export async function POST(request:Request){
     return responseWithProfile({
       ok:true,state:"clarify",
       agentMessage:clarification,
+      agentRuntime:{today:athensToday(),timezone:"Europe/Athens",dateRecovery:recoveredDate?.model??null},
       question,
       interpreted:{
         confidence:interpreted.confidence,
@@ -331,7 +380,7 @@ export async function POST(request:Request){
       : `Το brief σου είναι καθαρό, αλλά δεν βρήκα αυτή τη στιγμή επιβεβαιωμένη stay-backed επιλογή που να αξίζει να σου δείξω. Κρατάω τα κριτήριά σου και δεν θα γεμίσω τη λίστα με άσχετους προορισμούς.`;
 
     return responseWithProfile({
-      ok:true,state:"results",agentMessage,
+      ok:true,state:"results",agentMessage,agentRuntime:{today:athensToday(),timezone:"Europe/Athens",dateRecovery:recoveredDate?.model??null},
       interpreted:{
         confidence:interpreted.confidence,
         signals:interpreted.signals,

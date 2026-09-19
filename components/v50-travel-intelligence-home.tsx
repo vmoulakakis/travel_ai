@@ -79,6 +79,7 @@ export function V50TravelIntelligenceHome(){
  const hero=activeSolution?.stay.imageUrl??(heroImages.length?heroImages[heroIndex%heroImages.length]:null);
  const detail=activeSolution?.stay.imageUrl??(heroImages.length?heroImages[(heroIndex+1)%heroImages.length]:hero);
  const userHistory=messages.filter(x=>x.role==="user").slice(-7).map(x=>x.text).join(" · ").slice(-1000);
+ const conversationContext=messages.slice(-10).map(x=>(x.role==="agent"?"AGENT: ":"USER: ")+x.text).join("\n").slice(-1800);
 
  useEffect(()=>{
   if(activeSolution||heroImages.length<2)return;
@@ -249,6 +250,7 @@ export function V50TravelIntelligenceHome(){
     const payload=await fetchAgentPayload({
       userText:clean||"Θέλω να συγκρίνεις αυτή την επιλογή.",
       priorUserText:userHistory,
+      conversationContext,
       origin,budget,filters,answers:nextAnswers,
       lastQuestionId:question?.id,
       currentTopIds:solutions.map(x=>x.stay.productId),
@@ -279,7 +281,7 @@ export function V50TravelIntelligenceHome(){
   setBusy(true);
   try{
     const payload=await fetchAgentPayload({
-      userText:label,priorUserText:userHistory,origin,budget,filters,answers:next,lastQuestionId:question?.id
+      userText:label,priorUserText:userHistory,conversationContext,origin,budget,filters,answers:next,lastQuestionId:question?.id
     });
     setMessages(v=>[...v,{id:id(),role:"agent",text:payload.agentMessage}]);
     setQuestion(payload.question??null);
