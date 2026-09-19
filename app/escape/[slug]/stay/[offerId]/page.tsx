@@ -13,12 +13,18 @@ type Props={params:Promise<{slug:string;offerId:string}>;searchParams?:Promise<R
 export default async function StayEscapePage({params,searchParams}:Props){
  const[{slug,offerId},query]=await Promise.all([params,searchParams]);
  const missionRaw=typeof query?.mission==="string"?query.mission:"",missionId=uuid.test(missionRaw)?missionRaw:null;
- const[catalog,mission,directSelected]=await Promise.all([
-  loadV8DestinationCatalog().catch(()=>[]),
+ const destinationNameRaw=typeof query?.dn==="string"?query.dn.trim().slice(0,120):"";
+ const[mission,directSelected,catalog]=await Promise.all([
   loadMissionV34(missionId),
-  loadV8StayOfferById(offerId)
+  loadV8StayOfferById(offerId),
+  destinationNameRaw?Promise.resolve([]):loadV8DestinationCatalog().catch(()=>[])
  ]);
- const destination=catalog.find(item=>item.slug===slug);if(!destination)notFound();
+ const catalogDestination=catalog.find(item=>item.slug===slug);
+ const fallbackDestinationName=slug.split("-").filter(Boolean).map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ");
+ const destination={
+  nameEl:destinationNameRaw||catalogDestination?.nameEl||fallbackDestinationName||"Ελλάδα",
+  nameEn:destinationNameRaw||catalogDestination?.nameEn||fallbackDestinationName||"Greece"
+ };
  const lang:Language=query?.lang==="en"?"en":"el",startRaw=typeof query?.start==="string"?query.start:"",endRaw=typeof query?.end==="string"?query.end:"",fallbackStart=mission?.travelWindow.start&&iso.test(mission.travelWindow.start)?mission.travelWindow.start:new Date(Date.now()+3*DAY).toISOString().slice(0,10),fallbackEnd=mission?.travelWindow.end&&iso.test(mission.travelWindow.end)?mission.travelWindow.end:new Date(Date.now()+6*DAY).toISOString().slice(0,10),start=iso.test(startRaw)?startRaw:fallbackStart,end=iso.test(endRaw)&&Date.parse(endRaw)>Date.parse(start)?endRaw:fallbackEnd;
  const budgetQuery=typeof query?.budget==="string"?Number(query.budget):NaN,budgetSource=Number.isFinite(budgetQuery)?budgetQuery:mission?.budgetEur??900,budget=Math.max(150,Math.min(5000,budgetSource)),travelerRaw=typeof query?.travelerType==="string"?query.travelerType:mission?.travelers.type??"couple",travelerType:TravelerType=validTravelers.has(travelerRaw as TravelerType)?travelerRaw as TravelerType:"couple",moodRaw=typeof query?.mood==="string"?query.mood:"relax",mood:Mood=validMoods.has(moodRaw as Mood)?moodRaw as Mood:"relax",origin=typeof query?.origin==="string"&&query.origin.trim().length>=2?query.origin.trim().slice(0,80):mission?.originText?.slice(0,80)||"Athens",nights=Math.max(1,Math.min(14,Math.round((Date.parse(`${end}T00:00:00Z`)-Date.parse(`${start}T00:00:00Z`))/DAY))),semanticProfile=inferMissionProfileV34(mission,mood),groupSize=Math.max(1,Math.min(10,mission?.travelers.groupSize??(travelerType==="solo"?1:travelerType==="couple"?2:4))),tripText=[mission?.needText??"",...(mission?.escapeDna.signals??[])].filter(Boolean).join(". ").slice(0,320);
  const trip:TripRequest={origin,startDate:start,endDate:end,month:"flexible",nights,budget,moods:semanticProfile.moods,travelerType,language:lang,distancePreference:"any",pace:semanticProfile.pace,hotelStyle:"any",avoid:semanticProfile.avoid,entryMode:"idea",groupSize,desiredEnergy:semanticProfile.desiredEnergy,socialPreference:semanticProfile.socialPreference,noveltyPreference:semanticProfile.noveltyPreference,mustHave:semanticProfile.mustHave,dateFlexibility:"few-days",transportMode:"any",stayLocationPreference:"balanced",...(tripText?{tripText}:{})};
