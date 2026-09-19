@@ -31,11 +31,18 @@ expect(
 expect(parser.includes('if(v==null)return null')&&parser.includes('if(!raw)return null')&&parser.includes('parsed!=null&&parsed>0?parsed:null'),"blank/zero feed prices must map to unknown, never 0 EUR");
 expect(priceMigration.includes("price is not null and price>0 then price")&&priceMigration.includes("full_price is not null and full_price>0 then full_price")&&!priceMigration.includes("currency is not null and trim(currency)<>'' then price"),"stay RPC must preserve positive price even when feed currency is blank");
 expect(
-  (v50Family||v40)?(builder.includes("stayImages")&&builder.includes("extra_images")&&builder.includes("mode=aerial"))
+  v54
+    ? (builder.includes("extra_images")&&builder.includes("cinematicFrames")&&builder.includes("AERIAL")&&builder.includes("inventory media"))
+    : (v50Family||v40)?(builder.includes("stayImages")&&builder.includes("extra_images")&&builder.includes("mode=aerial"))
              :(builder.includes("mode=aerial")&&builder.includes("setInterval")&&builder.includes("stayImages")),
   "destination and stay sourced-photo cinematic system must remain wired"
 );
-expect(builder.includes('price!=null&&price>0')||builder.includes('offer.price!=null&&offer.price>0'),"UI must show a feed price only when positive");
+expect(
+  v54
+    ? (builder.includes("n&&n>0")&&builder.includes("Τιμή στον πάροχο"))
+    : (builder.includes('price!=null&&price>0')||builder.includes('offer.price!=null&&offer.price>0')),
+  "UI must show a feed price only when positive"
+);
 expect(
   (v50Family||v40)?(builder.includes("unlocked")&&builder.includes("/api/guide/email")&&builder.includes("offer.trackingUrl"))
              :(builder.includes('stage==="email"')&&builder.includes('stage==="unlocked"')),
