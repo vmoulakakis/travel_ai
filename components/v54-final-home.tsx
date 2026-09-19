@@ -183,9 +183,9 @@ export function V54FinalHome(){
   <section id="map" className={styles.mapFirst}>
    <div className={styles.mapFirstTop}>
     <div>
-     <small>AI MAP · LIVE INVENTORY</small>
+     <small>LIVE MAP · AI INVENTORY</small>
      <h1>1.700+ stays. <em>Ένας χάρτης.</em> Η AI βρίσκει τα σωστά.</h1>
-     <p>Παίξε με τον χάρτη ή δώσε ένα feeling. Η TravelAI σκανάρει το πραγματικό inventory και περιορίζει τις επιλογές σε λίγες που ταιριάζουν σε εσένα.</p>
+     <p>Παίξε με τον χάρτη ή δώσε ένα feeling. Η TravelAI σκανάρει 1.700+ πραγματικά stays από το ενεργό inventory και περιορίζει τις επιλογές σε λίγες που ταιριάζουν σε εσένα.</p>
     </div>
     <div className={styles.mapAiFlow}>
      <span>{inventory.length?inventory.length.toLocaleString("el-GR"):"1.700+"} stays</span><i>→</i><span>AI reasoning</span><i>→</i><span>Top 10</span><i>→</i><b>Your escape ✨</b>
