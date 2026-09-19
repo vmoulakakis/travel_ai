@@ -26,7 +26,9 @@ export function V54FinalHome(){
  const [heroMedia,setHeroMedia]=useState<Hero[]>([]);
  const [solutions,setSolutions]=useState<Solution[]>([]);
  const [active,setActive]=useState(0);
- const [origin,setOrigin]=useState("Αθήνα");
+ const [origin]=useState("Αθήνα");
+ const [destination,setDestination]=useState("Σαντορίνη, Ελλάδα");
+ const [plannerTab,setPlannerTab]=useState<"trip"|"inspire"|"ask">("trip");
  const [start,setStart]=useState(()=>addDays(todayIso(),14));
  const [end,setEnd]=useState(()=>addDays(todayIso(),17));
  const [traveler,setTraveler]=useState("couple");
@@ -40,6 +42,8 @@ export function V54FinalHome(){
  const [busy,setBusy]=useState(false);
  const [lastTrip,setLastTrip]=useState<AgentResponse["trip"]|null>(null);
  const [showSatellite,setShowSatellite]=useState(true);
+ const [selectedMapStay,setSelectedMapStay]=useState<DisplayStay|null>(null);
+ const [mapReady,setMapReady]=useState(false);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
  const layerRef=useRef<LayerGroup|null>(null);
@@ -63,6 +67,7 @@ export function V54FinalHome(){
    L.control.zoom({position:"bottomright"}).addTo(map);
    tileRef.current=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:18}).addTo(map);
    mapRef.current=map;
+   window.setTimeout(()=>{map.invalidateSize();setMapReady(true)},80);
   });
   return()=>{dead=true;mapRef.current?.remove();mapRef.current=null};
  },[]);
@@ -94,7 +99,7 @@ export function V54FinalHome(){
   }));
  },[solutions,inventory]);
 
- const activeStay=cards[active]??cards[0]??null;
+ const activeStay=selectedMapStay??cards[active]??cards[0]??null;
  const hero=activeStay?.image??heroMedia[0]?.imageUrl??inventory.find(x=>x.imageUrl)?.imageUrl??null;
  const gallery=useMemo(()=>{
   const urls=[activeStay?.image,...heroMedia.map(x=>x.imageUrl),...inventory.slice(0,20).map(x=>x.imageUrl)].filter((x):x is string=>Boolean(x));
@@ -108,15 +113,26 @@ export function V54FinalHome(){
    if(dead||!mapRef.current)return;
    layerRef.current?.remove();
    const g=L.layerGroup().addTo(mapRef.current);layerRef.current=g;
+   const displayFromInventory=(p:Stay):DisplayStay=>({
+    id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:p.imageUrl,price:p.price,currency:p.currency,
+    lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
+    why:"Πραγματικό stay από το ενεργό inventory.",availability:p.availability
+   });
    for(const p of inventory){
-    const marker=L.circleMarker([p.latitude,p.longitude],{radius:3,weight:1,opacity:.85,fillOpacity:.72});
-    marker.bindTooltip(`${p.name}<br><b>${money(p.price,p.currency)}</b>`);
-    marker.on("click",()=>{const idx=cards.findIndex(c=>c.id===p.productId);if(idx>=0)setActive(idx)});
+    if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))continue;
+    const marker=L.circleMarker([p.latitude,p.longitude],{radius:4,weight:1.2,color:"#f4ba59",fillColor:"#87d7b3",opacity:.92,fillOpacity:.78});
+    marker.bindTooltip(`<strong>${p.name}</strong><br>${p.location||p.address||""}<br><b>${money(p.price,p.currency)}</b>`,{direction:"top",offset:[0,-6]});
+    marker.on("click",()=>{
+      const stay=displayFromInventory(p);
+      setSelectedMapStay(stay);
+      const idx=cards.findIndex(c=>c.id===p.productId);if(idx>=0)setActive(idx);
+      mapRef.current?.flyTo([p.latitude,p.longitude],Math.max(mapRef.current.getZoom(),12),{duration:.65});
+    });
     marker.addTo(g);
    }
    cards.slice(0,10).forEach((p,i)=>{
     const icon=L.divIcon({className:"v54PricePin",html:`<span>${p.price?money(p.price,p.currency):"★"}</span>`,iconSize:[74,32],iconAnchor:[37,16]});
-    L.marker([p.lat,p.lon],{icon,zIndexOffset:1000-i}).on("click",()=>setActive(i)).addTo(g);
+    L.marker([p.lat,p.lon],{icon,zIndexOffset:1000-i}).on("click",()=>{setSelectedMapStay(p);setActive(i);mapRef.current?.flyTo([p.lat,p.lon],12,{duration:.65})}).addTo(g);
    });
   });
   return()=>{dead=true};
@@ -127,12 +143,12 @@ export function V54FinalHome(){
  },[activeStay?.id]);
 
  async function runAgent(extra?:string){
-  const prompt=(extra??freeText).trim()||`${intent}, ${traveler==="couple"?"με σύντροφο":traveler}, ${start} έως ${end}. Θέλω τις καλύτερες πραγματικές επιλογές.`;
+  const prompt=(extra??freeText).trim()||`${destination}. ${intent}, ${traveler==="couple"?"με σύντροφο":traveler}, ${start} έως ${end}. Θέλω τις καλύτερες πραγματικές επιλογές.`;
   setBusy(true);setAgentMessage("Αναλύω ημερομηνίες, profile, inventory και πραγματικές επιλογές…");
   try{
    const body={
     userText:prompt,
-    conversationContext:`USER PROFILE: origin=${origin}, dates=${start}..${end}, traveler=${traveler}, budget=${budget}, intent=${intent}`,
+    conversationContext:`USER PROFILE: origin=${origin}, destination=${destination}, dates=${start}..${end}, traveler=${traveler}, budget=${budget}, intent=${intent}`,
     priorUserText:freeText,
     origin,budget,filters,
     answers:{dates:start+" – "+end,companions:traveler,outcome:filters.calm>72?"restore":"balanced"}
