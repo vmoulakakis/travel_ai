@@ -63,7 +63,7 @@ export function V54FinalHome(){
   let dead=false;
   void import("leaflet").then(L=>{
    if(dead||!mapHost.current||mapRef.current)return;
-   const map=L.map(mapHost.current,{zoomControl:false,attributionControl:false,minZoom:5,maxZoom:18}).setView([38.4,23.7],6);
+   const map=L.map(mapHost.current,{zoomControl:false,attributionControl:false,minZoom:5,maxZoom:18}).setView([36.3932,25.4615],11);
    L.control.zoom({position:"bottomright"}).addTo(map);
    tileRef.current=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:18}).addTo(map);
    mapRef.current=map;
@@ -189,6 +189,8 @@ export function V54FinalHome(){
      <div className={styles.heroActions}><button onClick={()=>document.getElementById("planner")?.scrollIntoView({behavior:"smooth"})}>Σχεδίασε το ταξίδι μου με AI <ArrowRight/></button><a href="#how"><PlayCircle/> Δες πώς λειτουργεί</a></div>
      <div className={styles.heroProof}><b><Brain/> Προσωποποιημένο reasoning</b><b><MapPin/> {inventory.length.toLocaleString("el-GR")} live stays</b><b><ShieldCheck/> Grounded επιλογές</b></div>
     </div>
+    <div className={styles.heroQuote}>“Not just a trip.<br/>A better you.”</div>
+    <div className={styles.heroLocation}><MapPin weight="fill"/>{destination}</div>
    </div>
 
    <aside id="planner" className={styles.planner}>
