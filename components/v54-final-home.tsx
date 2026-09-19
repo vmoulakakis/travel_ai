@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect,useMemo,useRef,useState } from "react";
+import { useRouter } from "next/navigation";
 import type { LayerGroup,Map as LeafletMap,TileLayer } from "leaflet";
 import {
   ArrowRight,Brain,CalendarBlank,CheckCircle,Compass,Heart,Lightning,MapPin,
@@ -25,6 +26,7 @@ const addDays=(iso:string,days:number)=>{const d=new Date(iso+"T00:00:00Z");d.se
 const html=(v:string)=>v.replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[ch]??ch));
 
 export function V54FinalHome(){
+ const router=useRouter();
  const [inventory,setInventory]=useState<Stay[]>([]);
  const [heroMedia,setHeroMedia]=useState<Hero[]>([]);
  const [solutions,setSolutions]=useState<Solution[]>([]);
@@ -48,8 +50,7 @@ export function V54FinalHome(){
  const [selectedMapStay,setSelectedMapStay]=useState<DisplayStay|null>(null);
  const [mapReady,setMapReady]=useState(false);
  const [mapView,setMapView]=useState({lat:36.3932,lon:25.4615,zoom:11});
- const [hoveredStay,setHoveredStay]=useState<DisplayStay|null>(null);
- const hoverTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+ const hoveredStayRef=useRef<DisplayStay|null>(null);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
  const layerRef=useRef<LayerGroup|null>(null);
@@ -172,12 +173,14 @@ export function V54FinalHome(){
       zIndexOffset:rank?1800-rank:300
     });
     marker.bindTooltip(tooltipFor(p,rank,ratingCache.current.get(p.productId)),{direction:"top",offset:[0,-12],opacity:1,className:"v56Tooltip"});
-    marker.on("mouseover",()=>{void loadRating(p,marker,rank)});
+    marker.on("mouseover",()=>{marker.setTooltipContent(tooltipFor(p,rank,ratingCache.current.get(p.productId)??null))});
     marker.on("click",()=>{
       const stay=displayFromInventory(p);
       setSelectedMapStay(stay);
+      hoveredStayRef.current=stay;
       const idx=cards.findIndex(c=>c.id===p.productId);if(idx>=0)setActive(idx);
-      mapRef.current?.flyTo([p.latitude,p.longitude],Math.max(mapRef.current.getZoom(),12),{duration:.65});
+      mapRef.current?.flyTo([p.latitude,p.longitude],Math.max(mapRef.current.getZoom(),12),{duration:.45});
+      void loadRating(p,marker,rank);
     });
     marker.addTo(g);
    }
@@ -199,12 +202,12 @@ export function V54FinalHome(){
   try{
    const body={
     userText:prompt,
-    conversationContext:`USER PROFILE: origin=${origin}, destination=${destination}, dates=${start}..${end}, traveler=${traveler}, budget=${budget}, intent=${intent}. TODAY_LOCAL=${todayIso()} Europe/Athens. MAP_CENTER=${mapView.lat.toFixed(5)},${mapView.lon.toFixed(5)} zoom=${mapView.zoom}. CURRENT_STAY=${(selectedMapStay??hoveredStay)?.name??"none"}`,
+    conversationContext:`USER PROFILE: origin=${origin}, destination=${destination}, dates=${start}..${end}, traveler=${traveler}, budget=${budget}, intent=${intent}. TODAY_LOCAL=${todayIso()} Europe/Athens. MAP_CENTER=${mapView.lat.toFixed(5)},${mapView.lon.toFixed(5)} zoom=${mapView.zoom}. CURRENT_STAY=${(selectedMapStay??hoveredStayRef.current)?.name??"none"}`,
     priorUserText:freeText,
     origin,budget,filters,
     currentTopIds:cards.slice(0,10).map(x=>x.id),
-    selectedStay:(selectedMapStay??hoveredStay)?{productId:(selectedMapStay??hoveredStay)!.id,name:(selectedMapStay??hoveredStay)!.name,location:(selectedMapStay??hoveredStay)!.location,price:(selectedMapStay??hoveredStay)!.price}:null,
-    mapContext:{centerLat:mapView.lat,centerLon:mapView.lon,zoom:mapView.zoom,visibleDestination:destination,hoveredStayId:hoveredStay?.id??null,hoveredStayName:hoveredStay?.name??null},
+    selectedStay:(selectedMapStay??hoveredStayRef.current)?{productId:(selectedMapStay??hoveredStayRef.current)!.id,name:(selectedMapStay??hoveredStayRef.current)!.name,location:(selectedMapStay??hoveredStayRef.current)!.location,price:(selectedMapStay??hoveredStayRef.current)!.price}:null,
+    mapContext:{centerLat:mapView.lat,centerLon:mapView.lon,zoom:mapView.zoom,visibleDestination:destination,hoveredStayId:hoveredStayRef.current?.id??null,hoveredStayName:hoveredStayRef.current?.name??null},
     answers:{dates:start+" – "+end,companions:traveler,outcome:filters.calm>72?"restore":"balanced"}
    };
    const r=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
@@ -216,11 +219,18 @@ export function V54FinalHome(){
   finally{setBusy(false)}
  }
 
+ function stayHref(stay:DisplayStay){
+  if(!stay.slug)return null;
+  const q=new URLSearchParams({start,end,budget:String(budget),origin,travelerType:traveler});
+  return `/escape/${encodeURIComponent(stay.slug)}/stay/${encodeURIComponent(stay.id)}?${q}`;
+ }
+ function prefetchStay(stay:DisplayStay){
+  const href=stayHref(stay);if(href)router.prefetch(href);
+ }
  function openStay(stay:DisplayStay){
-  if(stay.slug){
-   const q=new URLSearchParams({start,end,budget:String(budget),origin,travelerType:traveler});
-   window.location.assign(`/escape/${encodeURIComponent(stay.slug)}/stay/${encodeURIComponent(stay.id)}?${q}`);
-  }else if(stay.tracking)window.open(stay.tracking,"_blank","noopener,noreferrer");
+  const href=stayHref(stay);
+  if(href)router.push(href);
+  else if(stay.tracking)window.open(stay.tracking,"_blank","noopener,noreferrer");
  }
 
  const destinationTiles=heroMedia.slice(0,6);
@@ -330,12 +340,12 @@ export function V54FinalHome(){
    <div className={styles.stayColumn}>
     <div className={styles.sectionHead}><div><small>AI CURATED</small><h2>Προτάσεις διαμονής από την AI</h2></div><button onClick={()=>void runAgent("Βελτιστοποίησε ξανά τις επιλογές με βάση το τρέχον brief.")}>Ανανέωση AI <Sparkle/></button></div>
     <div className={styles.cardGrid}>{cards.slice(0,3).map((s,i)=><article key={s.id}
-      onMouseEnter={()=>{if(hoverTimer.current)clearTimeout(hoverTimer.current);hoverTimer.current=setTimeout(()=>{setHoveredStay(s);setSelectedMapStay(null);setActive(i);mapRef.current?.flyTo([s.lat,s.lon],Math.max(mapRef.current?.getZoom()??10,11),{duration:1.25})},420)}}
-      onMouseLeave={()=>{if(hoverTimer.current)clearTimeout(hoverTimer.current);hoverTimer.current=null}}
-      onClick={()=>{setHoveredStay(s);setSelectedMapStay(null);setActive(i);mapRef.current?.flyTo([s.lat,s.lon],Math.max(mapRef.current?.getZoom()??10,11),{duration:1.1})}}
+      onMouseEnter={()=>{hoveredStayRef.current=s;prefetchStay(s)}}
+      onMouseLeave={()=>{if(hoveredStayRef.current?.id===s.id)hoveredStayRef.current=null}}
+      onClick={()=>{hoveredStayRef.current=s;setSelectedMapStay(null);setActive(i);mapRef.current?.flyTo([s.lat,s.lon],Math.max(mapRef.current?.getZoom()??10,11),{duration:.45})}}
       className={i===active&&!selectedMapStay?styles.cardActive:""}>
       <div className={styles.cardPhoto} style={s.image?{backgroundImage:`url(${s.image})`}:undefined}><span>{s.score?Math.round(s.score)+"% MATCH":"LIVE STAY"}</span><button><Heart/></button></div>
-      <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={e=>{e.stopPropagation();openStay(s)}}>Άνοιξε το κατάλυμα <ArrowRight/></button></div></div>
+      <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onMouseEnter={()=>prefetchStay(s)} onFocus={()=>prefetchStay(s)} onClick={e=>{e.stopPropagation();openStay(s)}}>Άνοιξε το κατάλυμα <ArrowRight/></button></div></div>
     </article>)}</div>
    </div>
 
