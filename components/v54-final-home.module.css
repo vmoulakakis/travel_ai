@@ -83,3 +83,29 @@
  .mapAiFlow i{display:none}
  .cardGrid{grid-template-columns:1fr}
 }
+
+
+/* V57 — active map pins + verified provider tooltip */
+:global(.v56AiPin){background:transparent!important;border:0!important;pointer-events:auto!important;cursor:pointer!important}
+:global(.v56AiPin span){width:44px;height:44px;border-radius:15px 15px 15px 5px;transform:rotate(45deg);display:grid;place-items:center;background:linear-gradient(135deg,#ffe29d,#f4ba59);border:2px solid rgba(255,255,255,.95);box-shadow:0 12px 30px rgba(0,0,0,.36),0 0 0 6px rgba(244,186,89,.12);color:#1d160c;font:900 10px/1 Inter,system-ui;transition:transform .18s ease,box-shadow .18s ease}
+:global(.v56AiPin span>*),:global(.v56AiPin span){transform-origin:center}
+:global(.v56AiPin span i){display:inline;font-style:normal;font-size:7px;margin-right:2px}
+:global(.v56AiPin:hover span){transform:rotate(45deg) scale(1.16);box-shadow:0 16px 38px rgba(0,0,0,.42),0 0 0 9px rgba(244,186,89,.18)}
+:global(.v56Tooltip){padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+:global(.v56Tooltip:before){display:none!important}
+:global(.v56MapTip){width:250px;padding:11px 12px;border-radius:14px;background:rgba(3,24,19,.97);border:1px solid rgba(255,255,255,.16);box-shadow:0 18px 44px rgba(0,0,0,.42);backdrop-filter:blur(14px);color:#f6f2e9}
+:global(.v56MapTipTop){display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+:global(.v56AiBadge),:global(.v56LiveBadge){display:inline-flex;align-items:center;border-radius:999px;padding:4px 7px;font:900 7px/1 Inter,system-ui;letter-spacing:.08em}
+:global(.v56AiBadge){background:#f4ba59;color:#211609}
+:global(.v56LiveBadge){background:rgba(126,220,178,.12);border:1px solid rgba(126,220,178,.3);color:#8fe0bd}
+:global(.v56MapTipTop strong){font-size:11px;color:#ffd98d}
+:global(.v56MapTipName){display:block;font-size:12px;line-height:1.25;margin-bottom:3px}
+:global(.v56MapTipLoc){display:block;font-size:8px;color:#9fb0a7;margin-bottom:8px}
+:global(.v56RatingRow){display:flex;flex-direction:column;gap:4px;padding:7px 0;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}
+:global(.v56RatingRow span){font-size:8px;color:#d5e0da}
+:global(.v56RatingRow b){color:#fff}
+:global(.v56RatingLoading),:global(.v56RatingEmpty){padding:7px 0;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);font-size:8px;color:#91a69d}
+:global(.v56RatingLoading){color:#f5cc82}
+:global(.v56MapTip small){display:block;margin-top:7px;font-size:7px;color:#758a80}
+:global(.leaflet-interactive){transition:stroke-width .15s ease,fill-opacity .15s ease,filter .15s ease}
+:global(.leaflet-interactive:hover){filter:drop-shadow(0 0 6px rgba(255,217,141,.65))}
