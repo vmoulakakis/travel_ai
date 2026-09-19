@@ -4,7 +4,7 @@ import { useEffect,useMemo,useRef,useState } from "react";
 import type { LayerGroup,Map as LeafletMap,TileLayer } from "leaflet";
 import {
   ArrowRight,Brain,CalendarBlank,CheckCircle,Compass,Heart,Lightning,MapPin,
-  PaperPlaneTilt,ShieldCheck,Sparkle,Star,Users,Wallet
+  PaperPlaneTilt,ShieldCheck,Sparkle,Star,Users,Wallet,MagnifyingGlass,UserCircle,PlayCircle,Globe,AirplaneTilt,Images
 } from "@phosphor-icons/react";
 import styles from "./v54-final-home.module.css";
 
@@ -175,8 +175,8 @@ export function V54FinalHome(){
  return <main className={styles.page}>
   <header className={styles.nav}>
    <a className={styles.logo} href="/">TRAVEL<span>AI</span><small>AI ESCAPE INTELLIGENCE</small></a>
-   <nav><a href="#destinations">Προορισμοί</a><a href="#stays">Διαμονή</a><a href="#planner">AI Planner</a><a href="#map">Χάρτης</a><a href="#featured">Featured</a></nav>
-   <button onClick={()=>document.getElementById("planner")?.scrollIntoView({behavior:"smooth"})}>Ξεκίνα το ταξίδι σου <ArrowRight/></button>
+   <nav><a href="#destinations">Προορισμοί</a><a href="#stays">Διαμονή</a><a href="#featured">Εμπειρίες</a><a href="#planner">AI Planner</a><a href="#how">Πώς λειτουργεί</a><a href="#about">Σχετικά</a></nav>
+   <div className={styles.navActions}><button aria-label="Αναζήτηση"><MagnifyingGlass/></button><button className={styles.login}><UserCircle/> Σύνδεση</button><button className={styles.navCta} onClick={()=>document.getElementById("planner")?.scrollIntoView({behavior:"smooth"})}>Ξεκίνα το ταξίδι σου <ArrowRight/></button></div>
   </header>
 
   <section className={styles.hero}>
@@ -186,48 +186,65 @@ export function V54FinalHome(){
      <p><Sparkle weight="fill"/> AI TRAVEL PLANNING · REAL INVENTORY</p>
      <h1>Δεν ψάχνεις<br/><em>προορισμό.</em><br/>Ψάχνεις το σωστό <i>feeling.</i></h1>
      <span>Η TravelAI περιορίζει τον θόρυβο: καταλαβαίνει τι χρειάζεσαι, ελέγχει πραγματικά stays και μετατρέπει ένα ασαφές “θέλω να φύγω” σε επιλογές που αξίζουν.</span>
-     <div className={styles.heroActions}><button onClick={()=>document.getElementById("planner")?.scrollIntoView({behavior:"smooth"})}>Σχεδίασε το ταξίδι μου με AI <ArrowRight/></button><a href="#stays">Δες πραγματικές επιλογές</a></div>
+     <div className={styles.heroActions}><button onClick={()=>document.getElementById("planner")?.scrollIntoView({behavior:"smooth"})}>Σχεδίασε το ταξίδι μου με AI <ArrowRight/></button><a href="#how"><PlayCircle/> Δες πώς λειτουργεί</a></div>
      <div className={styles.heroProof}><b><Brain/> Προσωποποιημένο reasoning</b><b><MapPin/> {inventory.length.toLocaleString("el-GR")} live stays</b><b><ShieldCheck/> Grounded επιλογές</b></div>
     </div>
    </div>
 
    <aside id="planner" className={styles.planner}>
     <div className={styles.plannerTitle}><Brain weight="fill"/><div><b>AI Travel Planner</b><span>Πες μου τι ονειρεύεσαι. Αναλαμβάνει η AI.</span></div><i className={busy?styles.busy:styles.ready}/></div>
-    <div className={styles.tabs}><button className={styles.tabActive}>Ταξίδι</button><button>Εμπειρία</button><button>Απόδραση</button></div>
-    <label><span><MapPin/> Από πού ξεκινάς;</span><input value={origin} onChange={e=>setOrigin(e.target.value)}/></label>
-    <div className={styles.double}>
-     <label><span><CalendarBlank/> Από</span><input type="date" value={start} min={todayIso()} onChange={e=>setStart(e.target.value)}/></label>
-     <label><span><CalendarBlank/> Έως</span><input type="date" value={end} min={start} onChange={e=>setEnd(e.target.value)}/></label>
+    <div className={styles.tabs}>
+      <button className={plannerTab==="trip"?styles.tabActive:""} onClick={()=>setPlannerTab("trip")}>Ταξίδι</button>
+      <button className={plannerTab==="inspire"?styles.tabActive:""} onClick={()=>setPlannerTab("inspire")}>Έμπνευση</button>
+      <button className={plannerTab==="ask"?styles.tabActive:""} onClick={()=>setPlannerTab("ask")}>Ρώτα την AI</button>
     </div>
-    <div className={styles.double}>
-     <label><span><Users/> Ταξιδιώτες</span><select value={traveler} onChange={e=>setTraveler(e.target.value)}><option value="couple">2 ενήλικες</option><option value="solo">Μόνος/η</option><option value="family">Οικογένεια</option><option value="friends">Φίλοι</option></select></label>
-     <label><span><Wallet/> Budget</span><input type="number" value={budget} onChange={e=>setBudget(Number(e.target.value)||800)}/></label>
+
+    <label className={styles.fieldCard}><span><MapPin/> Πού θέλεις να πας;</span><input value={destination} onChange={e=>setDestination(e.target.value)} placeholder="π.χ. Σαντορίνη, Κρήτη ή βρες εσύ"/></label>
+
+    <div className={styles.dateCard}>
+      <span><CalendarBlank/> Πότε;</span>
+      <div><input aria-label="Ημερομηνία αναχώρησης" type="date" value={start} min={todayIso()} onChange={e=>setStart(e.target.value)}/><i>→</i><input aria-label="Ημερομηνία επιστροφής" type="date" value={end} min={start} onChange={e=>setEnd(e.target.value)}/></div>
     </div>
-    <p className={styles.chipTitle}>Τι θέλεις να νιώσεις;</p>
-    <div className={styles.chips}>{["Χαλάρωση","Ρομαντικό","Φύση","Γαστρονομία","Περιπέτεια","Πολιτισμός"].map(x=><button key={x} className={intent===x?styles.chipActive:""} onClick={()=>setIntent(x)}>{x}</button>)}</div>
-    <textarea value={freeText} onChange={e=>setFreeText(e.target.value)} placeholder="π.χ. Βρες εσύ ένα ήσυχο 3ήμερο με ωραίο φαγητό και καλό ξενοδοχείο…"/>
-    <button className={styles.primary} disabled={busy} onClick={()=>void runAgent()}>{busy?"Η AI σκέφτεται…":"Δημιούργησε το δικό μου ταξίδι"} <Sparkle weight="fill"/></button>
-    <div className={styles.reasonBox}><Sparkle weight="fill"/><div><b>{runtimeLabel}</b><p>{agentMessage}</p>{question?.quickReplies?.length?<div className={styles.inlineReplies}>{question.quickReplies.slice(0,4).map(q=><button key={q.value} onClick={()=>void runAgent(q.label)}>{q.label}</button>)}</div>:null}</div></div>
+
+    <div className={styles.double}>
+     <label className={styles.fieldCard}><span><Users/> Ταξιδιώτες</span><select value={traveler} onChange={e=>setTraveler(e.target.value)}><option value="couple">2 ενήλικες</option><option value="solo">Μόνος/η</option><option value="family">Οικογένεια</option><option value="friends">Φίλοι</option></select></label>
+     <label className={styles.fieldCard}><span><Wallet/> Budget</span><select value={budget} onChange={e=>setBudget(Number(e.target.value))}><option value={500}>Έως €500</option><option value={800}>Μεσαίο</option><option value={1200}>Premium</option><option value={2000}>Luxury</option></select></label>
+    </div>
+
+    <p className={styles.chipTitle}>Τι ταξίδι σε εκφράζει;</p>
+    <div className={styles.chips}>{["Χαλάρωση","Ρομαντικό","Περιπέτεια","Πολιτισμός","Γαστρονομία","Οικογένεια"].map(x=><button type="button" key={x} className={intent===x?styles.chipActive:""} onClick={()=>setIntent(x)}>{x}</button>)}</div>
+
+    {plannerTab==="ask"?<textarea autoFocus value={freeText} onChange={e=>setFreeText(e.target.value)} placeholder="Ρώτα φυσικά: «βρες εσύ ένα ήσυχο 3ήμερο μετά τις 10…»"/>:null}
+
+    <button type="button" className={styles.primary} disabled={busy} onClick={()=>{
+      if(plannerTab==="inspire") void runAgent("Βρες εσύ την καλύτερη απόδραση με βάση το profile, τις ημερομηνίες και το budget μου.");
+      else void runAgent();
+    }}>{busy?"Η AI αναλύει…":plannerTab==="inspire"?"Εμπνευσέ με με AI":"Δημιούργησε το δικό μου ταξίδι"} <Sparkle weight="fill"/></button>
+
+    <div className={styles.reasonBox}><Sparkle weight="fill"/><div><b>{runtimeLabel}</b><p>{agentMessage}</p>{question?.quickReplies?.length?<div className={styles.inlineReplies}>{question.quickReplies.slice(0,4).map(q=><button type="button" key={q.value} onClick={()=>void runAgent(q.label)}>{q.label}</button>)}</div>:null}</div></div>
    </aside>
   </section>
 
   <section id="destinations" className={styles.destinations}>
    <div className={styles.sectionHead}><div><small>INSPIRE ME</small><h2>Δημοφιλείς προορισμοί</h2></div><span>{heroMedia.length?heroMedia.length:"Live"} περιοχές από το inventory</span></div>
-   <div className={styles.destinationRail}>{destinationTiles.map(d=><article key={d.id} style={{backgroundImage:`url(${d.imageUrl})`}}><div/><b>{d.location}</b><span>{d.propertyCount?d.propertyCount+" stays":"Live supply"}</span></article>)}</div>
+   <div className={styles.destinationRail}>{destinationTiles.map(d=><article role="button" tabIndex={0} key={d.id} style={{backgroundImage:`url(${d.imageUrl})`}} onClick={()=>{
+      setDestination(d.location);
+      if(d.latitude!=null&&d.longitude!=null){mapRef.current?.flyTo([d.latitude,d.longitude],10,{duration:.8});document.getElementById("map")?.scrollIntoView({behavior:"smooth",block:"center"})}
+    }} onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.click()}}><div/><b>{d.location}</b><span>{d.propertyCount?d.propertyCount+" stays":"Live supply"}</span></article>)}</div>
   </section>
 
   <section id="stays" className={styles.discovery}>
    <div className={styles.stayColumn}>
     <div className={styles.sectionHead}><div><small>AI CURATED</small><h2>Προτάσεις διαμονής από την AI</h2></div><button onClick={()=>void runAgent("Βελτιστοποίησε ξανά τις επιλογές με βάση το τρέχον brief.")}>Ανανέωση AI <Sparkle/></button></div>
-    <div className={styles.cardGrid}>{cards.slice(0,6).map((s,i)=><article key={s.id} onMouseEnter={()=>setActive(i)} className={i===active?styles.cardActive:""}>
+    <div className={styles.cardGrid}>{cards.slice(0,3).map((s,i)=><article key={s.id} onMouseEnter={()=>{setSelectedMapStay(null);setActive(i)}} onClick={()=>{setSelectedMapStay(null);setActive(i)}} className={i===active&&!selectedMapStay?styles.cardActive:""}>
       <div className={styles.cardPhoto} style={s.image?{backgroundImage:`url(${s.image})`}:undefined}><span>{s.score?Math.round(s.score)+"% MATCH":"LIVE STAY"}</span><button><Heart/></button></div>
       <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={()=>openStay(s)}>Δες λεπτομέρειες <ArrowRight/></button></div></div>
     </article>)}</div>
    </div>
 
    <div id="map" className={styles.mapPanel}>
-    <div className={styles.mapHead}><div><small>LIVE MAP</small><h2>Δες τα όλα στον χάρτη</h2><p>{inventory.length.toLocaleString("el-GR")} πραγματικά stays φορτωμένα</p></div><button onClick={()=>setShowSatellite(v=>!v)}>{showSatellite?"Δορυφόρος":"Χάρτης"}</button></div>
-    <div ref={mapHost} className={styles.map}/>
+    <div className={styles.mapHead}><div><small>LIVE MAP</small><h2>Δες στον χάρτη</h2><p>{inventory.length.toLocaleString("el-GR")} πραγματικά stays στην περιοχή</p></div><div className={styles.mapModes}><button className={!showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(false)}>Χάρτης</button><button className={showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(true)}>Δορυφόρος</button></div></div>
+    <div className={styles.mapCanvasWrap}><div ref={mapHost} className={styles.map}/>{!mapReady?<div className={styles.mapLoading}>Φορτώνω live χάρτη…</div>:null}</div>
     {activeStay?<div className={styles.mapCard}><div style={activeStay.image?{backgroundImage:`url(${activeStay.image})`}:undefined}/><span><small>{activeStay.location}</small><b>{activeStay.name}</b><strong>{money(activeStay.price,activeStay.currency)}</strong></span><button onClick={()=>openStay(activeStay)}><ArrowRight/></button></div>:null}
    </div>
   </section>
@@ -236,6 +253,15 @@ export function V54FinalHome(){
    <div className={styles.featureCopy}><small>FEATURED STAY · AI PICK</small><h2>{activeStay.name}</h2><h3>{activeStay.location}</h3><p>{activeStay.why} Η σύνθεση παρακάτω χρησιμοποιεί πραγματικές εικόνες από το ενεργό travel inventory για να σου δώσει γρήγορα το mood πριν μπεις στις λεπτομέρειες.</p><div className={styles.featureStats}><span><Star weight="fill"/> {activeStay.score?activeStay.score+"% match":"Live inventory"}</span><span><MapPin/> {activeStay.location}</span><span><ShieldCheck/> Grounded stay</span></div><button onClick={()=>openStay(activeStay)}>Δες το κατάλυμα <ArrowRight/></button></div>
    <div className={styles.gallery}>{gallery.slice(0,5).map((src,i)=><div key={src} className={i===0?styles.galleryMain:""} style={{backgroundImage:`url(${src})`}}>{i===4?<span>+{Math.max(0,gallery.length-4)} εικόνες</span>:null}</div>)}</div>
   </section>:null}
+
+  <section id="how" className={styles.socialProof}>
+    <div className={styles.whyTitle}><small>ΓΙΑΤΙ TRAVELAI</small><h2>Λιγότερη αναζήτηση. Καλύτερες αποφάσεις.</h2></div>
+    <div className={styles.truthStats}>
+      <div><AirplaneTilt weight="fill"/><b>{inventory.length.toLocaleString("el-GR")}+</b><span>live stays στο ενεργό inventory</span></div>
+      <div><Globe weight="fill"/><b>{heroMedia.length||"Live"}</b><span>περιοχές με διαθέσιμο visual inventory</span></div>
+      <div><Images weight="fill"/><b>{gallery.length}</b><span>εικόνες στην ενεργή featured σύνθεση</span></div>
+    </div>
+  </section>
 
   <section className={styles.why}>
    <div><Brain weight="fill"/><span><b>AI που καταλαβαίνει</b><p>Context, ημερομηνίες, budget και travel DNA στο ίδιο reasoning loop.</p></span></div>
