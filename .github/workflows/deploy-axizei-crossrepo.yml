@@ -13,6 +13,7 @@ jobs:
     environment: Production – travel-ai
     env:
       VERCEL_ORG_ID: team_jt3jd1HJUB4sK1oZdl9MUYGs
+      VERCEL_PROJECT_ID: prj_2d5SjTjxtp6H3ISB3h9bdXviKRuQ
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - name: Checkout AXIZEI source
