@@ -53,7 +53,8 @@
     "test:v51:100": "node --import tsx scripts/v51-100-conversational-personas.ts",
     "test:v52:experience": "node --import tsx scripts/v52-experience-smoke.ts",
     "test:v53:awareness": "node --import tsx scripts/v53-situational-awareness-smoke.ts",
-    "prebuild": "npm run test:v51:100 && npm run test:v52:experience && npm run test:v53:awareness"
+    "test:v54:final": "node --import tsx scripts/v54-final-home-smoke.ts",
+    "prebuild": "npm run test:v51:100 && npm run test:v52:experience && npm run test:v53:awareness && npm run test:v54:final"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.36",
