@@ -67,7 +67,45 @@ export async function loadV8StayOffers(slug:string,startDate:string,endDate:stri
 export async function loadV8StayOfferById(sourceProductId:string):Promise<V8StayOffer|null>{
  const base=(process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co").replace(/\/$/,"");
  const key=process.env.SUPABASE_SERVICE_ROLE_KEY??"";
- if(!key||!sourceProductId.trim())return null;
+ if(!sourceProductId.trim())return null;
+ if(!key){
+  try{
+   const publicUrl=new URL(process.env.SUPABASE_STAY_PRODUCT_MAP_V32_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/stay-product-map-v32");
+   publicUrl.searchParams.set("limit","2000");
+   const response=await fetch(publicUrl,{headers:{accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(7000)});
+   if(!response.ok)return null;
+   const payload=await response.json() as {products?:Array<Record<string,unknown>>};
+   const p=(payload.products??[]).find(x=>String(x.productId??x.source_product_id??"")===sourceProductId);
+   if(!p)return null;
+   const row:Record<string,unknown>={
+    source_product_id:p.productId??p.source_product_id,
+    property_name:p.name??p.propertyName??p.property_name,
+    location_label:p.location??p.location_label,
+    description:p.description??"Live stay from public inventory",
+    source_category:p.category??p.source_category,
+    program_id:p.programId??p.program_id,
+    tracking_url:p.trackingUrl??p.tracking_url,
+    image_url:p.imageUrl??p.image_url,
+    thumb_url:p.thumbUrl??p.thumb_url,
+    availability:p.availability,
+    valid_from:p.validFrom??p.valid_from,
+    valid_to:p.validTo??p.valid_to,
+    currency:p.currency,
+    price:p.price,
+    full_price:p.fullPrice??p.full_price,
+    discount:p.discount,
+    demand_proxy:p.demandScore??p.demand_proxy,
+    in_stock:p.inStock??p.in_stock,
+    raw:{
+     city:p.location??p.city,
+     address:p.address,
+     latitude:p.latitude,
+     longitude:p.longitude
+    }
+   };
+   return mapOffer(row);
+  }catch{return null}
+ }
  try{
   const url=new URL("/rest/v1/stay_offers",base);
   url.searchParams.set("select","source_product_id,property_name,location_label,description,source_category,program_id,tracking_url,image_url,thumb_url,availability,valid_from,valid_to,currency,price,full_price,discount,demand_proxy,in_stock,raw");
