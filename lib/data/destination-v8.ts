@@ -56,7 +56,7 @@ function mapOffer(row:Record<string,unknown>):V8StayOffer|null{
  const base:AffiliateOffer={sourceProductId,propertyName,description:cleanHtml(text(row.description)),category:text(row.source_category),programId:text(row.program_id),trackingUrl,imageUrl:text(row.image_url),thumbUrl:text(row.thumb_url),availability:text(row.availability),validFrom:text(row.valid_from),validTo:text(row.valid_to),currency:text(row.currency),price:money(row.price),fullPrice:money(row.full_price),discount:num(row.discount),demandSignal:num(row.demand_proxy),starLevel:null};
  const starMatch=propertyName.match(/(?:^|\s)([1-5])\s*\*/);if(starMatch)base.starLevel=Number(starMatch[1]);
  const raw=row.raw&&typeof row.raw==="object"&&!Array.isArray(row.raw)?row.raw as Record<string,unknown>:{};
- return{...base,inStock:typeof row.in_stock==="boolean"?row.in_stock:null,city:text(row.city),address:text(row.address),distanceKm:num(row.distance_km),latitude:num(row.latitude)??num(raw.latitude),longitude:num(row.longitude)??num(raw.longitude),raw};
+ return{...base,inStock:typeof row.in_stock==="boolean"?row.in_stock:null,city:text(row.city)??text(row.location_label)??text(raw.city),address:text(row.address)??text(raw.address),distanceKm:num(row.distance_km)??num(raw.distance_km),latitude:num(row.latitude)??num(raw.latitude),longitude:num(row.longitude)??num(raw.longitude),raw};
 }
 
 export async function loadV8StayOffers(slug:string,startDate:string,endDate:string,limit=18):Promise<V8StayOffer[]>{
@@ -70,7 +70,7 @@ export async function loadV8StayOfferById(sourceProductId:string):Promise<V8Stay
  if(!key||!sourceProductId.trim())return null;
  try{
   const url=new URL("/rest/v1/stay_offers",base);
-  url.searchParams.set("select","source_product_id,property_name,description,source_category,program_id,tracking_url,image_url,thumb_url,availability,valid_from,valid_to,currency,price,full_price,discount,demand_proxy,in_stock,city,address,distance_km,latitude,longitude,raw");
+  url.searchParams.set("select","source_product_id,property_name,location_label,description,source_category,program_id,tracking_url,image_url,thumb_url,availability,valid_from,valid_to,currency,price,full_price,discount,demand_proxy,in_stock,raw");
   url.searchParams.set("source_product_id",`eq.${sourceProductId}`);
   url.searchParams.set("limit","1");
   const response=await fetch(url,{headers:{apikey:key,Authorization:`Bearer ${key}`,accept:"application/json"},next:{revalidate:300},signal:AbortSignal.timeout(3500)});
