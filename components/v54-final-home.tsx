@@ -57,13 +57,17 @@ export function V54FinalHome(){
  const ratingPending=useRef<Set<string>>(new Set());
 
  useEffect(()=>{
-  Promise.all([
-   fetch("/api/v50/map-stays?limit=2000",{cache:"no-store"}).then(r=>r.json()),
-   fetch("/api/v50/hero-media",{cache:"no-store"}).then(r=>r.json())
-  ]).then(([m,h])=>{
-   setInventory(Array.isArray(m.products)?m.products:[]);
-   setHeroMedia(Array.isArray(h.items)?h.items:[]);
+  let cancelled=false;
+  fetch("/api/v50/map-stays?mode=quick&limit=24",{cache:"no-store"}).then(r=>r.json()).then(m=>{
+   if(!cancelled&&Array.isArray(m.products)&&m.products.length)setInventory(m.products);
   }).catch(()=>{});
+  fetch("/api/v50/hero-media",{cache:"no-store"}).then(r=>r.json()).then(h=>{
+   if(!cancelled)setHeroMedia(Array.isArray(h.items)?h.items:[]);
+  }).catch(()=>{});
+  fetch("/api/v50/map-stays?limit=2000",{cache:"no-store"}).then(r=>r.json()).then(m=>{
+   if(!cancelled&&Array.isArray(m.products)&&m.products.length)setInventory(m.products);
+  }).catch(()=>{});
+  return()=>{cancelled=true};
  },[]);
 
  useEffect(()=>{
