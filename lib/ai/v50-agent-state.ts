@@ -101,6 +101,21 @@ export function parseNaturalWindowV50(text:string,answer:string|undefined,now=ne
     if(from&&to&&to>from)return{startDate:iso(from),endDate:iso(to),nights:Math.max(1,Math.round((to.getTime()-from.getTime())/86400000)),weekend:weekendRe.test(combined),flexible:false};
   }
 
+  const today0=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()));
+  if(/\b(today|σημερα|σήμερα)\b/i.test(combined)){
+    const end=new Date(today0.getTime()+2*86400000);
+    return{startDate:iso(today0),endDate:iso(end),nights:2,weekend:false,flexible:false};
+  }
+  if(/\b(tomorrow|αυριο|αύριο)\b/i.test(combined)){
+    const start=new Date(today0.getTime()+86400000),end=new Date(start.getTime()+2*86400000);
+    return{startDate:iso(start),endDate:iso(end),nights:2,weekend:false,flexible:false};
+  }
+  if(/next\s+week|επομεν(?:η|η\s+)?\s*εβδομαδα|επόμεν(?:η|η\s+)?\s*εβδομάδα/i.test(combined)){
+    const day=today0.getUTCDay(),daysToMonday=((8-day)%7)||7;
+    const start=new Date(today0.getTime()+daysToMonday*86400000),end=new Date(start.getTime()+3*86400000);
+    return{startDate:iso(start),endDate:iso(end),nights:3,weekend:false,flexible:true};
+  }
+
   const anchor=explicitDate(combined,now);
   const isWeekend=weekendRe.test(combined);
   const after=/μετ[αά]\s*(τις|την)?|after/i.test(combined);
