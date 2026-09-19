@@ -51,4 +51,9 @@ const fixed=interpretV50Conversation({userText:"Θέλω ρομαντικό τα
 const fixedTrip=buildV50Trip({userText:"Θέλω ρομαντικό ταξίδι",destination:"Νάξος",answers:{dates:"2026-10-10 – 2026-10-13",companions:"couple"}},fixed);
 assert.equal(fixedTrip.consideredDestination,"Νάξος","explicit destination must be preserved");
 
-console.log(`V60_TRAVELER_DECISION_AUDIT_OK cases=${cases} explicit-intent=PRIORITY hidden-destination=NONE`);
+const {readFileSync}=await import("node:fs");
+const fallback=readFileSync("app/api/escape/solve-v42/route.ts","utf8");
+assert.ok(fallback.includes("runTravelOrchestratorV26"),"fallback must use canonical destination orchestration");
+assert.ok(fallback.includes('knowledgeMode:"canonical-destination-first"'),"fallback must explicitly remain destination-first");
+assert.ok(!fallback.includes("destinationScore*.43+stayScore*.57"),"fallback must never let stay score rerank destination truth");
+console.log(`V60_TRAVELER_DECISION_AUDIT_OK cases=${cases} explicit-intent=PRIORITY hidden-destination=NONE fallback=DESTINATION_FIRST`);
