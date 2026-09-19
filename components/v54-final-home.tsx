@@ -100,7 +100,8 @@ export function V54FinalHome(){
  },[solutions,inventory]);
 
  const activeStay=selectedMapStay??cards[active]??cards[0]??null;
- const hero=activeStay?.image??heroMedia[0]?.imageUrl??inventory.find(x=>x.imageUrl)?.imageUrl??null;
+ const destinationHero=heroMedia.find(h=>destination.toLocaleLowerCase("el-GR").includes(h.location.toLocaleLowerCase("el-GR"))||h.location.toLocaleLowerCase("el-GR").includes(destination.split(",")[0].trim().toLocaleLowerCase("el-GR")))?.imageUrl??heroMedia[0]?.imageUrl??null;
+ const hero=(solutions.length||selectedMapStay)?(activeStay?.image??destinationHero):(destinationHero??activeStay?.image??inventory.find(x=>x.imageUrl)?.imageUrl??null);
  const gallery=useMemo(()=>{
   const urls=[activeStay?.image,...heroMedia.map(x=>x.imageUrl),...inventory.slice(0,20).map(x=>x.imageUrl)].filter((x):x is string=>Boolean(x));
   return [...new Set(urls)].slice(0,8);
@@ -157,7 +158,7 @@ export function V54FinalHome(){
    const p=await r.json() as AgentResponse;
    setAgentMessage(p.agentMessage||"Έχω το brief σου και συνεχίζω με τις καλύτερες διαθέσιμες επιλογές.");
    setQuestion(p.question??null);setAgentRuntime(p.agentRuntime??null);
-   if(p.solutions?.length){setSolutions(p.solutions);setActive(0);setLastTrip(p.trip??null)}
+   if(p.solutions?.length){setSelectedMapStay(null);setSolutions(p.solutions);setActive(0);setLastTrip(p.trip??null)}
   }catch{setAgentMessage("Το live reasoning δεν απάντησε έγκαιρα. Κρατάω το brief σου και εμφανίζω το ενεργό inventory χωρίς να εφεύρω δεδομένα.");}
   finally{setBusy(false)}
  }
