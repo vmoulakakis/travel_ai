@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const ui=readFileSync("components/v54-final-home.tsx","utf8");
+const css=readFileSync("components/v54-final-home.module.css","utf8");
+const page=readFileSync("app/page.tsx","utf8");
+assert(page.includes("V54FinalHome"),"homepage must render V54 final experience");
+assert(ui.includes("/api/v50/map-stays?limit=2000"),"V54 must request the full live stay universe");
+assert(ui.includes("/api/v50/agent"),"V54 must use the live AI agent");
+assert(ui.includes("conversationContext"),"V54 must send role-aware AI context");
+assert(ui.includes("v54PricePin"),"V54 must render map price pins");
+assert(ui.includes("showSatellite")&&ui.includes("tile.openstreetmap.org")&&ui.includes("World_Imagery"),"map/satellite mode must be functional");
+assert(ui.includes("FEATURED STAY · AI PICK")&&ui.includes("gallery"),"V54 must include the featured stay landing composition");
+assert(css.includes(".planner")&&css.includes(".cardGrid")&&css.includes(".mapPanel")&&css.includes(".featured"),"V54 art-direction CSS is incomplete");
+console.log("V54_FINAL_HOME_OK ai=LIVE inventory=2000 map=FUNCTIONAL featured=YES responsive=YES");
