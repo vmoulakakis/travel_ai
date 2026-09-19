@@ -1,0 +1,25 @@
+name: V60 Traveler Decision Audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/ai/v50-agent-state.ts"
+      - "components/v54-final-home.tsx"
+      - "app/api/escape/solve-v42/route.ts"
+      - "scripts/v60-100-traveler-decision-audit.ts"
+      - "package.json"
+      - ".github/workflows/v60-traveler-decision.yml"
+  workflow_dispatch:
+jobs:
+  traveler-decision-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run test:v60:100
+      - run: npm run typecheck
