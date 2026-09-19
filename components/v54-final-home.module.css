@@ -208,3 +208,20 @@
 :global(.v56RatingLoading),:global(.v56RatingEmpty){color:#71847c;border-color:rgba(25,67,53,.08)}
 :global(.v56RatingLoading){color:#9a6b13}
 @media(max-width:820px){.featured{margin-left:8px;margin-right:8px}.cardGrid article{min-width:258px}}
+
+
+/* V60 — faster perceived product-card interaction */
+.cardGrid article{
+ transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease!important;
+ will-change:transform;
+}
+.cardGrid article:hover,.cardGrid article.cardActive{
+ transform:translateY(-2px)!important;
+}
+.cardFoot button,.featureCopy>button{
+ transition:transform .14s ease,box-shadow .14s ease,filter .14s ease;
+}
+.cardFoot button:hover,.featureCopy>button:hover{
+ transform:translateY(-1px);
+ filter:brightness(1.02);
+}
