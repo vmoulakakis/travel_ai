@@ -10,7 +10,7 @@ export type EscapeBookPickV61={
 export type EscapeBookIntelligenceV61={
  version:"V61";generatedAt:string;mode:"agentic-rag"|"deterministic-evidence";overview:string;
  dontMiss:EscapeBookPickV61[];restaurants:EscapeBookPickV61[];nightlife:EscapeBookPickV61[];nearby:EscapeBookPickV61[];
- sourceLedger:string[];learning:{enabled:boolean;note:string};
+ sourceLedger:string[];evidenceQuality:{trustedProviderCount:number;trustedProviders:string[];missingTrustedProviders:string[];canUseBestLanguage:boolean};learning:{enabled:boolean;note:string};
 };
 
 const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9α-ω]+/gi," ").replace(/\s+/g," ").trim();
@@ -68,11 +68,13 @@ export async function buildEscapeBookIntelligenceV61(args:{local:LocalIntelligen
   nightlife:ranked(all.filter(x=>x.kind==="nightlife")).slice(0,3),
   nearby:[...all].filter(x=>x.distanceKm!=null).sort((a,b)=>(a.distanceKm??999)-(b.distanceKm??999)).slice(0,5)
  };
+ const trustedNames=["Tripadvisor","Google Places","Foursquare"],trustedProviders=trustedNames.filter(x=>args.local.providers.includes(x)),missingTrustedProviders=trustedNames.filter(x=>!args.local.providers.includes(x));
  const base:EscapeBookIntelligenceV61={version:"V61",generatedAt:new Date().toISOString(),mode:"deterministic-evidence",
   overview:args.research.overview??("Evidence-led guide for "+args.destination+", centered on "+args.stayName+"."),
   dontMiss:fallback.dontMiss.map(x=>toPick(x,args.trip,args.research)),restaurants:fallback.restaurants.map(x=>toPick(x,args.trip,args.research)),
   nightlife:fallback.nightlife.map(x=>toPick(x,args.trip,args.research)),nearby:fallback.nearby.map(x=>toPick(x,args.trip,args.research)),
   sourceLedger:[...new Set([...args.local.providers,...args.research.sources.map(x=>x.domain)])],
+  evidenceQuality:{trustedProviderCount:trustedProviders.length,trustedProviders,missingTrustedProviders,canUseBestLanguage:trustedProviders.length>0},
   learning:{enabled:Boolean(args.local.destinationSignal?.sampleSize&&args.local.destinationSignal.sampleSize>=3),note:"Post-trip first-party feedback can influence ranking only after the minimum sample threshold is met; provider facts remain provider-sourced."}};
  if(all.length<2)return base;
  const candidates=all.slice(0,36).map(p=>({id:p.id,name:p.name,kind:p.kind,source:p.source,rating:p.rating,reviewCount:p.ratingCount,providerRank:p.ranking,distanceKm:p.distanceKm,distanceLabel:dist(p.distanceKm),guestSignal:p.internalSignal?.sampleSize&&p.internalSignal.sampleSize>=3?p.internalSignal.aiScore:null,address:p.address}));
