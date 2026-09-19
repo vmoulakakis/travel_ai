@@ -1,8 +1,9 @@
+import { runTravelOrchestratorV26 } from "@/lib/ai/travel-orchestrator-v26";
 import { interpretIntentV8 } from "@/lib/ai/intent-v8";
 import { createLLMRequestBudgetV16 } from "@/lib/ai/model-router-v9";
 import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
 import { parseTripRequest } from "@/lib/validation/trip";
-import { V8_DIMENSIONS,type V8Dimension } from "@/lib/decision/v8-types";
+import { V8_DIMENSIONS,type V8Dimension,type V8Recommendation } from "@/lib/decision/v8-types";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -34,7 +35,7 @@ const concept:Record<V8Dimension,RegExp>={
 
 async function inventory(start:string,end:string){
  const u=new URL(INVENTORY_URL);u.searchParams.set("start_date",start);u.searchParams.set("end_date",end);u.searchParams.set("limit","900");
- const r=await fetch(u,{headers:{"user-agent":"travel-ai-v43"},cache:"no-store",signal:AbortSignal.timeout(6500)});
+ const r=await fetch(u,{headers:{"user-agent":"travel-ai-v60"},cache:"no-store",signal:AbortSignal.timeout(6500)});
  if(!r.ok)throw new Error(`inventory_${r.status}`);
  const p=await r.json() as {offers?:Row[]};return p.offers??[];
 }
@@ -49,32 +50,47 @@ function semanticStayScore(row:Row,weights:Record<string,number>){
  const lexical=total?clamp(38+(weighted/total)*62):50;const semantic=vectorScore>0?clamp(vectorScore*.78+lexical*.22):lexical;
  return{score:semantic,matched:[...(row.semantic_tags??[]),...matched].filter((v,i,a)=>a.indexOf(v)===i),vectorScore,lexicalScore:lexical};
 }
+function validWindow(row:Row,start:string,end:string){
+ const s=Date.parse(start+"T00:00:00Z"),e=Date.parse(end+"T00:00:00Z");
+ const f=row.valid_from?Date.parse(row.valid_from.slice(0,10)+"T00:00:00Z"):NaN,t=row.valid_to?Date.parse(row.valid_to.slice(0,10)+"T00:00:00Z"):NaN;
+ return row.in_stock!==false&&(!Number.isFinite(f)||f<=s)&&(!Number.isFinite(t)||t>=e);
+}
+function stayRank(row:Row,weights:Record<string,number>,traveler:string,budget:number){
+ const sem=semanticStayScore(row,weights),price=Number(row.price??0),ratio=price>0?price/Math.max(1,budget):0;
+ const valueScore=price<=0?52:ratio<=.35?94:ratio<=.65?84:ratio<=1?72:ratio<=1.3?58:42;
+ const locationScore=row.distance_km==null?58:row.distance_km<=3?96:row.distance_km<=10?86:row.distance_km<=25?70:54;
+ const travelerFit=clamp(Number(row.traveler_fit?.[traveler]??.5)*100),evidenceScore=clamp(Number(row.evidence_score??0)*100);
+ return{score:clamp(sem.score*.42+travelerFit*.16+valueScore*.16+locationScore*.12+evidenceScore*.14),sem,valueScore,locationScore,travelerFit,evidenceScore};
+}
+function solution(rec:V8Recommendation,row:Row,ranked:ReturnType<typeof stayRank>,language:string){
+ return{
+  score:Math.round(rec.score),
+  destination:{slug:rec.slug,name:language==="en"?rec.destinationEn:rec.destination,nameEn:rec.destinationEn,tags:rec.tags},
+  stay:{sourceProductId:row.source_product_id,propertyName:row.property_name,trackingUrl:row.tracking_url,imageUrl:row.image_url??row.thumb_url,price:row.price,currency:row.currency,distanceKm:row.distance_km,availability:row.availability,semanticScore:Math.round(ranked.sem.score),vectorScore:Math.round(ranked.sem.vectorScore),travelerFit:Math.round(ranked.travelerFit),valueScore:Math.round(ranked.valueScore),evidenceScore:Math.round(ranked.evidenceScore)},
+  matchedSignals:ranked.sem.matched.slice(0,5),
+  reason:rec.why
+ };
+}
 
 export async function POST(request:Request){
  const body=await request.json().catch(()=>null),parsed=parseTripRequest(body);
  if(!parsed.success)return Response.json({ok:false,error:"invalid_trip"},{status:400});
- const trip=parsed.data;
- const [catalog,intent,rows]=await Promise.all([loadV8DestinationCatalog(),interpretIntentV8(trip,createLLMRequestBudgetV16()),inventory(trip.startDate,trip.endDate)]);
- const destBySlug=new Map(catalog.map(d=>[d.slug,d]));
- const scored=rows.map(row=>{
-   const dest=destBySlug.get(row.destination_slug);if(!dest)return null;
-   const sem=semanticStayScore(row,intent.weights as Record<string,number>);
-   let dSum=0,dWeight=0;dest.tags.forEach(tag=>{const w=Math.max(0,Number(intent.weights[tag]??0));dSum+=w;dWeight+=1});
-   const destinationScore=clamp(42+(dWeight?dSum/dWeight:0)*34 + (dest.monthFit[Math.max(0,Number(trip.startDate.slice(5,7))-1)]??60)*.16);
-   const price=Number(row.price??0),budget=Math.max(1,trip.budget),ratio=price>0?price/budget:0;
-   const valueScore=price<=0?52:ratio<=.35?94:ratio<=.65?84:ratio<=1?72:ratio<=1.3?58:42;
-   const locationScore=row.distance_km==null?58:row.distance_km<=3?96:row.distance_km<=10?86:row.distance_km<=25?70:54;
-   const travelerFit=clamp(Number(row.traveler_fit?.[trip.travelerType]??.5)*100);
-   const evidenceScore=clamp(Number(row.evidence_score??0)*100);
-   const stayScore=clamp(sem.score*.42+travelerFit*.16+valueScore*.16+locationScore*.12+evidenceScore*.14);
-   const combined=clamp(destinationScore*.43+stayScore*.57);
-   return {row,dest,combined,stayScore,destinationScore,valueScore,locationScore,travelerFit,evidenceScore,semanticScore:sem.score,vectorScore:sem.vectorScore,matched:sem.matched};
- }).filter((x):x is NonNullable<typeof x>=>Boolean(x));
-
- const bestByDestination=new Map<string,typeof scored>();
- for(const item of scored){const arr=bestByDestination.get(item.dest.slug)??[];arr.push(item);bestByDestination.set(item.dest.slug,arr)}
- const solutions=[...bestByDestination.values()].map(items=>items.sort((a,b)=>b.combined-a.combined)[0]).sort((a,b)=>b.combined-a.combined).slice(0,8).map((x,i)=>({
-   rank:i+1,score:Math.round(x.combined),destination:{slug:x.dest.slug,name:trip.language==="en"?x.dest.nameEn:x.dest.nameEl,nameEn:x.dest.nameEn,tags:x.dest.tags},stay:{sourceProductId:x.row.source_product_id,propertyName:x.row.property_name,trackingUrl:x.row.tracking_url,imageUrl:x.row.image_url??x.row.thumb_url,price:x.row.price,currency:x.row.currency,distanceKm:x.row.distance_km,availability:x.row.availability,semanticScore:Math.round(x.semanticScore),vectorScore:Math.round(x.vectorScore),travelerFit:Math.round(x.travelerFit),valueScore:Math.round(x.valueScore),evidenceScore:Math.round(x.evidenceScore)},matchedSignals:x.matched.slice(0,5),reason:trip.language==="en"?`Matched against the persistent product profile for ${x.matched.slice(0,3).join(", ")||"your overall brief"}, then checked for traveler fit, destination fit, value and travel friction.`:`Ταιριάζει στο μόνιμο product profile για ${x.matched.slice(0,3).join(", ")||"το συνολικό brief σου"} και μετά ελέγχεται για traveler fit, προορισμό, αξία και ταλαιπωρία.`
- }));
- return Response.json({ok:true,version:43,generatedAt:new Date().toISOString(),intentSource:intent.source,intentSummary:intent.summary,knowledgeMode:"persistent-product-vectors",inventoryChecked:rows.length,solutionCount:solutions.length,solutions},{headers:{"cache-control":"no-store","x-travel-engine":"v43-product-knowledge"}});
+ const trip=parsed.data,sessionId=crypto.randomUUID();
+ const [canonical,intent,rows,catalog]=await Promise.all([
+  runTravelOrchestratorV26(trip,sessionId),
+  interpretIntentV8(trip,createLLMRequestBudgetV16()),
+  inventory(trip.startDate,trip.endDate),
+  loadV8DestinationCatalog()
+ ]);
+ const known=new Set(catalog.map(d=>d.slug)),byDestination=new Map<string,Row[]>();
+ for(const row of rows){if(!known.has(row.destination_slug)||!validWindow(row,trip.startDate,trip.endDate))continue;const group=byDestination.get(row.destination_slug)??[];group.push(row);byDestination.set(row.destination_slug,group)}
+ const solutions=[];
+ for(const rec of canonical.recommendations){
+  const offers=byDestination.get(rec.slug)??[];if(!offers.length)continue;
+  const ranked=offers.map(row=>({row,ranked:stayRank(row,intent.weights as Record<string,number>,trip.travelerType,trip.budget)})).sort((a,b)=>b.ranked.score-a.ranked.score);
+  const top=ranked[0];if(!top)continue;
+  solutions.push({rank:solutions.length+1,...solution(rec,top.row,top.ranked,trip.language??"el")});
+  if(solutions.length>=8)break;
+ }
+ return Response.json({ok:true,version:60,generatedAt:new Date().toISOString(),intentSource:intent.source,intentSummary:intent.summary,knowledgeMode:"canonical-destination-first",inventoryChecked:rows.length,solutionCount:solutions.length,solutions},{headers:{"cache-control":"no-store","x-travel-engine":"v60-canonical-fallback"}});
 }
