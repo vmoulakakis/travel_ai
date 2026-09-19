@@ -132,7 +132,7 @@ export function V54FinalHome(){
    };
    const tooltipFor=(p:Stay,rank:number|null,rating:QuickRating|null|undefined)=>`
      <div class="v56MapTip">
-      <div class="v56MapTipTop">${rank?`<span class="v56AiBadge">AI #${rank}</span>`:`<span class="v56LiveBadge">LIVE STAY</span>`}<strong>${html(money(p.price,p.currency))}</strong></div>
+      <div class="v56MapTipTop">${rank?`<span class="v56AiBadge">AI #${rank}</span>`:`<span class="v56LiveBadge">ALL OFFER</span>`}<strong>${html(money(p.price,p.currency))}</strong></div>
       <b class="v56MapTipName">${html(p.name)}</b>
       <span class="v56MapTipLoc">⌖ ${html(p.location||p.address||"Ελλάδα")}</span>
       ${ratingMarkup(rating)}
@@ -157,19 +157,17 @@ export function V54FinalHome(){
    for(const p of inventory){
     if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))continue;
     const rank=aiRanks.get(p.productId)??null;
-    const marker=rank
-      ?L.marker([p.latitude,p.longitude],{icon:L.divIcon({className:"v56AiPin",html:`<span><i>AI</i>#${rank}</span>`,iconSize:[48,48],iconAnchor:[24,38]}),zIndexOffset:1600-rank})
-      :L.circleMarker([p.latitude,p.longitude],{radius:4.2,weight:1.2,color:"#f4ba59",fillColor:"#87d7b3",opacity:.9,fillOpacity:.72});
-    marker.bindTooltip(tooltipFor(p,rank,ratingCache.current.get(p.productId)),{direction:"top",offset:[0,-9],opacity:1,className:"v56Tooltip"});
-    marker.on("mouseover",()=>{
-      if(!rank&&"setRadius" in marker)(marker as any).setRadius(7);
-      if(!rank&&"setStyle" in marker)(marker as any).setStyle({fillOpacity:1,weight:2,color:"#ffd98d"});
-      void loadRating(p,marker,rank);
+    const marker=L.marker([p.latitude,p.longitude],{
+      icon:L.divIcon({
+       className:rank?"v58SelectedStar":"v58OfferStar",
+       html:rank?`<span>★<small>#${rank}</small></span>`:`<span>★</span>`,
+       iconSize:rank?[42,42]:[28,28],
+       iconAnchor:rank?[21,21]:[14,14]
+      }),
+      zIndexOffset:rank?1800-rank:300
     });
-    marker.on("mouseout",()=>{
-      if(!rank&&"setRadius" in marker)(marker as any).setRadius(4.2);
-      if(!rank&&"setStyle" in marker)(marker as any).setStyle({fillOpacity:.72,weight:1.2,color:"#f4ba59"});
-    });
+    marker.bindTooltip(tooltipFor(p,rank,ratingCache.current.get(p.productId)),{direction:"top",offset:[0,-12],opacity:1,className:"v56Tooltip"});
+    marker.on("mouseover",()=>{void loadRating(p,marker,rank)});
     marker.on("click",()=>{
       const stay=displayFromInventory(p);
       setSelectedMapStay(stay);
@@ -226,6 +224,17 @@ export function V54FinalHome(){
    <nav><a href="#destinations">Προορισμοί</a><a href="#stays">Διαμονή</a><a href="#featured">Εμπειρίες</a><a href="#planner">AI Planner</a><a href="#how">Πώς λειτουργεί</a><a href="#about">Σχετικά</a></nav>
    <div className={styles.navActions}><button aria-label="Αναζήτηση"><MagnifyingGlass/></button><button className={styles.login}><UserCircle/> Σύνδεση</button><button className={styles.navCta} onClick={()=>document.getElementById("planner")?.scrollIntoView({behavior:"smooth"})}>Ξεκίνα το ταξίδι σου <ArrowRight/></button></div>
   </header>
+
+  <div className={styles.focusBar}>
+   <div className={styles.focusWhere}><MapPin weight="fill"/><span>Τώρα βρίσκεσαι:</span><b>{destination}</b></div>
+   <div className={styles.focusSteps}>
+    <span className={styles.focusStepActive}>1 · Explore map</span><i>→</i>
+    <span className={solutions.length?styles.focusStepActive:""}>2 · AI picks</span><i>→</i>
+    <span className={activeStay?styles.focusStepActive:""}>3 · Compare stay</span><i>→</i>
+    <span>4 · Open details</span>
+   </div>
+   <div className={styles.pinLegend}><span><i className={styles.legendGold}>★</i> AI selected</span><span><i className={styles.legendBlue}>★</i> All offers</span></div>
+  </div>
 
   <section id="map" className={styles.mapFirst}>
    <div className={styles.mapFirstTop}>
