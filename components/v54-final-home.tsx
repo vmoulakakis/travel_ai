@@ -47,6 +47,9 @@ export function V54FinalHome(){
  const [showSatellite,setShowSatellite]=useState(true);
  const [selectedMapStay,setSelectedMapStay]=useState<DisplayStay|null>(null);
  const [mapReady,setMapReady]=useState(false);
+ const [mapView,setMapView]=useState({lat:36.3932,lon:25.4615,zoom:11});
+ const [hoveredStay,setHoveredStay]=useState<DisplayStay|null>(null);
+ const hoverTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
  const layerRef=useRef<LayerGroup|null>(null);
@@ -72,6 +75,8 @@ export function V54FinalHome(){
    L.control.zoom({position:"bottomright"}).addTo(map);
    tileRef.current=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:18}).addTo(map);
    mapRef.current=map;
+   const syncView=()=>{const center=map.getCenter();setMapView({lat:center.lat,lon:center.lng,zoom:map.getZoom()})};
+   map.on("moveend",syncView);syncView();
    window.setTimeout(()=>{map.invalidateSize();setMapReady(true)},80);
   });
   return()=>{dead=true;mapRef.current?.remove();mapRef.current=null};
@@ -194,9 +199,12 @@ export function V54FinalHome(){
   try{
    const body={
     userText:prompt,
-    conversationContext:`USER PROFILE: origin=${origin}, destination=${destination}, dates=${start}..${end}, traveler=${traveler}, budget=${budget}, intent=${intent}`,
+    conversationContext:`USER PROFILE: origin=${origin}, destination=${destination}, dates=${start}..${end}, traveler=${traveler}, budget=${budget}, intent=${intent}. TODAY_LOCAL=${todayIso()} Europe/Athens. MAP_CENTER=${mapView.lat.toFixed(5)},${mapView.lon.toFixed(5)} zoom=${mapView.zoom}. CURRENT_STAY=${(selectedMapStay??hoveredStay)?.name??"none"}`,
     priorUserText:freeText,
     origin,budget,filters,
+    currentTopIds:cards.slice(0,10).map(x=>x.id),
+    selectedStay:(selectedMapStay??hoveredStay)?{productId:(selectedMapStay??hoveredStay)!.id,name:(selectedMapStay??hoveredStay)!.name,location:(selectedMapStay??hoveredStay)!.location,price:(selectedMapStay??hoveredStay)!.price}:null,
+    mapContext:{centerLat:mapView.lat,centerLon:mapView.lon,zoom:mapView.zoom,visibleDestination:destination,hoveredStayId:hoveredStay?.id??null,hoveredStayName:hoveredStay?.name??null},
     answers:{dates:start+" – "+end,companions:traveler,outcome:filters.calm>72?"restore":"balanced"}
    };
    const r=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
@@ -277,7 +285,7 @@ export function V54FinalHome(){
    </div>
 
    <aside id="planner" className={styles.planner}>
-    <div className={styles.plannerTitle}><Brain weight="fill"/><div><b>AI Travel Planner</b><span>Πες μου τι ονειρεύεσαι. Αναλαμβάνει η AI.</span></div><i className={busy?styles.busy:styles.ready}/></div>
+    <div className={styles.plannerTitle}><Brain weight="fill"/><div><b>AI Travel Planner</b><span>Σήμερα {new Intl.DateTimeFormat("el-GR",{timeZone:"Europe/Athens",day:"numeric",month:"short"}).format(new Date())} · βλέπω και τον χάρτη που εξερευνάς.</span></div><i className={busy?styles.busy:styles.ready}/></div>
     <div className={styles.tabs}>
       <button className={plannerTab==="trip"?styles.tabActive:""} onClick={()=>setPlannerTab("trip")}>Ταξίδι</button>
       <button className={plannerTab==="inspire"?styles.tabActive:""} onClick={()=>setPlannerTab("inspire")}>Έμπνευση</button>
@@ -321,21 +329,25 @@ export function V54FinalHome(){
   <section id="stays" className={styles.discovery}>
    <div className={styles.stayColumn}>
     <div className={styles.sectionHead}><div><small>AI CURATED</small><h2>Προτάσεις διαμονής από την AI</h2></div><button onClick={()=>void runAgent("Βελτιστοποίησε ξανά τις επιλογές με βάση το τρέχον brief.")}>Ανανέωση AI <Sparkle/></button></div>
-    <div className={styles.cardGrid}>{cards.slice(0,3).map((s,i)=><article key={s.id} onMouseEnter={()=>{setSelectedMapStay(null);setActive(i)}} onClick={()=>{setSelectedMapStay(null);setActive(i)}} className={i===active&&!selectedMapStay?styles.cardActive:""}>
+    <div className={styles.cardGrid}>{cards.slice(0,3).map((s,i)=><article key={s.id}
+      onMouseEnter={()=>{if(hoverTimer.current)clearTimeout(hoverTimer.current);hoverTimer.current=setTimeout(()=>{setHoveredStay(s);setSelectedMapStay(null);setActive(i);mapRef.current?.flyTo([s.lat,s.lon],Math.max(mapRef.current?.getZoom()??10,11),{duration:1.25})},420)}}
+      onMouseLeave={()=>{if(hoverTimer.current)clearTimeout(hoverTimer.current);hoverTimer.current=null}}
+      onClick={()=>{setHoveredStay(s);setSelectedMapStay(null);setActive(i);mapRef.current?.flyTo([s.lat,s.lon],Math.max(mapRef.current?.getZoom()??10,11),{duration:1.1})}}
+      className={i===active&&!selectedMapStay?styles.cardActive:""}>
       <div className={styles.cardPhoto} style={s.image?{backgroundImage:`url(${s.image})`}:undefined}><span>{s.score?Math.round(s.score)+"% MATCH":"LIVE STAY"}</span><button><Heart/></button></div>
-      <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={()=>openStay(s)}>Δες λεπτομέρειες <ArrowRight/></button></div></div>
+      <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={e=>{e.stopPropagation();openStay(s)}}>Άνοιξε το κατάλυμα <ArrowRight/></button></div></div>
     </article>)}</div>
    </div>
 
   </section>
 
   {activeStay?<section id="featured" className={styles.featured}>
-   <div className={styles.featureCopy}><small>FEATURED STAY · AI PICK</small><h2>{activeStay.name}</h2><h3>{activeStay.location}</h3><p>{activeStay.why} Η σύνθεση παρακάτω χρησιμοποιεί πραγματικές εικόνες από το ενεργό travel inventory για να σου δώσει γρήγορα το mood πριν μπεις στις λεπτομέρειες.</p><div className={styles.featureStats}><span><Star weight="fill"/> {activeStay.score?activeStay.score+"% match":"Live inventory"}</span><span><MapPin/> {activeStay.location}</span><span><ShieldCheck/> Grounded stay</span></div><button onClick={()=>openStay(activeStay)}>Δες το κατάλυμα <ArrowRight/></button></div>
+   <div className={styles.featureCopy}><small>FEATURED STAY · AI PICK</small><h2>{activeStay.name}</h2><h3>{activeStay.location}</h3><p>{activeStay.why} Η σύνθεση παρακάτω χρησιμοποιεί πραγματικές εικόνες από το ενεργό travel inventory για να σου δώσει γρήγορα το mood πριν μπεις στις λεπτομέρειες.</p><div className={styles.featureStats}><span><Star weight="fill"/> {activeStay.score?activeStay.score+"% match":"Live inventory"}</span><span><MapPin/> {activeStay.location}</span><span><ShieldCheck/> Grounded stay</span></div><button onClick={()=>openStay(activeStay)}>Έλεγξε αυτό το κατάλυμα τώρα <ArrowRight/></button></div>
    <div className={styles.gallery}>{gallery.slice(0,5).map((src,i)=><div key={src} className={i===0?styles.galleryMain:""} style={{backgroundImage:`url(${src})`}}>{i===4?<span>+{Math.max(0,gallery.length-4)} εικόνες</span>:null}</div>)}</div>
   </section>:null}
 
   <section id="how" className={styles.socialProof}>
-    <div className={styles.whyTitle}><small>ΓΙΑΤΙ TRAVELAI</small><h2>Λιγότερη αναζήτηση. Καλύτερες αποφάσεις.</h2></div>
+    <div className={styles.whyTitle}><small>ΓΙΑΤΙ ΝΑ ΚΛΕΙΣΕΙΣ ΑΠΟ ΕΔΩ</small><h2>Όχι άλλα 40 tabs. Κράτα τις πιο τεκμηριωμένες επιλογές μπροστά σου.</h2></div>
     <div className={styles.truthStats}>
       <div><AirplaneTilt weight="fill"/><b>{inventory.length.toLocaleString("el-GR")}+</b><span>live stays στο ενεργό inventory</span></div>
       <div><Globe weight="fill"/><b>{heroMedia.length||"Live"}</b><span>περιοχές με διαθέσιμο visual inventory</span></div>
