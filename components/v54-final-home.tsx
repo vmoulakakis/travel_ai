@@ -180,6 +180,32 @@ export function V54FinalHome(){
    <div className={styles.navActions}><button aria-label="Αναζήτηση"><MagnifyingGlass/></button><button className={styles.login}><UserCircle/> Σύνδεση</button><button className={styles.navCta} onClick={()=>document.getElementById("planner")?.scrollIntoView({behavior:"smooth"})}>Ξεκίνα το ταξίδι σου <ArrowRight/></button></div>
   </header>
 
+  <section id="map" className={styles.mapFirst}>
+   <div className={styles.mapFirstTop}>
+    <div>
+     <small>AI MAP · LIVE INVENTORY</small>
+     <h1>1.700+ stays. <em>Ένας χάρτης.</em> Η AI βρίσκει τα σωστά.</h1>
+     <p>Παίξε με τον χάρτη ή δώσε ένα feeling. Η TravelAI σκανάρει το πραγματικό inventory και περιορίζει τις επιλογές σε λίγες που ταιριάζουν σε εσένα.</p>
+    </div>
+    <div className={styles.mapAiFlow}>
+     <span>{inventory.length?inventory.length.toLocaleString("el-GR"):"1.700+"} stays</span><i>→</i><span>AI reasoning</span><i>→</i><span>Top 10</span><i>→</i><b>Your escape ✨</b>
+    </div>
+   </div>
+   <div className={styles.mapStage}>
+    <div className={styles.mapAiDock}>
+     <div className={styles.mapAiDockHead}><Brain weight="fill"/><div><b>AI Stay Finder</b><span>{busy?"Σκανάρω inventory…":"Διάλεξε vibe — τα υπόλοιπα τα κάνει η AI"}</span></div></div>
+     <div className={styles.mapFunChips}>
+      {["Χαλάρωση","Ρομαντικό","Περιπέτεια","Γαστρονομία"].map(x=><button key={x} className={intent===x?styles.mapFunChipActive:""} onClick={()=>{setIntent(x);void runAgent(`${destination}. Θέλω ${x.toLowerCase()} ταξίδι. Διάλεξε τις καλύτερες πραγματικές επιλογές από όλο το inventory.`)}}>{x}</button>)}
+     </div>
+     <button className={styles.surpriseBtn} disabled={busy} onClick={()=>void runAgent("Surprise me. Διάλεξε εσύ την καλύτερη απόδραση από όλο το πραγματικό inventory με βάση ημερομηνίες, budget και profile.")}>🎲 {busy?"Η AI ψάχνει…":"Surprise me"}</button>
+     <p><Sparkle weight="fill"/> {agentMessage}</p>
+    </div>
+    <div className={styles.mapModesTop}><button className={!showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(false)}>Χάρτης</button><button className={showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(true)}>Δορυφόρος</button></div>
+    <div className={styles.mapCanvasWrapTop}><div ref={mapHost} className={styles.map}/>{!mapReady?<div className={styles.mapLoading}>Φορτώνω {inventory.length?inventory.length.toLocaleString("el-GR"):"1.700+"} stays…</div>:null}</div>
+    {activeStay?<div className={styles.mapCard}><div style={activeStay.image?{backgroundImage:`url(${activeStay.image})`}:undefined}/><span><small>{activeStay.location}</small><b>{activeStay.name}</b><strong>{money(activeStay.price,activeStay.currency)}</strong></span><button onClick={()=>openStay(activeStay)}><ArrowRight/></button></div>:null}
+   </div>
+  </section>
+
   <section className={styles.hero}>
    <div className={styles.heroImage} style={hero?{backgroundImage:`url(${hero})`}:undefined}>
     <div className={styles.heroShade}/>
@@ -245,11 +271,6 @@ export function V54FinalHome(){
     </article>)}</div>
    </div>
 
-   <div id="map" className={styles.mapPanel}>
-    <div className={styles.mapHead}><div><small>LIVE MAP</small><h2>Δες στον χάρτη</h2><p>{inventory.length.toLocaleString("el-GR")} πραγματικά stays στην περιοχή</p></div><div className={styles.mapModes}><button className={!showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(false)}>Χάρτης</button><button className={showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(true)}>Δορυφόρος</button></div></div>
-    <div className={styles.mapCanvasWrap}><div ref={mapHost} className={styles.map}/>{!mapReady?<div className={styles.mapLoading}>Φορτώνω live χάρτη…</div>:null}</div>
-    {activeStay?<div className={styles.mapCard}><div style={activeStay.image?{backgroundImage:`url(${activeStay.image})`}:undefined}/><span><small>{activeStay.location}</small><b>{activeStay.name}</b><strong>{money(activeStay.price,activeStay.currency)}</strong></span><button onClick={()=>openStay(activeStay)}><ArrowRight/></button></div>:null}
-   </div>
   </section>
 
   {activeStay?<section id="featured" className={styles.featured}>
