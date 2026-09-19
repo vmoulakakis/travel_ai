@@ -11,7 +11,7 @@ const solverPath=v50Family?"app/api/v50/agent/route.ts":isV40?"app/api/escape/so
 const rankingPath=currentVersion==="v34"?"lib/decision/solution-ranking-v35.ts":"lib/decision/solution-ranking-v36.ts";
 const escapeFunnel=read(escapeFunnelPath),selectedExperience=read(selectedExperiencePath),escapePage=read("app/escape/[slug]/page.tsx"),solver=read(solverPath),ranking=read(rankingPath),v39Map=fs.existsSync("components/v39-destination-map-workspace.tsx"),stayPath="app/escape/[slug]/stay/[offerId]/page.tsx",stayRoute=v39Map&&fs.existsSync(stayPath)?read(stayPath):"";
 
-must((isV50&&home.includes("V50TravelIntelligenceHome"))||(isV40&&home.includes("V40DiscoveryExperience"))||/V\d+EscapeFunnel/.test(home),"Greek homepage must use the current escape experience");
+must((isV54&&home.includes("V54FinalHome"))||(isV50&&home.includes("V50TravelIntelligenceHome"))||(isV40&&home.includes("V40DiscoveryExperience"))||/V\d+EscapeFunnel/.test(home),"Greek homepage must use the current escape experience");
 must(homeEn.includes("V40DiscoveryExperience")||homeEn.includes("V50TravelIntelligenceHome")||/V\d+EscapeFunnel/.test(homeEn),"English homepage must use a supported escape experience");
 must(!home.includes("AiGreeceHomeV28"),"Greek homepage must not fall back to V28 shell");
 must(layout.includes("v31-native.css"),"V31 support CSS must stay available for legacy production routes");
