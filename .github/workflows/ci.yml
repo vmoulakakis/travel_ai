@@ -28,6 +28,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    environment: Production – travel-ai
     env:
       VERCEL_ORG_ID: team_jt3jd1HJUB4sK1oZdl9MUYGs
       VERCEL_PROJECT_ID: prj_wGO5Tq3kQxrUMi7WA3lvTHxTNGhn
