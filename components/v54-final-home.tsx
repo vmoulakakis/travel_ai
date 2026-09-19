@@ -35,7 +35,7 @@ export function V54FinalHome(){
  const [freeText,setFreeText]=useState("");
  const [filters,setFilters]=useState<Filters>(defaults);
  const [agentMessage,setAgentMessage]=useState("Πες μου τι χρειάζεσαι και θα περιορίσω τις επιλογές σε όσες αξίζουν πραγματικά.");
- const [agentRuntime,setAgentRuntime]=useState<AgentResponse["agentRuntime"]>(null);
+ const [agentRuntime,setAgentRuntime]=useState<AgentResponse["agentRuntime"]|null>(null);
  const [question,setQuestion]=useState<AgentResponse["question"]|null>(null);
  const [busy,setBusy]=useState(false);
  const [lastTrip,setLastTrip]=useState<AgentResponse["trip"]|null>(null);
