@@ -63,3 +63,19 @@ export async function loadV8StayOffers(slug:string,startDate:string,endDate:stri
  const url=new URL(STAYS_URL);url.searchParams.set("slug",slug);url.searchParams.set("start_date",startDate);url.searchParams.set("end_date",endDate);url.searchParams.set("limit",String(Math.max(1,Math.min(60,limit))));
  const payload=await fetchJson<{offers?:Array<Record<string,unknown>>}>(url.toString(),7000);return(payload.offers??[]).map(mapOffer).filter((x):x is V8StayOffer=>Boolean(x));
 }
+
+export async function loadV8StayOfferById(sourceProductId:string):Promise<V8StayOffer|null>{
+ const base=(process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co").replace(/\/$/,"");
+ const key=process.env.SUPABASE_SERVICE_ROLE_KEY??"";
+ if(!key||!sourceProductId.trim())return null;
+ try{
+  const url=new URL("/rest/v1/stay_offers",base);
+  url.searchParams.set("select","source_product_id,property_name,description,source_category,program_id,tracking_url,image_url,thumb_url,availability,valid_from,valid_to,currency,price,full_price,discount,demand_proxy,in_stock,city,address,distance_km,latitude,longitude,raw");
+  url.searchParams.set("source_product_id",`eq.${sourceProductId}`);
+  url.searchParams.set("limit","1");
+  const response=await fetch(url,{headers:{apikey:key,Authorization:`Bearer ${key}`,accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(6000)});
+  if(!response.ok)return null;
+  const rows=await response.json() as Array<Record<string,unknown>>;
+  return rows[0]?mapOffer(rows[0]):null;
+ }catch{return null}
+}
