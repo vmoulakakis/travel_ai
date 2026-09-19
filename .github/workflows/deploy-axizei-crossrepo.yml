@@ -1,0 +1,50 @@
+name: Deploy AXIZEI cross-repo
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-axizei-crossrepo.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy-axizei:
+    runs-on: ubuntu-latest
+    environment: Production – travel-ai
+    env:
+      VERCEL_ORG_ID: team_jt3jd1HJUB4sK1oZdl9MUYGs
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Checkout AXIZEI source
+        uses: actions/checkout@v5
+        with:
+          repository: vmoulakakis/ai_aliexpress
+          ref: main
+          path: axizei-src
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: axizei-src/web/package.json
+
+      - name: Install dependencies
+        working-directory: axizei-src/web
+        run: npm install
+
+      - name: Build verification
+        working-directory: axizei-src/web
+        run: npm run build
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Link or create AXIZEI project
+        working-directory: axizei-src/web
+        run: |
+          test -n "$VERCEL_TOKEN" || (echo "VERCEL_TOKEN unavailable in travel_ai Production environment" && exit 2)
+          vercel link --yes --project axizei-proof-commerce --scope vassilis-projects-3bf8541b --token "$VERCEL_TOKEN"
+
+      - name: Deploy AXIZEI production
+        working-directory: axizei-src/web
+        run: |
+          vercel deploy --prod --yes --scope vassilis-projects-3bf8541b --token "$VERCEL_TOKEN"
