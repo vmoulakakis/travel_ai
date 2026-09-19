@@ -32,7 +32,7 @@ export function V54FinalHome(){
  const [solutions,setSolutions]=useState<Solution[]>([]);
  const [active,setActive]=useState(0);
  const [origin]=useState("Αθήνα");
- const [destination,setDestination]=useState("Σαντορίνη, Ελλάδα");
+ const [destination,setDestination]=useState("");
  const [plannerTab,setPlannerTab]=useState<"trip"|"inspire"|"ask">("trip");
  const [start,setStart]=useState(()=>addDays(todayIso(),14));
  const [end,setEnd]=useState(()=>addDays(todayIso(),17));
@@ -197,18 +197,19 @@ export function V54FinalHome(){
  },[activeStay?.id]);
 
  async function runAgent(extra?:string){
-  const prompt=(extra??freeText).trim()||`${destination}. ${intent}, ${traveler==="couple"?"με σύντροφο":traveler}, ${start} έως ${end}. Θέλω τις καλύτερες πραγματικές επιλογές.`;
+  const destinationBrief=destination.trim()?destination.trim()+". ":"";
+  const prompt=(extra??freeText).trim()||`${destinationBrief}${intent}, ${traveler==="couple"?"με σύντροφο":traveler}, ${start} έως ${end}. Θέλω τις καλύτερες πραγματικές επιλογές.`;
   setBusy(true);setAgentMessage("Αναλύω ημερομηνίες, profile, inventory και πραγματικές επιλογές…");
   try{
    const body={
     userText:prompt,
-    conversationContext:`USER PROFILE: origin=${origin}, destination=${destination}, dates=${start}..${end}, traveler=${traveler}, budget=${budget}, intent=${intent}. TODAY_LOCAL=${todayIso()} Europe/Athens. MAP_CENTER=${mapView.lat.toFixed(5)},${mapView.lon.toFixed(5)} zoom=${mapView.zoom}. CURRENT_STAY=${(selectedMapStay??hoveredStayRef.current)?.name??"none"}`,
+    conversationContext:`USER PROFILE: origin=${origin}, destination=${destination||"open"}, dates=${start}..${end}, traveler=${traveler}, budget=${budget}, intent=${intent}. TODAY_LOCAL=${todayIso()} Europe/Athens. MAP_CENTER=${mapView.lat.toFixed(5)},${mapView.lon.toFixed(5)} zoom=${mapView.zoom}. CURRENT_STAY=${(selectedMapStay??hoveredStayRef.current)?.name??"none"}`,
     priorUserText:freeText,
-    origin,budget,filters,
+    origin,destination:destination.trim()||undefined,budget,filters,
     currentTopIds:cards.slice(0,10).map(x=>x.id),
     selectedStay:(selectedMapStay??hoveredStayRef.current)?{productId:(selectedMapStay??hoveredStayRef.current)!.id,name:(selectedMapStay??hoveredStayRef.current)!.name,location:(selectedMapStay??hoveredStayRef.current)!.location,price:(selectedMapStay??hoveredStayRef.current)!.price}:null,
-    mapContext:{centerLat:mapView.lat,centerLon:mapView.lon,zoom:mapView.zoom,visibleDestination:destination,hoveredStayId:hoveredStayRef.current?.id??null,hoveredStayName:hoveredStayRef.current?.name??null},
-    answers:{dates:start+" – "+end,companions:traveler,outcome:filters.calm>72?"restore":"balanced"}
+    mapContext:{centerLat:mapView.lat,centerLon:mapView.lon,zoom:mapView.zoom,visibleDestination:destination||null,hoveredStayId:hoveredStayRef.current?.id??null,hoveredStayName:hoveredStayRef.current?.name??null},
+    answers:{dates:start+" – "+end,companions:traveler}
    };
    const r=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
    const p=await r.json() as AgentResponse;
@@ -244,7 +245,7 @@ export function V54FinalHome(){
   </header>
 
   <div className={styles.focusBar}>
-   <div className={styles.focusWhere}><MapPin weight="fill"/><span>Τώρα βρίσκεσαι:</span><b>{destination}</b></div>
+   <div className={styles.focusWhere}><MapPin weight="fill"/><span>Πεδίο αναζήτησης:</span><b>{destination||"Όλη η Ελλάδα"}</b></div>
    <div className={styles.focusSteps}>
     <span className={styles.focusStepActive}>1 · Explore map</span><i>→</i>
     <span className={solutions.length?styles.focusStepActive:""}>2 · AI picks</span><i>→</i>
@@ -269,7 +270,7 @@ export function V54FinalHome(){
     <div className={styles.mapAiDock}>
      <div className={styles.mapAiDockHead}><Brain weight="fill"/><div><b>AI Stay Finder</b><span>{busy?"Σκανάρω inventory…":"Διάλεξε vibe — τα υπόλοιπα τα κάνει η AI"}</span></div></div>
      <div className={styles.mapFunChips}>
-      {["Χαλάρωση","Ρομαντικό","Περιπέτεια","Γαστρονομία"].map(x=><button key={x} className={intent===x?styles.mapFunChipActive:""} onClick={()=>{setIntent(x);void runAgent(`${destination}. Θέλω ${x.toLowerCase()} ταξίδι. Διάλεξε τις καλύτερες πραγματικές επιλογές από όλο το inventory.`)}}>{x}</button>)}
+      {["Χαλάρωση","Ρομαντικό","Περιπέτεια","Γαστρονομία"].map(x=><button key={x} className={intent===x?styles.mapFunChipActive:""} onClick={()=>{setIntent(x);const where=destination.trim()?destination.trim()+". ":"";void runAgent(`${where}Θέλω ${x.toLowerCase()} ταξίδι. Διάλεξε τις καλύτερες πραγματικές επιλογές από όλο το inventory.`)}}>{x}</button>)}
      </div>
      <button className={styles.surpriseBtn} disabled={busy} onClick={()=>void runAgent("Surprise me. Διάλεξε εσύ την καλύτερη απόδραση από όλο το πραγματικό inventory με βάση ημερομηνίες, budget και profile.")}>🎲 {busy?"Η AI ψάχνει…":"Surprise me"}</button>
      <p><Sparkle weight="fill"/> {agentMessage}</p>
@@ -291,7 +292,7 @@ export function V54FinalHome(){
      <div className={styles.heroProof}><b><Brain/> Προσωποποιημένο reasoning</b><b><MapPin/> {inventory.length.toLocaleString("el-GR")} live stays</b><b><ShieldCheck/> Grounded επιλογές</b></div>
     </div>
     <div className={styles.heroQuote}>“Not just a trip.<br/>A better you.”</div>
-    <div className={styles.heroLocation}><MapPin weight="fill"/>{destination}</div>
+    <div className={styles.heroLocation}><MapPin weight="fill"/>{destination||"Όλη η Ελλάδα"}</div>
    </div>
 
    <aside id="planner" className={styles.planner}>
