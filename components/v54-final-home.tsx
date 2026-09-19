@@ -181,14 +181,14 @@ export function V54FinalHome(){
       setSelectedMapStay(stay);
       hoveredStayRef.current=stay;
       const idx=cards.findIndex(c=>c.id===p.productId);if(idx>=0)setActive(idx);
-      mapRef.current?.flyTo([p.latitude,p.longitude],Math.max(mapRef.current.getZoom(),12),{duration:.45});
       void loadRating(p,marker,rank);
+      openStay(stay);
     });
     marker.addTo(g);
    }
    if(!solutions.length)cards.slice(0,10).forEach((p,i)=>{
     const icon=L.divIcon({className:"v54PricePin",html:`<span>${p.price?money(p.price,p.currency):"★"}</span>`,iconSize:[74,32],iconAnchor:[37,16]});
-    L.marker([p.lat,p.lon],{icon,zIndexOffset:1000-i}).on("click",()=>{setSelectedMapStay(p);setActive(i);mapRef.current?.flyTo([p.lat,p.lon],12,{duration:.65})}).addTo(g);
+    L.marker([p.lat,p.lon],{icon,zIndexOffset:1000-i}).on("click",()=>{setSelectedMapStay(p);setActive(i);openStay(p)}).addTo(g);
    });
   });
   return()=>{dead=true};
@@ -236,16 +236,15 @@ export function V54FinalHome(){
   <header className={styles.nav}>
    <a className={styles.logo} href="/">TRAVEL<span>AI</span><small>AI ESCAPE INTELLIGENCE</small></a>
    <nav><a href="#destinations">Προορισμοί</a><a href="#stays">Διαμονή</a><a href="#featured">Εμπειρίες</a><a href="#planner">AI Planner</a><a href="#how">Πώς λειτουργεί</a><a href="#about">Σχετικά</a></nav>
-   <div className={styles.navActions}><button aria-label="Αναζήτηση"><MagnifyingGlass/></button><button className={styles.login}><UserCircle/> Σύνδεση</button><button className={styles.navCta} onClick={()=>document.getElementById("planner")?.scrollIntoView({behavior:"smooth"})}>Ξεκίνα το ταξίδι σου <ArrowRight/></button></div>
+   <div className={styles.navActions}><button aria-label="Αναζήτηση"><MagnifyingGlass/></button><button className={styles.login}><UserCircle/> Σύνδεση</button><button className={styles.navCta} onClick={()=>document.getElementById("map")?.scrollIntoView({behavior:"smooth"})}>Ξεκίνα το ταξίδι σου <ArrowRight/></button></div>
   </header>
 
   <div className={styles.focusBar}>
    <div className={styles.focusWhere}><MapPin weight="fill"/><span>Πεδίο αναζήτησης:</span><b>{destination||"Όλη η Ελλάδα"}</b></div>
    <div className={styles.focusSteps}>
-    <span className={styles.focusStepActive}>1 · Explore map</span><i>→</i>
-    <span className={solutions.length?styles.focusStepActive:""}>2 · AI picks</span><i>→</i>
-    <span className={activeStay?styles.focusStepActive:""}>3 · Compare stay</span><i>→</i>
-    <span>4 · Open details</span>
+    <span className={styles.focusStepActive}>1 · Επίλεξε</span><i>→</i>
+    <span className={activeStay?styles.focusStepActive:""}>2 · Δες το funnel</span><i>→</i>
+    <span>3 · Ξεκίνα το ταξίδι σου</span>
    </div>
    <div className={styles.pinLegend}><span><i className={styles.legendGold}>★</i> AI selected</span><span><i className={styles.legendBlue}>★</i> All offers</span></div>
   </div>
@@ -272,7 +271,7 @@ export function V54FinalHome(){
     </div>
     <div className={styles.mapModesTop}><button className={!showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(false)}>Χάρτης</button><button className={showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(true)}>Δορυφόρος</button></div>
     <div className={styles.mapCanvasWrapTop}><div ref={mapHost} className={styles.map}/>{!mapReady?<div className={styles.mapLoading}>Φορτώνω {inventory.length?inventory.length.toLocaleString("el-GR"):"1.700+"} stays…</div>:null}</div>
-    {activeStay?<div className={styles.mapCard}><div style={activeStay.image?{backgroundImage:`url(${activeStay.image})`}:undefined}/><span><small>{activeStay.location}</small><b>{activeStay.name}</b><strong>{money(activeStay.price,activeStay.currency)}</strong></span><button onClick={()=>openStay(activeStay)}><ArrowRight/></button></div>:null}
+    {activeStay?<div className={styles.mapCard}><div style={activeStay.image?{backgroundImage:`url(${activeStay.image})`}:undefined}/><span><small>{activeStay.location}</small><b>{activeStay.name}</b><strong>{money(activeStay.price,activeStay.currency)}</strong></span><button aria-label="Άνοιξε το ενιαίο funnel" onClick={()=>openStay(activeStay)}>Ξεκίνα <ArrowRight/></button></div>:null}
    </div>
   </section>
 
@@ -341,14 +340,14 @@ export function V54FinalHome(){
       onClick={()=>{hoveredStayRef.current=s;setSelectedMapStay(null);setActive(i);mapRef.current?.flyTo([s.lat,s.lon],Math.max(mapRef.current?.getZoom()??10,11),{duration:.45})}}
       className={i===active&&!selectedMapStay?styles.cardActive:""}>
       <div className={styles.cardPhoto} style={s.image?{backgroundImage:`url(${s.image})`}:undefined}><span>{s.score?Math.round(s.score)+"% MATCH":"LIVE STAY"}</span><button><Heart/></button></div>
-      <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={e=>{e.stopPropagation();openStay(s)}}>Άνοιξε το κατάλυμα <ArrowRight/></button></div></div>
+      <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={e=>{e.stopPropagation();openStay(s)}}>Δες το funnel <ArrowRight/></button></div></div>
     </article>)}</div>
    </div>
 
   </section>
 
   {activeStay?<section id="featured" className={styles.featured}>
-   <div className={styles.featureCopy}><small>FEATURED STAY · AI PICK</small><h2>{activeStay.name}</h2><h3>{activeStay.location}</h3><p>{activeStay.why} Η σύνθεση παρακάτω χρησιμοποιεί πραγματικές εικόνες από το ενεργό travel inventory για να σου δώσει γρήγορα το mood πριν μπεις στις λεπτομέρειες.</p><div className={styles.featureStats}><span><Star weight="fill"/> {activeStay.score?activeStay.score+"% match":"Live inventory"}</span><span><MapPin/> {activeStay.location}</span><span><ShieldCheck/> Grounded stay</span></div><button onClick={()=>openStay(activeStay)}>Έλεγξε αυτό το κατάλυμα τώρα <ArrowRight/></button></div>
+   <div className={styles.featureCopy}><small>FEATURED STAY · AI PICK</small><h2>{activeStay.name}</h2><h3>{activeStay.location}</h3><p>{activeStay.why} Η σύνθεση παρακάτω χρησιμοποιεί πραγματικές εικόνες από το ενεργό travel inventory για να σου δώσει γρήγορα το mood πριν μπεις στις λεπτομέρειες.</p><div className={styles.featureStats}><span><Star weight="fill"/> {activeStay.score?activeStay.score+"% match":"Live inventory"}</span><span><MapPin/> {activeStay.location}</span><span><ShieldCheck/> Grounded stay</span></div><button onClick={()=>openStay(activeStay)}>Δες το funnel <ArrowRight/></button></div>
    <div className={styles.gallery}>{gallery.slice(0,5).map((src,i)=><div key={src} className={i===0?styles.galleryMain:""} style={{backgroundImage:`url(${src})`}}>{i===4?<span>+{Math.max(0,gallery.length-4)} εικόνες</span>:null}</div>)}</div>
   </section>:null}
 
