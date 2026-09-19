@@ -9,6 +9,7 @@ export type V50ConversationInput={
   userText:string;
   priorUserText?:string;
   origin?:string;
+  destination?:string;
   budget?:number;
   filters?:Partial<V50Filters>;
   answers?:Partial<Record<V50QuestionId,string>>;
@@ -150,8 +151,12 @@ function inferTraveler(text:string,answer?:string):V50TravelerType|null{
 function inferOutcome(text:string,answer:string|undefined,filters:V50Filters){
   if(answer==="restore"||answer==="stimulating"||answer==="balanced")return answer;
   const t=norm([text,answer??""].join(" "));
-  if(/ξεκουρ|ηρεμ|χαλαρ|reset|rest|relax|αποφορ|xekour|ksekour|irem|xalar|apofor/.test(t)||filters.calm>=78)return"restore" as const;
-  if(/δραση|περιπετ|ενεργ|adventure|nightlife|party|drasi|peripet|energeia/.test(t)||filters.discovery>=82||filters.nightlife>=78)return"stimulating" as const;
+  // Explicit traveler language must beat passive UI priors. Otherwise the default calm slider
+  // can incorrectly turn an adventure/nightlife brief into a restore trip.
+  if(/δραση|περιπετ|ενεργ|adventure|nightlife|party|drasi|peripet|energeia|explore|ανακαλυψ/.test(t))return"stimulating" as const;
+  if(/ξεκουρ|ηρεμ|χαλαρ|reset|rest|relax|αποφορ|xekour|ksekour|irem|xalar|apofor/.test(t))return"restore" as const;
+  if(filters.discovery>=86||filters.nightlife>=82)return"stimulating" as const;
+  if(filters.calm>=86)return"restore" as const;
   return"balanced" as const;
 }
 
@@ -194,10 +199,15 @@ function inferMoods(text:string,filters:V50Filters):TripRequest["moods"]{
     ["culture",filters.discovery*.78],["adventure",filters.discovery],["city",filters.nightlife],
     ["romantic",/ρομαν|ζευγ|couple|partner/.test(t)?90:Math.round((filters.calm+filters.discovery)/2)]
   ];
+  if(/ξεκουρ|ηρεμ|χαλαρ|reset|rest|relax|αποφορ|xekour|ksekour|irem|xalar|apofor/.test(t))scores.push(["relax",100]);
+  if(/δραση|περιπετ|adventure|hiking|πεζοπορ|drasi|peripet|explore|ανακαλυψ/.test(t))scores.push(["adventure",100]);
   if(/βουν|ορειν|mountain|φυση|nature|forest|voun|orein|fysi/.test(t))scores.push(["nature",100],["adventure",84]);
+  if(/θαλασσ|παραλι|beach|sea|ηλιο|ζεστ|thalass|parali|sun|warm/.test(t))scores.push(["warmth",98],["relax",82]);
   if(/φαγη|γαστρ|restaurant|food|wine|κρασι|fagito|gastr|krasi/.test(t))scores.push(["food",100]);
-  if(/μοναδικ|διαφορετικ|surprise|unique|hidden|monadik|diaforetik/.test(t))scores.push(["adventure",88]);
-  if(/ρομαν|ζευγ|couple|partner|romant|zevg|syntrof/.test(t))scores.push(["romantic",96]);
+  if(/πολιτισ|μουσει|ιστορ|culture|museum|heritage|politis|mousei|istor/.test(t))scores.push(["culture",100]);
+  if(/πολη|city|urban|nightlife|party|club|μπαρ|bar/.test(t))scores.push(["city",98]);
+  if(/μοναδικ|διαφορετικ|surprise|unique|hidden|monadik|diaforetik/.test(t))scores.push(["adventure",92]);
+  if(/ρομαν|ζευγ|couple|partner|romant|zevg|syntrof/.test(t))scores.push(["romantic",100]);
   const best=new Map<TripRequest["moods"][number],number>();
   for(const [m,s] of scores)best.set(m,Math.max(best.get(m)??0,s));
   return [...best.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
@@ -252,6 +262,8 @@ export function nextV50Question(x:V50ConversationInterpretation,answers:V50Conve
 export function buildV50Trip(input:V50ConversationInput,x:V50ConversationInterpretation):TripRequest{
   if(!x.startDate||!x.endDate||!x.nights||!x.travelerType)throw new Error("v50_trip_incomplete");
   const filters={...defaultFilters,...input.filters},budget=Math.max(150,Math.min(5000,Number(input.budget)||800));
+  const destination=(input.destination??"").trim().replace(/\s+/g," ");
+  const hasDestination=destination.length>=2&&!/^(βρες εσ[υύ]|surprise me|anywhere|οπουδηποτε|οπουδήποτε)$/i.test(destination);
   return{
     origin:(input.origin??"Αθήνα").trim()||"Αθήνα",startDate:x.startDate,endDate:x.endDate,month:"flexible",nights:x.nights,budget,
     moods:x.moods,travelerType:x.travelerType,language:"el",distancePreference:x.distancePreference,
@@ -260,6 +272,8 @@ export function buildV50Trip(input:V50ConversationInput,x:V50ConversationInterpr
     groupSize:x.travelerType==="solo"?1:x.travelerType==="couple"?2:4,desiredEnergy:x.desiredEnergy,
     socialPreference:x.socialPreference,noveltyPreference:x.noveltyPreference,mustHave:x.mustHave,
     dateFlexibility:x.flexibleDates?"few-days":"fixed",transportMode:"any",
-    stayLocationPreference:x.socialPreference==="quiet"?"outside":"balanced",tripText:x.compactText.slice(0,320)
+    stayLocationPreference:x.socialPreference==="quiet"?"outside":"balanced",
+    ...(hasDestination?{consideredDestination:destination}:{}),
+    tripText:x.compactText.slice(0,320)
   };
 }
