@@ -73,7 +73,7 @@ export async function loadV8StayOfferById(sourceProductId:string):Promise<V8Stay
   url.searchParams.set("select","source_product_id,property_name,description,source_category,program_id,tracking_url,image_url,thumb_url,availability,valid_from,valid_to,currency,price,full_price,discount,demand_proxy,in_stock,city,address,distance_km,latitude,longitude,raw");
   url.searchParams.set("source_product_id",`eq.${sourceProductId}`);
   url.searchParams.set("limit","1");
-  const response=await fetch(url,{headers:{apikey:key,Authorization:`Bearer ${key}`,accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(6000)});
+  const response=await fetch(url,{headers:{apikey:key,Authorization:`Bearer ${key}`,accept:"application/json"},next:{revalidate:300},signal:AbortSignal.timeout(3500)});
   if(!response.ok)return null;
   const rows=await response.json() as Array<Record<string,unknown>>;
   return rows[0]?mapOffer(rows[0]):null;
