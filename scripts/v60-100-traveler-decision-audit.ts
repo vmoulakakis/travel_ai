@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { buildV50Trip,interpretV50Conversation } from "../lib/ai/v50-agent-state";
 
 const now=new Date("2026-09-19T12:00:00Z");
@@ -51,7 +52,6 @@ const fixed=interpretV50Conversation({userText:"Θέλω ρομαντικό τα
 const fixedTrip=buildV50Trip({userText:"Θέλω ρομαντικό ταξίδι",destination:"Νάξος",answers:{dates:"2026-10-10 – 2026-10-13",companions:"couple"}},fixed);
 assert.equal(fixedTrip.consideredDestination,"Νάξος","explicit destination must be preserved");
 
-const {readFileSync}=await import("node:fs");
 const fallback=readFileSync("app/api/escape/solve-v42/route.ts","utf8");
 assert.ok(fallback.includes("runTravelOrchestratorV26"),"fallback must use canonical destination orchestration");
 assert.ok(fallback.includes('knowledgeMode:"canonical-destination-first"'),"fallback must explicitly remain destination-first");
