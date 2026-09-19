@@ -62,12 +62,13 @@ function stayRank(row:Row,weights:Record<string,number>,traveler:string,budget:n
  const travelerFit=clamp(Number(row.traveler_fit?.[traveler]??.5)*100),evidenceScore=clamp(Number(row.evidence_score??0)*100);
  return{score:clamp(sem.score*.42+travelerFit*.16+valueScore*.16+locationScore*.12+evidenceScore*.14),sem,valueScore,locationScore,travelerFit,evidenceScore};
 }
-function solution(rec:V8Recommendation,row:Row,ranked:ReturnType<typeof stayRank>,language:string){
+function solution(rec:V8Recommendation,x:{row:Row;ranked:ReturnType<typeof stayRank>},language:string){
+ const destinationScore=Math.round(rec.score),stayScore=Math.round(x.ranked.score),valueScore=Math.round(x.ranked.valueScore),locationScore=Math.round(x.ranked.locationScore);
  return{
-  score:Math.round(rec.score),
+  score:destinationScore,destinationScore,stayScore,valueScore,locationScore,
   destination:{slug:rec.slug,name:language==="en"?rec.destinationEn:rec.destination,nameEn:rec.destinationEn,tags:rec.tags},
-  stay:{sourceProductId:row.source_product_id,propertyName:row.property_name,trackingUrl:row.tracking_url,imageUrl:row.image_url??row.thumb_url,price:row.price,currency:row.currency,distanceKm:row.distance_km,availability:row.availability,semanticScore:Math.round(ranked.sem.score),vectorScore:Math.round(ranked.sem.vectorScore),travelerFit:Math.round(ranked.travelerFit),valueScore:Math.round(ranked.valueScore),evidenceScore:Math.round(ranked.evidenceScore)},
-  matchedSignals:ranked.sem.matched.slice(0,5),
+  stay:{sourceProductId:x.row.source_product_id,propertyName:x.row.property_name,trackingUrl:x.row.tracking_url,imageUrl:x.row.image_url??x.row.thumb_url,price:x.row.price,currency:x.row.currency,distanceKm:x.row.distance_km,availability:x.row.availability,semanticScore:Math.round(x.ranked.sem.score),vectorScore:Math.round(x.ranked.sem.vectorScore),travelerFit:Math.round(x.ranked.travelerFit),valueScore,evidenceScore:Math.round(x.ranked.evidenceScore)},
+  matchedSignals:x.ranked.sem.matched.slice(0,5),
   reason:rec.why
  };
 }
@@ -89,7 +90,7 @@ export async function POST(request:Request){
   const offers=byDestination.get(rec.slug)??[];if(!offers.length)continue;
   const ranked=offers.map(row=>({row,ranked:stayRank(row,intent.weights as Record<string,number>,trip.travelerType,trip.budget)})).sort((a,b)=>b.ranked.score-a.ranked.score);
   const top=ranked[0];if(!top)continue;
-  solutions.push({rank:solutions.length+1,...solution(rec,top.row,top.ranked,trip.language??"el")});
+  solutions.push({rank:solutions.length+1,...solution(rec,top,trip.language??"el")});
   if(solutions.length>=8)break;
  }
  return Response.json({ok:true,version:60,generatedAt:new Date().toISOString(),intentSource:intent.source,intentSummary:intent.summary,knowledgeMode:"canonical-destination-first",inventoryChecked:rows.length,solutionCount:solutions.length,solutions},{headers:{"cache-control":"no-store","x-travel-engine":"v60-canonical-fallback"}});
