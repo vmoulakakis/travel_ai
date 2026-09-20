@@ -141,7 +141,7 @@ export async function GET(request:Request){
    if(!fallback.ok)throw new Error("fallback_map_unavailable");
    const payload=await fallback.json() as Record<string,unknown>,rawProducts=Array.isArray(payload.products)?payload.products as Product[]:[];
    const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,demandSignal:0,mapSignal:"explore",starTier:"blue" as const})));
-   return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},version:50,fullUniverse:false,demandLayer:{status:"live-proxy",reason:"Map ranking uses observed inventory demand_proxy where available; it is not an election-style prediction or fabricated forecast."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
+   return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},version:50,fullUniverse:false,demandLayer:{forecastStatus:"disabled",observedDemandStatus:"live-proxy",reason:"Map ranking may use observed inventory demand_proxy where available. This is not presented as demand forecasting and no future demand is fabricated."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
   }
   const catalog=await loadV8DestinationCatalog().catch(()=>[]);
   const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
@@ -178,7 +178,7 @@ export async function GET(request:Request){
    count:intelligence.products.length,
    locationCount:new Set(intelligence.products.map(x=>x.location).filter(Boolean)).size,
    mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},
-   demandLayer:{status:"live-proxy",reason:"Map ranking uses observed inventory demand_proxy where available; it is not an election-style prediction or fabricated forecast."},
+   demandLayer:{forecastStatus:"disabled",observedDemandStatus:"live-proxy",reason:"Map ranking may use observed inventory demand_proxy where available. This is not presented as demand forecasting and no future demand is fabricated."},
    products:intelligence.products
   },{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence"}});
  }catch(error){
