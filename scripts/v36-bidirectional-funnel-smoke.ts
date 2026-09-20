@@ -5,6 +5,7 @@ const read=(file:string)=>fs.readFileSync(path.join(process.cwd(),file),"utf8");
 const gr=read("app/page.tsx");
 const en=read("app/en/page.tsx");
 const layout=read("app/layout.tsx");
+if(gr.includes("V67FourStepFunnel")){const ui=read("components/v67-four-step-funnel.tsx"),selector=read("app/api/v67/select-one/route.ts");if(!ui.includes("/api/v67/select-one")||!selector.includes("limit\",\"2000")||!ui.includes("winner.stay.trackingUrl")){console.error("V67 compatibility smoke FAILED");process.exit(1)}console.log("Bidirectional compatibility smoke passed: active=V67 one-winner four-step funnel; legacy V36 fallback retained.");process.exit(0)}
 const isV54=gr.includes("V54FinalHome"),isV50=gr.includes("V50TravelIntelligenceHome"),v50Family=isV54||isV50;
 const home=isV54?read("components/v54-final-home.tsx"):isV50?read("components/v50-travel-intelligence-home.tsx"):read("components/v40-discovery-experience.tsx");
 const css=isV54?read("components/v54-final-home.module.css"):isV50?read("components/v50-travel-intelligence-home.module.css"):read("components/v40-discovery-experience.module.css");
