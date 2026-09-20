@@ -549,3 +549,135 @@
  .cardBody>p{font-size:10px!important;line-height:1.48!important}
  .cardFoot button{font-size:9px!important;padding:0 14px!important}
 }
+
+
+/* V65 — AI-first spatial discovery */
+.legendDemand{color:#ff7a6b}
+.legendSeasonal{color:#22b7d8}
+
+.mapFirst{
+ order:-1;
+ padding-top:12px!important;
+}
+.mapFirstTop{
+ position:relative;
+ z-index:4;
+}
+.mapFirstTop h1{
+ max-width:860px;
+}
+.mapAiFlow{
+ align-self:center;
+}
+.mapStage{
+ min-height:min(760px,calc(100dvh - 150px))!important;
+}
+
+.mapFocusCard{
+ position:absolute;z-index:700;left:50%;top:14px;transform:translateX(-50%);
+ min-width:280px;max-width:min(520px,calc(100% - 700px));
+ padding:10px 13px;border-radius:16px;
+ background:rgba(255,255,255,.94);backdrop-filter:blur(16px);
+ border:1px solid rgba(25,67,53,.12);box-shadow:0 12px 32px rgba(24,64,51,.13);
+ color:#173d32;
+}
+.mapFocusCard>span{
+ display:block;font-size:6px;font-weight:950;letter-spacing:.13em;color:#9b6c13
+}
+.mapFocusCard>b{
+ display:block;margin:3px 0 7px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.mapFocusCard>div{display:flex;gap:5px;flex-wrap:wrap}
+.mapFocusCard i{
+ font-style:normal;padding:4px 7px;border-radius:999px;background:#f5f9f7;
+ border:1px solid #dce7e2;color:#637970;font-size:6.5px;font-weight:800
+}
+.mapFocusCard i strong{color:#173d32;font-size:7.5px}
+.mapFocusCard>small{display:block;margin-top:6px;color:#81938b;font-size:6px}
+
+:global(.v65StarAi),
+:global(.v65StarDemand),
+:global(.v65StarSeasonal),
+:global(.v65StarValue),
+:global(.v65StarExplore){
+ background:transparent!important;border:0!important;pointer-events:auto!important;cursor:pointer!important
+}
+:global(.v65StarAi span),
+:global(.v65StarDemand span),
+:global(.v65StarSeasonal span),
+:global(.v65StarValue span),
+:global(.v65StarExplore span){
+ width:var(--pin-size);height:var(--pin-size);
+ display:grid;place-items:center;position:relative;
+ font-family:Arial,sans-serif;font-size:calc(var(--pin-size) * .8);line-height:1;
+ transition:transform .16s ease,filter .16s ease;
+ text-shadow:0 2px 8px rgba(0,0,0,.48);
+ transform-origin:center;
+}
+:global(.v65StarAi span){color:#ffd35f;filter:drop-shadow(0 0 10px rgba(255,211,95,.92));animation:v65StarBreath 2.2s ease-in-out infinite}
+:global(.v65StarDemand span){color:#ff7a6b;filter:drop-shadow(0 0 8px rgba(255,122,107,.72))}
+:global(.v65StarSeasonal span){color:#27c5e6;filter:drop-shadow(0 0 8px rgba(39,197,230,.72))}
+:global(.v65StarValue span){color:#35b779;filter:drop-shadow(0 0 8px rgba(53,183,121,.7))}
+:global(.v65StarExplore span){color:#5aa8ff;filter:drop-shadow(0 0 5px rgba(90,168,255,.48));opacity:.88}
+:global(.v65StarAi small){
+ position:absolute;right:-4px;top:-3px;
+ min-width:16px;height:16px;padding:0 4px;border-radius:999px;
+ display:grid;place-items:center;background:#173f33;color:#fff;
+ border:1px solid rgba(255,255,255,.78);font:900 7px/1 Inter,system-ui;
+ box-shadow:0 4px 12px rgba(0,0,0,.22)
+}
+:global(.v65StarAi:hover span),
+:global(.v65StarDemand:hover span),
+:global(.v65StarSeasonal:hover span),
+:global(.v65StarValue:hover span),
+:global(.v65StarExplore:hover span){
+ transform:scale(1.24);z-index:2
+}
+
+:global(.v65FocusHalo){
+ background:transparent!important;border:0!important;pointer-events:none!important
+}
+:global(.v65FocusHalo span),
+:global(.v65FocusHalo i){
+ position:absolute;inset:12px;border-radius:50%;
+ border:2px solid rgba(255,211,95,.72);
+ animation:v65FocusPulse 2.6s ease-out infinite
+}
+:global(.v65FocusHalo i){
+ inset:28px;border-color:rgba(255,255,255,.82);
+ animation-delay:.65s
+}
+
+:global(.v65SignalGrid){
+ display:grid;grid-template-columns:repeat(4,1fr);gap:5px;
+ padding:7px 0;border-top:1px solid rgba(25,67,53,.08)
+}
+:global(.v65SignalGrid span){
+ display:flex;flex-direction:column;align-items:center;padding:5px 3px;border-radius:8px;background:#f6faf8
+}
+:global(.v65SignalGrid b){font-size:10px;color:#173d32}
+:global(.v65SignalGrid small){font-size:5.8px!important;color:#7d9088!important;margin-top:1px!important}
+
+@keyframes v65StarBreath{
+ 0%,100%{transform:scale(1);filter:drop-shadow(0 0 8px rgba(255,211,95,.72))}
+ 50%{transform:scale(1.1);filter:drop-shadow(0 0 16px rgba(255,211,95,1))}
+}
+@keyframes v65FocusPulse{
+ 0%{transform:scale(.48);opacity:.95}
+ 75%,100%{transform:scale(1.55);opacity:0}
+}
+
+@media(max-width:1100px){
+ .mapFocusCard{max-width:330px;left:auto;right:12px;transform:none;top:58px}
+}
+@media(max-width:720px){
+ .mapFirst{order:0;padding-top:0!important}
+ .mapStage{min-height:calc(100dvh - 120px)!important;height:calc(100dvh - 120px)!important}
+ .mapFocusCard{
+  left:10px;right:10px;top:56px;transform:none;max-width:none;min-width:0;
+  padding:8px 10px;border-radius:14px
+ }
+ .mapFocusCard>b{font-size:11px}
+ .mapFocusCard>small{display:none}
+ .mapFocusCard i{font-size:6px;padding:3px 6px}
+}
