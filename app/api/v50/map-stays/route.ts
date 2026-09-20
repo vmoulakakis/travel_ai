@@ -43,7 +43,7 @@ type Product={
  productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;
  category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;
  onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null;
- intelligenceScore:number;seasonalScore:number;priceScore:number;starTier:"gold"|"green"|"blue";
+ intelligenceScore:number;seasonalScore:number;priceScore:number;demandSignal:number;mapSignal:"ai"|"demand"|"seasonal"|"value"|"explore";starTier:"gold"|"green"|"blue";
 };
 
 const base=()=>process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co";
@@ -63,21 +63,43 @@ function seasonalScore(location:string,slug:string|null){
  return hit(shoulder)?92:hit(summer)||hit(winter)?66:48;
 }
 function enrichIntelligence(products:Product[]){
- const prices=products.map(x=>x.price).filter((x):x is number=>typeof x==="number"&&x>0).sort((a,b)=>a-b);
- const median=prices.length?prices[Math.floor(prices.length/2)]:null;
- const enriched=products.map(p=>{
-  const seasonal=seasonalScore(p.location,p.destinationSlug);
-  const price=median==null||p.price==null?55:Math.max(10,Math.min(100,Math.round((median/Math.max(1,p.price))*65)));
-  const score=Math.round(seasonal*.58+price*.42);
-  const tier:Product["starTier"]=score>=80?"gold":score>=62?"green":"blue";
-  return{...p,intelligenceScore:score,seasonalScore:seasonal,priceScore:price,starTier:tier};
- });
  const groups=new Map<string,Product[]>();
- for(const p of enriched){const k=p.destinationSlug||norm(p.location)||p.placeId;const arr=groups.get(k)??[];arr.push(p);groups.set(k,arr)}
- const ranked=[...groups.entries()].map(([key,rows])=>{
-  const top=[...rows].sort((a,b)=>b.intelligenceScore-a.intelligenceScore).slice(0,5);
+ for(const p of products){
+  const k=p.destinationSlug||norm(p.location)||p.placeId;
+  const arr=groups.get(k)??[];arr.push(p);groups.set(k,arr);
+ }
+ const demandValues=products.map(x=>x.demandScore).filter((x):x is number=>typeof x==="number"&&Number.isFinite(x)).sort((a,b)=>a-b);
+ const dLo=demandValues.length?demandValues[Math.floor(demandValues.length*.10)]:null;
+ const dHi=demandValues.length?demandValues[Math.floor(demandValues.length*.90)]:null;
+ const normalizeDemand=(v:number|null)=>{
+  if(v==null||dLo==null||dHi==null||dHi<=dLo)return 45;
+  return Math.max(10,Math.min(100,Math.round(10+90*((v-dLo)/(dHi-dLo)))));
+ };
+ const localMedian=new Map<string,number|null>();
+ for(const [k,rows] of groups){
+  const ps=rows.map(x=>x.price).filter((x):x is number=>typeof x==="number"&&x>0).sort((a,b)=>a-b);
+  localMedian.set(k,ps.length?ps[Math.floor(ps.length/2)]:null);
+ }
+ const enriched=products.map(p=>{
+  const groupKey=p.destinationSlug||norm(p.location)||p.placeId;
+  const seasonal=seasonalScore(p.location,p.destinationSlug);
+  const median=localMedian.get(groupKey)??null;
+  const baseValue=median==null||p.price==null?52:Math.max(12,Math.min(100,Math.round((median/Math.max(1,p.price))*68)));
+  const price=Math.max(10,Math.min(100,baseValue+(p.onSale?7:0)+(p.discount!=null&&p.discount>0?Math.min(10,Math.round(p.discount/5)):0)));
+  const demand=normalizeDemand(p.demandScore);
+  const score=Math.round(demand*.40+seasonal*.33+price*.27);
+  const mapSignal:Product["mapSignal"]=score>=84?"ai":demand>=78&&demand>=seasonal&&demand>=price?"demand":seasonal>=76&&seasonal>=price?"seasonal":price>=76?"value":"explore";
+  const tier:Product["starTier"]=score>=84?"gold":score>=66?"green":"blue";
+  return{...p,intelligenceScore:score,seasonalScore:seasonal,priceScore:price,demandSignal:demand,mapSignal,starTier:tier};
+ });
+ const ranked=[...groups.entries()].map(([key,rows0])=>{
+  const rows=rows0.map(r=>enriched.find(x=>x.productId===r.productId)??r as Product);
+  const top=[...rows].sort((a,b)=>b.intelligenceScore-a.intelligenceScore).slice(0,Math.min(6,rows.length));
   const score=top.reduce((s,x)=>s+x.intelligenceScore,0)/Math.max(1,top.length);
-  return{key,rows,score};
+  const demand=top.reduce((s,x)=>s+(x.demandSignal??45),0)/Math.max(1,top.length);
+  const seasonal=top.reduce((s,x)=>s+x.seasonalScore,0)/Math.max(1,top.length);
+  const value=top.reduce((s,x)=>s+x.priceScore,0)/Math.max(1,top.length);
+  return{key,rows,score,demand,seasonal,value};
  }).sort((a,b)=>b.score-a.score);
  const best=ranked[0];
  const focus=best?{
@@ -86,9 +108,12 @@ function enrichIntelligence(products:Product[]){
   zoom:best.rows.length>=8?9:10,
   label:best.rows[0]?.location||best.key,
   score:Math.round(best.score),
-  reason:"seasonality + price/value"
+  demand:Math.round(best.demand),
+  seasonality:Math.round(best.seasonal),
+  value:Math.round(best.value),
+  reason:"live demand + seasonality + local best value"
  }:null;
- return{products:enriched,focus,weights:{seasonality:.58,priceValue:.42},ratingUpgrade:"Verified external ratings may upgrade a pin after evidence is fetched; no rating is inferred."};
+ return{products:enriched,focus,weights:{demand:.40,seasonality:.33,priceValue:.27},ratingUpgrade:"Verified external ratings may refine trust display; map intelligence never invents ratings."};
 }
 
 async function page(offset:number,limit:number){
@@ -115,8 +140,8 @@ export async function GET(request:Request){
    const fallback=await fetch(fallbackUrl,{headers:{accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(8000)});
    if(!fallback.ok)throw new Error("fallback_map_unavailable");
    const payload=await fallback.json() as Record<string,unknown>,rawProducts=Array.isArray(payload.products)?payload.products as Product[]:[];
-   const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,starTier:"blue" as const})));
-   return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},version:50,fullUniverse:false,demandLayer:{status:"disabled",reason:"Demand forecasting is not used for public ranking; initial map intelligence uses seasonality and price/value only."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
+   const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,demandSignal:0,mapSignal:"explore",starTier:"blue" as const})));
+   return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},version:50,fullUniverse:false,demandLayer:{status:"live-proxy",reason:"Map ranking uses observed inventory demand_proxy where available; it is not an election-style prediction or fabricated forecast."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
   }
   const catalog=await loadV8DestinationCatalog().catch(()=>[]);
   const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
@@ -141,7 +166,7 @@ export async function GET(request:Request){
     currency:txt(row.currency)||txt(place?.currency)||"EUR",onSale:row.on_sale===true,
     availability:row.in_stock===true?"confirmed-active":txt(row.availability)||"valid-window-stock-unknown",
     validTo:validTo||null,demandScore:num(row.demand_proxy)??num(place?.demand_score),trackingUrl,destinationSlug,
-    intelligenceScore:0,seasonalScore:0,priceScore:0,starTier:"blue"
+    intelligenceScore:0,seasonalScore:0,priceScore:0,demandSignal:0,mapSignal:"explore",starTier:"blue"
    });
    if(products.length>=limit)break;
   }
@@ -153,7 +178,7 @@ export async function GET(request:Request){
    count:intelligence.products.length,
    locationCount:new Set(intelligence.products.map(x=>x.location).filter(Boolean)).size,
    mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},
-   demandLayer:{status:"disabled",reason:"Demand forecasting is not used for public ranking; initial map intelligence uses seasonality and price/value only."},
+   demandLayer:{status:"live-proxy",reason:"Map ranking uses observed inventory demand_proxy where available; it is not an election-style prediction or fabricated forecast."},
    products:intelligence.products
   },{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence"}});
  }catch(error){
