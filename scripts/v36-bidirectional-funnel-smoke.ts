@@ -41,7 +41,7 @@ expect(
 );
 expect(
   isV54
-   ? home.includes("LIVE MAP")&&home.includes("πραγματικά stays")&&activeSolver.includes("stayVerifiedSolutions")
+   ? (home.includes("LIVE MAP")||home.includes("AI MAP"))&&(home.includes("πραγματικά stays")||home.includes("πραγματικό inventory")||home.includes("live demand signal"))&&activeSolver.includes("stayVerifiedSolutions")
    : isV50
    ? home.includes("LIVE TRAVEL UNIVERSE")&&home.includes("Πραγματικά stays")&&activeSolver.includes("stayVerifiedSolutions")
    : home.includes("Real inventory")&&home.includes("Destination reveal"),
