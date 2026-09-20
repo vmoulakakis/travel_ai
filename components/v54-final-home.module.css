@@ -360,3 +360,125 @@
  .cardHoverPanel{display:none}
  .cardGrid article{min-height:0}
 }
+
+
+/* V63 — mobile app mode */
+.mobileTopBar,.mobileDock,.mobileSheetClose{display:none}
+
+@media(max-width:720px){
+  .page{padding-bottom:74px;background:#f4f7f5;min-height:100dvh}
+  .nav,.focusBar{display:none!important}
+
+  .mobileTopBar{
+    position:sticky;top:0;z-index:1300;
+    height:58px;padding:8px 10px;
+    display:grid;grid-template-columns:auto 1fr 42px;align-items:center;gap:8px;
+    background:rgba(255,255,255,.96);backdrop-filter:blur(16px);
+    border-bottom:1px solid rgba(25,67,53,.09);
+    box-shadow:0 4px 18px rgba(25,65,52,.07)
+  }
+  .mobileBrand{font-weight:950;letter-spacing:-.035em;color:#143b31;text-decoration:none;font-size:18px}
+  .mobileBrand span{color:#e4aa39}
+  .mobileLocation{
+    min-width:0;height:40px;border:1px solid #dde9e3;background:#f7fbf9;border-radius:14px;
+    display:flex;align-items:center;gap:6px;padding:0 10px;color:#23493d
+  }
+  .mobileLocation svg{flex:0 0 auto;color:#e3a83a}
+  .mobileLocation span{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mobileAiButton{
+    width:42px;height:42px;border:0;border-radius:14px;background:#173f33;color:#fff;
+    display:grid;place-items:center;font-size:20px;box-shadow:0 8px 20px rgba(23,63,51,.18)
+  }
+
+  .mapFirst{padding:0!important;background:#eef4f1!important}
+  .mapFirstTop{display:none!important}
+  .mapStage{
+    min-height:calc(100dvh - 132px)!important;
+    height:calc(100dvh - 132px)!important;
+    max-height:none!important;border:0!important;border-radius:0!important;
+    box-shadow:none!important
+  }
+  .mapAiDock{display:none!important}
+  .mapModesTop{top:10px!important;right:10px!important}
+  .mapFirst .mapCard{
+    left:10px!important;right:10px!important;bottom:12px!important;width:auto!important;
+    min-height:78px;border-radius:16px!important;padding:8px!important;
+    box-shadow:0 14px 36px rgba(21,61,48,.2)!important
+  }
+  .mapFirst .mapCard>div{width:62px!important;height:62px!important;border-radius:12px!important}
+  .mapFirst .mapCard span b{font-size:11px!important;line-height:1.15}
+  .mapFirst .mapCard span small{font-size:7px!important}
+  .mapFirst .mapCard span strong{font-size:12px!important}
+  .mapFirst .mapCard button{min-width:76px;height:40px;border-radius:12px!important;font-size:9px!important}
+
+  .hero{
+    position:fixed!important;left:8px!important;right:8px!important;bottom:76px!important;z-index:1400!important;
+    padding:0!important;display:none!important;background:transparent!important
+  }
+  .hero.mobilePlannerOpen{display:block!important}
+  .planner{
+    display:grid!important;grid-template-columns:1fr!important;
+    max-height:min(78dvh,720px)!important;overflow:auto!important;
+    border-radius:24px 24px 18px 18px!important;padding:14px!important;
+    box-shadow:0 24px 70px rgba(15,49,39,.32)!important;
+    border:1px solid rgba(25,67,53,.12)!important;
+    background:#fff!important
+  }
+  .planner:before{
+    content:"";display:block;grid-column:1/-1;width:42px;height:4px;border-radius:999px;
+    background:#d7e2dd;margin:0 auto 3px
+  }
+  .plannerTitle{position:relative;padding-right:38px!important}
+  .mobileSheetClose{
+    display:grid!important;place-items:center;position:absolute;right:0;top:0;
+    width:32px;height:32px;border:0;border-radius:10px;background:#f1f5f3;color:#37584d;
+    font-size:22px;line-height:1;cursor:pointer
+  }
+  .fieldCard,.dateCard,.double,.tabs,.chips,.reasonBox,.primary,.chipTitle,.planner textarea{
+    grid-column:1/-1!important
+  }
+  .dateCard>div{grid-template-columns:1fr auto 1fr!important}
+  .primary{min-height:48px!important;border-radius:14px!important;font-size:11px!important}
+
+  .destinations,.discovery{padding:12px 10px!important}
+  .sectionHead{align-items:end!important;gap:8px}
+  .sectionHead h2{font-size:18px!important;line-height:1.05!important}
+  .sectionHead>button{font-size:8px!important;padding:8px 10px!important}
+  .destinationRail,.cardGrid{
+    scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+    overflow-x:auto!important;gap:10px!important;padding-bottom:6px!important
+  }
+  .destinationRail article{min-width:74vw!important;scroll-snap-align:start;min-height:118px!important;border-radius:18px!important}
+  .cardGrid article{
+    min-width:84vw!important;max-width:84vw!important;scroll-snap-align:center;
+    border-radius:20px!important;min-height:0!important;box-shadow:0 10px 28px rgba(27,66,52,.09)!important
+  }
+  .cardPhoto{height:172px!important;border-radius:20px 20px 0 0!important}
+  .cardBody{padding:12px!important}
+  .cardBody h3{font-size:17px!important}
+  .cardBody>p{font-size:10px!important;line-height:1.45!important;min-height:auto!important;max-height:none!important;-webkit-line-clamp:2!important}
+  .tags{gap:5px!important;flex-wrap:wrap!important}
+  .tags span{font-size:8px!important;padding:6px 7px!important}
+  .cardFoot{margin-top:10px!important;padding-top:10px!important}
+  .cardFoot>b{font-size:17px!important}
+  .cardFoot button{min-height:42px!important;border-radius:12px!important;padding:0 12px!important;font-size:9px!important}
+  .cardGrid article:after{display:none!important}
+
+  .cardHoverPanel{display:none!important}
+
+  .mobileDock{
+    position:fixed;left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));z-index:1500;
+    height:62px;padding:5px 7px;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:4px;
+    background:rgba(255,255,255,.97);backdrop-filter:blur(18px);
+    border:1px solid rgba(25,67,53,.11);border-radius:20px;
+    box-shadow:0 14px 36px rgba(20,58,46,.2)
+  }
+  .mobileDock button{
+    border:0;background:transparent;border-radius:14px;color:#60756d;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    font-size:7px;font-weight:850
+  }
+  .mobileDock button svg{font-size:19px}
+  .mobileDock button:nth-child(2){background:#173f33;color:#fff}
+}
