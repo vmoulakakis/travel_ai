@@ -69,8 +69,7 @@
     "qrcode": "1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "zod": "4.4.3",
-    "jose": "^6.1.0"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/leaflet": "1.9.20",
