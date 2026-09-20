@@ -48,6 +48,7 @@ export function V54FinalHome(){
  const [selectedMapStay,setSelectedMapStay]=useState<DisplayStay|null>(null);
  const [mapReady,setMapReady]=useState(false);
  const [mapView,setMapView]=useState({lat:36.3932,lon:25.4615,zoom:11});
+ const [mobilePlannerOpen,setMobilePlannerOpen]=useState(false);
  const hoveredStayRef=useRef<DisplayStay|null>(null);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
@@ -233,6 +234,11 @@ export function V54FinalHome(){
  const runtimeLabel=agentRuntime?.dateRecovery?.label?agentRuntime.dateRecovery.label:"AI + live inventory";
 
  return <main className={styles.page}>
+  <div className={styles.mobileTopBar}>
+   <a className={styles.mobileBrand} href="/">TRAVEL<span>AI</span></a>
+   <button className={styles.mobileLocation} onClick={()=>document.getElementById("map")?.scrollIntoView({behavior:"smooth"})}><MapPin weight="fill"/><span>{destination||"Όλη η Ελλάδα"}</span></button>
+   <button className={styles.mobileAiButton} onClick={()=>setMobilePlannerOpen(true)}><Brain weight="fill"/></button>
+  </div>
   <header className={styles.nav}>
    <a className={styles.logo} href="/">TRAVEL<span>AI</span><small>AI ESCAPE INTELLIGENCE</small></a>
    <nav><a href="#destinations">Προορισμοί</a><a href="#stays">Διαμονή</a><a href="#featured">Εμπειρίες</a><a href="#planner">AI Planner</a><a href="#how">Πώς λειτουργεί</a><a href="#about">Σχετικά</a></nav>
@@ -249,9 +255,9 @@ export function V54FinalHome(){
    <div className={styles.pinLegend}><span><i className={styles.legendGold}>★</i> AI selected</span><span><i className={styles.legendBlue}>★</i> All offers</span></div>
   </div>
 
-  <section className={styles.hero}>
+  <section className={`${styles.hero} ${mobilePlannerOpen?styles.mobilePlannerOpen:""}`}>
    <aside id="planner" className={styles.planner}>
-    <div className={styles.plannerTitle}><Brain weight="fill"/><div><b>AI Travel Planner</b><span>Σήμερα {new Intl.DateTimeFormat("el-GR",{timeZone:"Europe/Athens",day:"numeric",month:"short"}).format(new Date())} · βλέπω και τον χάρτη που εξερευνάς.</span></div><i className={busy?styles.busy:styles.ready}/></div>
+    <div className={styles.plannerTitle}><Brain weight="fill"/><div><b>AI Travel Planner</b><span>Σήμερα {new Intl.DateTimeFormat("el-GR",{timeZone:"Europe/Athens",day:"numeric",month:"short"}).format(new Date())} · βλέπω και τον χάρτη που εξερευνάς.</span></div><i className={busy?styles.busy:styles.ready}/><button className={styles.mobileSheetClose} onClick={()=>setMobilePlannerOpen(false)}>×</button></div>
     <div className={styles.tabs}>
       <button className={plannerTab==="trip"?styles.tabActive:""} onClick={()=>setPlannerTab("trip")}>Ταξίδι</button>
       <button className={plannerTab==="inspire"?styles.tabActive:""} onClick={()=>setPlannerTab("inspire")}>Έμπνευση</button>
@@ -371,6 +377,13 @@ export function V54FinalHome(){
    <div><Compass weight="fill"/><span><b>Πραγματικό inventory</b><p>Ο χάρτης και τα cards προέρχονται από το ενεργό supply layer.</p></span></div>
    <div><ShieldCheck weight="fill"/><span><b>Truth-first</b><p>Δεν εφευρίσκουμε availability, ratings ή weather όταν δεν υπάρχουν στοιχεία.</p></span></div>
   </section>
+
+  <nav className={styles.mobileDock} aria-label="Mobile navigation">
+   <button onClick={()=>{setMobilePlannerOpen(false);document.getElementById("map")?.scrollIntoView({behavior:"smooth"})}}><MapPin weight="fill"/><span>Χάρτης</span></button>
+   <button onClick={()=>setMobilePlannerOpen(true)}><Brain weight="fill"/><span>AI</span></button>
+   <button onClick={()=>{setMobilePlannerOpen(false);document.getElementById("stays")?.scrollIntoView({behavior:"smooth"})}}><Star weight="fill"/><span>Stays</span></button>
+   <button onClick={()=>{setMobilePlannerOpen(false);document.getElementById("destinations")?.scrollIntoView({behavior:"smooth"})}}><Compass weight="fill"/><span>Explore</span></button>
+  </nav>
 
   <section className={styles.footerCta} style={gallery[1]?{backgroundImage:`linear-gradient(90deg,rgba(2,18,15,.94),rgba(2,18,15,.45)),url(${gallery[1]})`}:undefined}>
    <div><small>TRAVELAI · AI ESCAPE INTELLIGENCE</small><h2>Καλύτερα ταξίδια.<br/>Λιγότερος θόρυβος.</h2><p>Ξεκίνα από το feeling. Η AI θα κάνει το δύσκολο μέρος.</p></div><button onClick={()=>document.getElementById("planner")?.scrollIntoView({behavior:"smooth"})}>Ξεκίνα τώρα <ArrowRight/></button>
