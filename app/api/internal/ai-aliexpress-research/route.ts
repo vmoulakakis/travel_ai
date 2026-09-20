@@ -1,4 +1,3 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -12,12 +11,37 @@ const ALLOWED=new Set([
   "vmoulakakis/ai_aliexpress/.github/workflows/deep-aliexpress-shortlist.yml@refs/heads/main",
   "vmoulakakis/ai_aliexpress/.github/workflows/deep-marketplace-research.yml@refs/heads/main"
 ]);
-const JWKS=createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks`));
 
+function b64url(input:string){
+  const s=input.replace(/-/g,"+").replace(/_/g,"/");
+  return Buffer.from(s+"=".repeat((4-s.length%4)%4),"base64");
+}
+async function verifyGithubOidc(token:string){
+  const parts=token.split(".");
+  if(parts.length!==3)throw new Error("invalid_jwt");
+  const header=JSON.parse(b64url(parts[0]).toString("utf8"));
+  const payload=JSON.parse(b64url(parts[1]).toString("utf8"));
+  if(header.alg!=="RS256"||!header.kid)throw new Error("unsupported_jwt");
+  const jwks=await fetch(`${ISSUER}/.well-known/jwks`,{cache:"no-store"}).then(r=>{
+    if(!r.ok)throw new Error("jwks_fetch_failed"); return r.json();
+  }) as {keys:Array<JsonWebKey & {kid?:string}>};
+  const jwk=jwks.keys.find(k=>k.kid===header.kid);
+  if(!jwk)throw new Error("jwk_not_found");
+  const key=await crypto.subtle.importKey("jwk",jwk,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]);
+  const ok=await crypto.subtle.verify("RSASSA-PKCS1-v1_5",key,b64url(parts[2]),new TextEncoder().encode(parts[0]+"."+parts[1]));
+  if(!ok)throw new Error("invalid_signature");
+  const now=Math.floor(Date.now()/1000);
+  if(payload.iss!==ISSUER)throw new Error("issuer_not_allowed");
+  const aud=Array.isArray(payload.aud)?payload.aud:[payload.aud];
+  if(!aud.includes(AUDIENCE))throw new Error("audience_not_allowed");
+  if(typeof payload.exp!=="number"||payload.exp<now-30)throw new Error("token_expired");
+  if(typeof payload.nbf==="number"&&payload.nbf>now+30)throw new Error("token_not_yet_valid");
+  return payload;
+}
 async function authorize(req:Request){
   const h=req.headers.get("authorization")||"";
   if(!h.startsWith("Bearer "))throw new Error("missing_bearer");
-  const {payload}=await jwtVerify(h.slice(7),JWKS,{issuer:ISSUER,audience:AUDIENCE});
+  const payload=await verifyGithubOidc(h.slice(7));
   if(String(payload.repository_id||"")!==REPOSITORY_ID)throw new Error("repository_id_not_allowed");
   if(String(payload.repository||"")!==REPOSITORY)throw new Error("repository_not_allowed");
   if(String(payload.ref||"")!=="refs/heads/main")throw new Error("ref_not_allowed");
