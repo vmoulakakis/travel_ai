@@ -68,8 +68,7 @@ function enrichIntelligence(products:Product[]){
  const enriched=products.map(p=>{
   const seasonal=seasonalScore(p.location,p.destinationSlug);
   const price=median==null||p.price==null?55:Math.max(10,Math.min(100,Math.round((median/Math.max(1,p.price))*65)));
-  const demand=Math.max(0,Math.min(100,p.demandScore??50));
-  const score=Math.round(seasonal*.46+price*.34+demand*.20);
+  const score=Math.round(seasonal*.58+price*.42);
   const tier:Product["starTier"]=score>=80?"gold":score>=62?"green":"blue";
   return{...p,intelligenceScore:score,seasonalScore:seasonal,priceScore:price,starTier:tier};
  });
@@ -87,9 +86,9 @@ function enrichIntelligence(products:Product[]){
   zoom:best.rows.length>=8?9:10,
   label:best.rows[0]?.location||best.key,
   score:Math.round(best.score),
-  reason:"seasonality + price/value + live demand"
+  reason:"seasonality + price/value"
  }:null;
- return{products:enriched,focus,weights:{seasonality:.46,priceValue:.34,demand:.20},ratingUpgrade:"Verified external ratings may upgrade a pin after evidence is fetched; no rating is inferred."};
+ return{products:enriched,focus,weights:{seasonality:.58,priceValue:.42},ratingUpgrade:"Verified external ratings may upgrade a pin after evidence is fetched; no rating is inferred."};
 }
 
 async function page(offset:number,limit:number){
@@ -117,7 +116,7 @@ export async function GET(request:Request){
    if(!fallback.ok)throw new Error("fallback_map_unavailable");
    const payload=await fallback.json() as Record<string,unknown>,rawProducts=Array.isArray(payload.products)?payload.products as Product[]:[];
    const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,starTier:"blue" as const})));
-   return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},version:50,fullUniverse:false,demandLayer:{status:"live-input",reason:"Demand is one weighted input alongside seasonality and price/value; it is not used alone."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
+   return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},version:50,fullUniverse:false,demandLayer:{status:"disabled",reason:"Demand forecasting is not used for public ranking; initial map intelligence uses seasonality and price/value only."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
   }
   const catalog=await loadV8DestinationCatalog().catch(()=>[]);
   const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
@@ -154,7 +153,7 @@ export async function GET(request:Request){
    count:intelligence.products.length,
    locationCount:new Set(intelligence.products.map(x=>x.location).filter(Boolean)).size,
    mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},
-   demandLayer:{status:"live-input",reason:"Demand is one weighted input alongside seasonality and price/value; it is not used alone."},
+   demandLayer:{status:"disabled",reason:"Demand forecasting is not used for public ranking; initial map intelligence uses seasonality and price/value only."},
    products:intelligence.products
   },{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence"}});
  }catch(error){
