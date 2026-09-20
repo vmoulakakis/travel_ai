@@ -43,6 +43,7 @@ type Product={
  productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;
  category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;
  onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null;
+ intelligenceScore:number;seasonalScore:number;priceScore:number;starTier:"gold"|"green"|"blue";
 };
 
 const base=()=>process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co";
@@ -50,6 +51,46 @@ const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY??"";
 const txt=(v:unknown)=>typeof v==="string"?v.trim():"";
 const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
 const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
+const month=new Date().getUTCMonth()+1;
+function seasonalScore(location:string,slug:string|null){
+ const t=norm(location+" "+(slug??""));
+ const hit=(xs:string[])=>xs.some(x=>t.includes(x));
+ const winter=["arachova","αραχωβ","kalavryta","καλαβρυτ","metsovo","μετσοβ","zagori","ζαγορ","karpenisi","καρπενησ","pelion","πηλιο","parnass","παρνασσ"];
+ const summer=["santorini","σαντοριν","mykon","μυκον","paros","παρο","naxos","ναξ","milos","μηλο","crete","κρητ","chania","χανι","rhodes","ροδο","corfu","κερκυρ","lefkada","λευκαδ","kefal","κεφαλον","zakynth","ζακυνθ","skiath","σκιαθ"];
+ const shoulder=["nafpl","ναυπλ","athens","αθην","thessalon","θεσσαλον","ioannin","ιωανν","meteora","μετεωρ","monemvas","μονεμβασ"];
+ if([12,1,2].includes(month))return hit(winter)?100:hit(shoulder)?72:42;
+ if([6,7,8,9].includes(month))return hit(summer)?100:hit(shoulder)?68:40;
+ return hit(shoulder)?92:hit(summer)||hit(winter)?66:48;
+}
+function enrichIntelligence(products:Product[]){
+ const prices=products.map(x=>x.price).filter((x):x is number=>typeof x==="number"&&x>0).sort((a,b)=>a-b);
+ const median=prices.length?prices[Math.floor(prices.length/2)]:null;
+ const enriched=products.map(p=>{
+  const seasonal=seasonalScore(p.location,p.destinationSlug);
+  const price=median==null||p.price==null?55:Math.max(10,Math.min(100,Math.round((median/Math.max(1,p.price))*65)));
+  const demand=Math.max(0,Math.min(100,p.demandScore??50));
+  const score=Math.round(seasonal*.46+price*.34+demand*.20);
+  const tier:Product["starTier"]=score>=80?"gold":score>=62?"green":"blue";
+  return{...p,intelligenceScore:score,seasonalScore:seasonal,priceScore:price,starTier:tier};
+ });
+ const groups=new Map<string,Product[]>();
+ for(const p of enriched){const k=p.destinationSlug||norm(p.location)||p.placeId;const arr=groups.get(k)??[];arr.push(p);groups.set(k,arr)}
+ const ranked=[...groups.entries()].map(([key,rows])=>{
+  const top=[...rows].sort((a,b)=>b.intelligenceScore-a.intelligenceScore).slice(0,5);
+  const score=top.reduce((s,x)=>s+x.intelligenceScore,0)/Math.max(1,top.length);
+  return{key,rows,score};
+ }).sort((a,b)=>b.score-a.score);
+ const best=ranked[0];
+ const focus=best?{
+  latitude:best.rows.reduce((s,x)=>s+x.latitude,0)/best.rows.length,
+  longitude:best.rows.reduce((s,x)=>s+x.longitude,0)/best.rows.length,
+  zoom:best.rows.length>=8?9:10,
+  label:best.rows[0]?.location||best.key,
+  score:Math.round(best.score),
+  reason:"seasonality + price/value + live demand"
+ }:null;
+ return{products:enriched,focus,weights:{seasonality:.46,priceValue:.34,demand:.20},ratingUpgrade:"Verified external ratings may upgrade a pin after evidence is fetched; no rating is inferred."};
+}
 
 async function page(offset:number,limit:number){
  const serviceKey=key();if(!serviceKey)throw new Error("service_role_missing");
@@ -74,8 +115,9 @@ export async function GET(request:Request){
    fallbackUrl.searchParams.set("limit",quick?String(limit):"300");
    const fallback=await fetch(fallbackUrl,{headers:{accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(8000)});
    if(!fallback.ok)throw new Error("fallback_map_unavailable");
-   const payload=await fallback.json() as Record<string,unknown>;
-   return NextResponse.json({...payload,version:50,fullUniverse:false,demandLayer:{status:"disabled",reason:"Demand forecasting is not used for public ranking; results are based on verified inventory and trip-fit criteria."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-prototype-fallback"}});
+   const payload=await fallback.json() as Record<string,unknown>,rawProducts=Array.isArray(payload.products)?payload.products as Product[]:[];
+   const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,starTier:"blue" as const})));
+   return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},version:50,fullUniverse:false,demandLayer:{status:"live-input",reason:"Demand is one weighted input alongside seasonality and price/value; it is not used alone."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
   }
   const catalog=await loadV8DestinationCatalog().catch(()=>[]);
   const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
@@ -99,19 +141,22 @@ export async function GET(request:Request){
     price:num(row.price)??num(place?.min_price),fullPrice:num(row.full_price),discount:num(row.discount),
     currency:txt(row.currency)||txt(place?.currency)||"EUR",onSale:row.on_sale===true,
     availability:row.in_stock===true?"confirmed-active":txt(row.availability)||"valid-window-stock-unknown",
-    validTo:validTo||null,demandScore:num(row.demand_proxy)??num(place?.demand_score),trackingUrl,destinationSlug
+    validTo:validTo||null,demandScore:num(row.demand_proxy)??num(place?.demand_score),trackingUrl,destinationSlug,
+    intelligenceScore:0,seasonalScore:0,priceScore:0,starTier:"blue"
    });
    if(products.length>=limit)break;
   }
+  const intelligence=enrichIntelligence(products);
   return NextResponse.json({
    version:50,
    source:"supabase-stay-offers",
    generatedAt:new Date().toISOString(),
-   count:products.length,
-   locationCount:new Set(products.map(x=>x.location).filter(Boolean)).size,
-   demandLayer:{status:"disabled",reason:"Demand forecasting is not used for public ranking; offer ranking relies on verified inventory and trip-fit criteria."},
-   products
-  },{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-prototype"}});
+   count:intelligence.products.length,
+   locationCount:new Set(intelligence.products.map(x=>x.location).filter(Boolean)).size,
+   mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},
+   demandLayer:{status:"live-input",reason:"Demand is one weighted input alongside seasonality and price/value; it is not used alone."},
+   products:intelligence.products
+  },{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence"}});
  }catch(error){
   return NextResponse.json({version:50,source:"temporarily-unavailable",generatedAt:new Date().toISOString(),count:0,locationCount:0,products:[],degraded:true,detail:process.env.NODE_ENV==="development"&&error instanceof Error?error.message:undefined},{status:200,headers:{"cache-control":"public, max-age=30","x-travel-map":"degraded"}});
  }
