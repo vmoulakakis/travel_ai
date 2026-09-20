@@ -9,7 +9,9 @@ const REPOSITORY_ID="1377347382";
 const REPOSITORY="vmoulakakis/ai_aliexpress";
 const ALLOWED=new Set([
   "vmoulakakis/ai_aliexpress/.github/workflows/deep-aliexpress-shortlist.yml@refs/heads/main",
-  "vmoulakakis/ai_aliexpress/.github/workflows/deep-marketplace-research.yml@refs/heads/main"
+  "vmoulakakis/ai_aliexpress/.github/workflows/deep-marketplace-research.yml@refs/heads/main",
+  "vmoulakakis/ai_aliexpress/.github/workflows/deep-aliexpress-marketplace.yml@refs/heads/main",
+  "vmoulakakis/ai_aliexpress/.github/workflows/deep-gap-product-research.yml@refs/heads/main"
 ]);
 
 function b64url(input:string){
