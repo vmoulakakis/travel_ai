@@ -51,8 +51,7 @@ const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY??"";
 const txt=(v:unknown)=>typeof v==="string"?v.trim():"";
 const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
 const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
-const month=new Date().getUTCMonth()+1;
-function seasonalScore(location:string,slug:string|null){
+function seasonalScore(location:string,slug:string|null,month:number){
  const t=norm(location+" "+(slug??""));
  const hit=(xs:string[])=>xs.some(x=>t.includes(x));
  const winter=["arachova","αραχωβ","kalavryta","καλαβρυτ","metsovo","μετσοβ","zagori","ζαγορ","karpenisi","καρπενησ","pelion","πηλιο","parnass","παρνασσ"];
@@ -62,32 +61,39 @@ function seasonalScore(location:string,slug:string|null){
  if([6,7,8,9].includes(month))return hit(summer)?100:hit(shoulder)?68:40;
  return hit(shoulder)?92:hit(summer)||hit(winter)?66:48;
 }
-function enrichIntelligence(products:Product[]){
+function enrichIntelligence(products:Product[],targetMonth:number){
+ const cleanProducts=products.map(p=>({
+  ...p,
+  price:p.price!=null&&p.price>=5?p.price:null,
+  fullPrice:p.fullPrice!=null&&p.fullPrice>=5?p.fullPrice:null
+ }));
  const groups=new Map<string,Product[]>();
- for(const p of products){
+ for(const p of cleanProducts){
   const k=p.destinationSlug||norm(p.location)||p.placeId;
   const arr=groups.get(k)??[];arr.push(p);groups.set(k,arr);
  }
- const demandValues=products.map(x=>x.demandScore).filter((x):x is number=>typeof x==="number"&&Number.isFinite(x)).sort((a,b)=>a-b);
+ const demandValues=cleanProducts.map(x=>x.demandScore).filter((x):x is number=>typeof x==="number"&&Number.isFinite(x)).sort((a,b)=>a-b);
  const dLo=demandValues.length?demandValues[Math.floor(demandValues.length*.10)]:null;
  const dHi=demandValues.length?demandValues[Math.floor(demandValues.length*.90)]:null;
+ const demandIsDiscriminating=dLo!=null&&dHi!=null&&dHi>dLo;
  const normalizeDemand=(v:number|null)=>{
-  if(v==null||dLo==null||dHi==null||dHi<=dLo)return 45;
-  return Math.max(10,Math.min(100,Math.round(10+90*((v-dLo)/(dHi-dLo)))));
+  if(v==null||!demandIsDiscriminating)return 50;
+  return Math.max(10,Math.min(100,Math.round(10+90*((v-dLo!)/(dHi!-dLo!)))));
  };
+ const weights=demandIsDiscriminating?{demand:.40,seasonality:.33,priceValue:.27}:{demand:0,seasonality:.55,priceValue:.45};
  const localMedian=new Map<string,number|null>();
  for(const [k,rows] of groups){
   const ps=rows.map(x=>x.price).filter((x):x is number=>typeof x==="number"&&x>0).sort((a,b)=>a-b);
   localMedian.set(k,ps.length?ps[Math.floor(ps.length/2)]:null);
  }
- const enriched=products.map(p=>{
+ const enriched=cleanProducts.map(p=>{
   const groupKey=p.destinationSlug||norm(p.location)||p.placeId;
-  const seasonal=seasonalScore(p.location,p.destinationSlug);
+  const seasonal=seasonalScore(p.location,p.destinationSlug,targetMonth);
   const median=localMedian.get(groupKey)??null;
   const baseValue=median==null||p.price==null?52:Math.max(12,Math.min(100,Math.round((median/Math.max(1,p.price))*68)));
   const price=Math.max(10,Math.min(100,baseValue+(p.onSale?7:0)+(p.discount!=null&&p.discount>0?Math.min(10,Math.round(p.discount/5)):0)));
   const demand=normalizeDemand(p.demandScore);
-  const score=Math.round(demand*.40+seasonal*.33+price*.27);
+  const score=Math.round(demand*weights.demand+seasonal*weights.seasonality+price*weights.priceValue);
   const mapSignal:Product["mapSignal"]=score>=84?"ai":demand>=78&&demand>=seasonal&&demand>=price?"demand":seasonal>=76&&seasonal>=price?"seasonal":price>=76?"value":"explore";
   const tier:Product["starTier"]=score>=84?"gold":score>=66?"green":"blue";
   return{...p,intelligenceScore:score,seasonalScore:seasonal,priceScore:price,demandSignal:demand,mapSignal,starTier:tier};
@@ -111,9 +117,9 @@ function enrichIntelligence(products:Product[]){
   demand:Math.round(best.demand),
   seasonality:Math.round(best.seasonal),
   value:Math.round(best.value),
-  reason:"live demand + seasonality + local best value"
+  reason:demandIsDiscriminating?"live demand + seasonality + local best value":"seasonality + local best value · demand signal not discriminating"
  }:null;
- return{products:enriched,focus,weights:{demand:.40,seasonality:.33,priceValue:.27},ratingUpgrade:"Verified external ratings may refine trust display; map intelligence never invents ratings."};
+ return{products:enriched,focus,weights,ratingUpgrade:"Verified external ratings may refine trust display; map intelligence never invents ratings.",demandIsDiscriminating,targetMonth};
 }
 
 async function page(offset:number,limit:number){
@@ -132,6 +138,9 @@ async function page(offset:number,limit:number){
 export async function GET(request:Request){
  try{
   const requestUrl=new URL(request.url),quick=requestUrl.searchParams.get("mode")==="quick";
+  const startRaw=requestUrl.searchParams.get("start")??"";
+  const parsedMonth=/^\d{4}-(\d{2})-\d{2}$/.exec(startRaw)?.[1];
+  const targetMonth=parsedMonth?Math.max(1,Math.min(12,Number(parsedMonth))):new Date().getUTCMonth()+1;
   const requested=Number(requestUrl.searchParams.get("limit")??(quick?24:1800));
   const limit=quick?Math.max(12,Math.min(60,Number.isFinite(requested)?Math.round(requested):24)):Math.max(100,Math.min(2000,Number.isFinite(requested)?Math.round(requested):1800));
   if(!key()){
@@ -140,8 +149,8 @@ export async function GET(request:Request){
    const fallback=await fetch(fallbackUrl,{headers:{accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(8000)});
    if(!fallback.ok)throw new Error("fallback_map_unavailable");
    const payload=await fallback.json() as Record<string,unknown>,rawProducts=Array.isArray(payload.products)?payload.products as Product[]:[];
-   const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,demandSignal:0,mapSignal:"explore",starTier:"blue" as const})));
-   return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},version:50,fullUniverse:false,demandLayer:{forecastStatus:"disabled",observedDemandStatus:"live-proxy",reason:"Map ranking may use observed inventory demand_proxy where available. This is not presented as demand forecasting and no future demand is fabricated."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
+   const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,demandSignal:0,mapSignal:"explore",starTier:"blue" as const})),targetMonth);
+   return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade,targetMonth:intelligence.targetMonth,demandIsDiscriminating:intelligence.demandIsDiscriminating},version:50,fullUniverse:false,demandLayer:{forecastStatus:"disabled",observedDemandStatus:intelligence.demandIsDiscriminating?"live-proxy":"non-discriminating",reason:intelligence.demandIsDiscriminating?"Map ranking uses observed inventory demand_proxy where it varies. This is not presented as demand forecasting.":"Observed demand_proxy is non-discriminating for this sample, so it is excluded from ranking rather than fabricated."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
   }
   const catalog=await loadV8DestinationCatalog().catch(()=>[]);
   const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
@@ -170,15 +179,15 @@ export async function GET(request:Request){
    });
    if(products.length>=limit)break;
   }
-  const intelligence=enrichIntelligence(products);
+  const intelligence=enrichIntelligence(products,targetMonth);
   return NextResponse.json({
    version:50,
    source:"supabase-stay-offers",
    generatedAt:new Date().toISOString(),
    count:intelligence.products.length,
    locationCount:new Set(intelligence.products.map(x=>x.location).filter(Boolean)).size,
-   mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade},
-   demandLayer:{forecastStatus:"disabled",observedDemandStatus:"live-proxy",reason:"Map ranking may use observed inventory demand_proxy where available. This is not presented as demand forecasting and no future demand is fabricated."},
+   mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade,targetMonth:intelligence.targetMonth,demandIsDiscriminating:intelligence.demandIsDiscriminating},
+   demandLayer:{forecastStatus:"disabled",observedDemandStatus:intelligence.demandIsDiscriminating?"live-proxy":"non-discriminating",reason:intelligence.demandIsDiscriminating?"Map ranking uses observed inventory demand_proxy where it varies. This is not presented as demand forecasting.":"Observed demand_proxy is non-discriminating for this sample, so it is excluded from ranking rather than fabricated."},
    products:intelligence.products
   },{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence"}});
  }catch(error){
