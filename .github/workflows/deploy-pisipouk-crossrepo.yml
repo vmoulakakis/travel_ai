@@ -1,0 +1,65 @@
+name: Deploy PISIPOUK cross-repo
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-pisipouk-crossrepo.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy-pisipouk:
+    runs-on: ubuntu-latest
+    environment: Production – travel-ai
+    env:
+      VERCEL_TEAM_ID: team_jt3jd1HJUB4sK1oZdl9MUYGs
+      VERCEL_SCOPE: vassilis-projects-3bf8541b
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Checkout Pisipouk source
+        uses: actions/checkout@v5
+        with:
+          repository: vmoulakakis/pisipouk-website
+          ref: main
+          path: pisipouk-src
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify token
+        run: |
+          test -n "$VERCEL_TOKEN" || (echo "VERCEL_TOKEN unavailable" && exit 2)
+
+      - name: Install dependencies
+        working-directory: pisipouk-src
+        run: npm install
+
+      - name: Build verification
+        working-directory: pisipouk-src
+        run: npm run build
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Ensure Pisipouk Vercel project exists
+        run: |
+          set -e
+          CODE=$(curl -sS -o /tmp/pisipouk-project.json -w "%{http_code}"             -H "Authorization: Bearer $VERCEL_TOKEN"             "https://api.vercel.com/v9/projects/pisipouk?teamId=$VERCEL_TEAM_ID")
+
+          if [ "$CODE" = "404" ]; then
+            CREATE_CODE=$(curl -sS -o /tmp/pisipouk-create.json -w "%{http_code}"               -X POST               -H "Authorization: Bearer $VERCEL_TOKEN"               -H "Content-Type: application/json"               "https://api.vercel.com/v10/projects?teamId=$VERCEL_TEAM_ID"               -d '{"name":"pisipouk","framework":"vite"}')
+            test "$CREATE_CODE" = "200" -o "$CREATE_CODE" = "201" || (cat /tmp/pisipouk-create.json && exit 3)
+          elif [ "$CODE" != "200" ]; then
+            cat /tmp/pisipouk-project.json
+            exit 4
+          fi
+
+      - name: Link Pisipouk project
+        working-directory: pisipouk-src
+        run: |
+          vercel link --yes --project pisipouk --scope "$VERCEL_SCOPE" --token "$VERCEL_TOKEN"
+
+      - name: Deploy Pisipouk production
+        working-directory: pisipouk-src
+        run: |
+          vercel deploy --prod --yes --scope "$VERCEL_SCOPE" --token "$VERCEL_TOKEN"
