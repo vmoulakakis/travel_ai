@@ -26,10 +26,10 @@ const hav=(a:number,b:number,c:number,d:number)=>{const R=6371,r=(x:number)=>x*M
 
 function baseTrip(input:Input):TripRequest{
  const nights=Math.max(1,Math.round((Date.parse(input.end+"T00:00:00Z")-Date.parse(input.start+"T00:00:00Z"))/DAY));
- const mood=input.mood??(input.terrain==="mountain"?"nature":input.terrain==="sea"?"relax":"culture");
+ const mood=input.mood==="nightlife"?"city":input.mood??(input.terrain==="mountain"?"nature":input.terrain==="sea"?"relax":"culture");
  return{
   origin:"Athens",startDate:input.start,endDate:input.end,month:"flexible",nights,budget:Math.max(150,input.budget),
-  moods:[mood],travelerType:input.traveler,language:"el",distancePreference:input.noCar?"near":"any",pace:input.pace??"balanced",
+  moods:[mood],travelerType:input.traveler,language:"el",distancePreference:input.noCar?"nearby":"any",pace:input.pace??"balanced",
   hotelStyle:"any",avoid:input.quiet?"crowds":"none",entryMode:"idea",groupSize:input.traveler==="solo"?1:input.traveler==="couple"?2:4,
   desiredEnergy:input.mood==="adventure"?"stimulating":input.mood==="relax"?"restore":"balanced",
   socialPreference:input.mood==="nightlife"?"lively":input.quiet?"quiet":"balanced",noveltyPreference:"balanced",
