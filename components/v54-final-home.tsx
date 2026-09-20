@@ -17,10 +17,10 @@ type AgentResponse={ok:boolean;state:"clarify"|"results"|"challenge"|"error";age
 type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;intelligence:number|null;seasonal:number|null;priceFit:number|null;demand:number|null;mapSignal:"ai"|"demand"|"seasonal"|"value"|"explore"|null;starTier:"gold"|"green"|"blue"|null};
 type RatingSignal={provider:"Google Places"|"Tripadvisor"|"Foursquare"|"AI Guest Signal";rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
 type QuickRating={status:"live"|"unavailable";primary:RatingSignal|null;ratings:RatingSignal[]};
-type MapIntelligence={focus:{latitude:number;longitude:number;zoom:number;label:string;score:number;demand:number;seasonality:number;value:number;reason:string}|null;weights:{demand:number;seasonality:number;priceValue:number};ratingUpgrade:string};
+type MapIntelligence={focus:{latitude:number;longitude:number;zoom:number;label:string;score:number;demand:number;seasonality:number;value:number;reason:string}|null;weights:{demand:number;seasonality:number;priceValue:number};ratingUpgrade:string;targetMonth?:number;demandIsDiscriminating?:boolean};
 
 const defaults:Filters={calm:78,food:72,nature:74,discovery:68,nightlife:28,value:70};
-const money=(n:number|null,c="EUR")=>n?new Intl.NumberFormat("el-GR",{style:"currency",currency:c,maximumFractionDigits:0}).format(n):"Τιμή στον πάροχο";
+const money=(n:number|null,c="EUR")=>n!=null&&n>=5?new Intl.NumberFormat("el-GR",{style:"currency",currency:c,maximumFractionDigits:0}).format(n):"Τιμή στον πάροχο";
 const todayIso=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Athens",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const addDays=(iso:string,days:number)=>{const d=new Date(iso+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10)};
 const html=(v:string)=>v.replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[ch]??ch));
@@ -65,17 +65,32 @@ export function V54FinalHome(){
 
  useEffect(()=>{
   let cancelled=false;
-  fetch("/api/v50/map-stays?mode=quick&limit=24",{cache:"no-store"}).then(r=>r.json()).then(m=>{
+  fetch(`/api/v50/map-stays?mode=quick&limit=24&start=${encodeURIComponent(start)}`,{cache:"no-store"}).then(r=>r.json()).then(m=>{
    if(!cancelled&&Array.isArray(m.products)&&m.products.length){setInventory(m.products);if(m.mapIntelligence)setMapIntelligence(m.mapIntelligence)}
   }).catch(()=>{});
   fetch("/api/v50/hero-media",{cache:"no-store"}).then(r=>r.json()).then(h=>{
    if(!cancelled)setHeroMedia(Array.isArray(h.items)?h.items:[]);
   }).catch(()=>{});
-  fetch("/api/v50/map-stays?limit=2000",{cache:"no-store"}).then(r=>r.json()).then(m=>{
+  fetch(`/api/v50/map-stays?limit=2000&start=${encodeURIComponent(start)}`,{cache:"no-store"}).then(r=>r.json()).then(m=>{
    if(!cancelled&&Array.isArray(m.products)&&m.products.length){setInventory(m.products);if(m.mapIntelligence)setMapIntelligence(m.mapIntelligence)}
   }).catch(()=>{});
   return()=>{cancelled=true};
  },[]);
+
+ useEffect(()=>{
+  let cancelled=false;
+  fetch(`/api/v50/map-stays?mode=quick&limit=24&start=${encodeURIComponent(start)}`,{cache:"no-store"})
+   .then(r=>r.json()).then(m=>{
+    if(cancelled)return;
+    if(m.mapIntelligence){
+     initialAiFocusDone.current=false;
+     setMapIntelligence(m.mapIntelligence);
+     const f=m.mapIntelligence.focus;
+     if(f)setAiFocusLabel(`AI focus · ${f.label} · ${f.score}/100`);
+    }
+   }).catch(()=>{});
+  return()=>{cancelled=true};
+ },[start]);
 
  useEffect(()=>{
   let dead=false;
@@ -240,7 +255,14 @@ export function V54FinalHome(){
    const p=await r.json() as AgentResponse;
    setAgentMessage(p.agentMessage||"Έχω το brief σου και συνεχίζω με τις καλύτερες διαθέσιμες επιλογές.");
    setQuestion(p.question??null);setAgentRuntime(p.agentRuntime??null);
-   if(p.solutions?.length){setSelectedMapStay(null);setSolutions(p.solutions);setActive(0);setLastTrip(p.trip??null)}
+   if(p.solutions?.length){
+    setSelectedMapStay(null);setSolutions(p.solutions);setActive(0);setLastTrip(p.trip??null);
+    const top=p.solutions[0];
+    requestAnimationFrame(()=>{
+     document.getElementById("map")?.scrollIntoView({behavior:"smooth",block:"start"});
+     if(top)window.setTimeout(()=>mapRef.current?.flyTo([top.stay.latitude,top.stay.longitude],12,{duration:1.35,easeLinearity:.18}),180);
+    });
+   }
   }catch{setAgentMessage("Το live reasoning δεν απάντησε έγκαιρα. Κρατάω το brief σου και εμφανίζω το ενεργό inventory χωρίς να εφεύρω δεδομένα.");}
   finally{setBusy(false)}
  }
