@@ -10,14 +10,14 @@ import styles from "./v54-final-home.module.css";
 
 type FilterKey="calm"|"food"|"nature"|"discovery"|"nightlife"|"value";
 type Filters=Record<FilterKey,number>;
-type Stay={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null;intelligenceScore?:number;seasonalScore?:number;priceScore?:number;starTier?:"gold"|"green"|"blue"};
+type Stay={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null;intelligenceScore?:number;seasonalScore?:number;priceScore?:number;demandSignal?:number;mapSignal?:"ai"|"demand"|"seasonal"|"value"|"explore";starTier?:"gold"|"green"|"blue"};
 type Hero={id:string;location:string;imageUrl:string;propertyCount:number;minPrice:number|null;currency:string;latitude:number|null;longitude:number|null};
 type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null};liveOfferCount:number};
 type AgentResponse={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:{id:string;text:string;quickReplies:{label:string;value:string}[]};solutions?:Solution[];trip?:{startDate:string;endDate:string;travelerType:string;moods:string[];budget:number;origin:string};agentRuntime?:{today?:string;timezone?:string;dateRecovery?:{tier?:string;label?:string}|null}};
-type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;intelligence:number|null;seasonal:number|null;priceFit:number|null;starTier:"gold"|"green"|"blue"|null};
+type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;intelligence:number|null;seasonal:number|null;priceFit:number|null;demand:number|null;mapSignal:"ai"|"demand"|"seasonal"|"value"|"explore"|null;starTier:"gold"|"green"|"blue"|null};
 type RatingSignal={provider:"Google Places"|"Tripadvisor"|"Foursquare"|"AI Guest Signal";rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
 type QuickRating={status:"live"|"unavailable";primary:RatingSignal|null;ratings:RatingSignal[]};
-type MapIntelligence={focus:{latitude:number;longitude:number;zoom:number;label:string;score:number;reason:string}|null;weights:{seasonality:number;priceValue:number};ratingUpgrade:string};
+type MapIntelligence={focus:{latitude:number;longitude:number;zoom:number;label:string;score:number;demand:number;seasonality:number;value:number;reason:string}|null;weights:{demand:number;seasonality:number;priceValue:number};ratingUpgrade:string};
 
 const defaults:Filters={calm:78,food:72,nature:74,discovery:68,nightlife:28,value:70};
 const money=(n:number|null,c="EUR")=>n?new Intl.NumberFormat("el-GR",{style:"currency",currency:c,maximumFractionDigits:0}).format(n):"Τιμή στον πάροχο";
@@ -110,12 +110,12 @@ export function V54FinalHome(){
   if(solutions.length)return solutions.map(s=>({
    id:s.stay.productId,name:s.stay.name,location:s.destination.name,image:s.stay.imageUrl,
    price:s.stay.price,currency:s.stay.currency,lat:s.stay.latitude,lon:s.stay.longitude,
-   slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,availability:s.stay.availability,intelligence:Math.round(s.score),seasonal:null,priceFit:null,starTier:s.rank<=3?"gold":"green"
+   slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,availability:s.stay.availability,intelligence:Math.round(s.score),seasonal:null,priceFit:null,demand:null,mapSignal:"ai",starTier:s.rank<=3?"gold":"green"
   }));
   return inventory.slice(0,12).map((p,i)=>({
    id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:p.imageUrl,price:p.price,currency:p.currency,
    lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
-   why:i===0?"Ισχυρό seasonal / price-value fit από το live inventory.":"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,intelligence:p.intelligenceScore??null,seasonal:p.seasonalScore??null,priceFit:p.priceScore??null,starTier:p.starTier??null
+   why:i===0?"Ισχυρό seasonal / price-value fit από το live inventory.":"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,intelligence:p.intelligenceScore??null,seasonal:p.seasonalScore??null,priceFit:p.priceScore??null,demand:p.demandSignal??null,mapSignal:p.mapSignal??"explore",starTier:p.starTier??null
   }));
  },[solutions,inventory]);
 
@@ -130,9 +130,11 @@ export function V54FinalHome(){
  useEffect(()=>{
   if(initialAiFocusDone.current||!mapRef.current||!mapReady||!mapIntelligence?.focus)return;
   initialAiFocusDone.current=true;
-  const f=mapIntelligence.focus;
+  const f=mapIntelligence.focus,map=mapRef.current;
   setAiFocusLabel(`AI focus · ${f.label} · ${f.score}/100`);
-  mapRef.current.flyTo([f.latitude,f.longitude],f.zoom,{duration:.75});
+  map.setView([38.35,23.45],6,{animate:false});
+  const timer=window.setTimeout(()=>map.flyTo([f.latitude,f.longitude],f.zoom,{duration:1.65,easeLinearity:.18}),260);
+  return()=>window.clearTimeout(timer);
  },[mapIntelligence,mapReady]);
 
  useEffect(()=>{
@@ -145,7 +147,7 @@ export function V54FinalHome(){
    const displayFromInventory=(p:Stay):DisplayStay=>({
     id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:p.imageUrl,price:p.price,currency:p.currency,
     lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
-    why:"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,intelligence:p.intelligenceScore??null,seasonal:p.seasonalScore??null,priceFit:p.priceScore??null,starTier:p.starTier??null
+    why:"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,intelligence:p.intelligenceScore??null,seasonal:p.seasonalScore??null,priceFit:p.priceScore??null,demand:p.demandSignal??null,mapSignal:p.mapSignal??"explore",starTier:p.starTier??null
    });
    const aiRanks=new Map(solutions.map((s,i)=>[s.stay.productId,i+1]));
    const ratingMarkup=(rating:QuickRating|null|undefined)=>{
@@ -153,14 +155,23 @@ export function V54FinalHome(){
     if(!rating?.ratings?.length)return `<div class="v56RatingEmpty">No verified external rating found</div>`;
     return `<div class="v56RatingRow">${rating.ratings.filter(x=>x.provider!=="AI Guest Signal").slice(0,3).map(x=>`<span><b>${html(x.provider)}</b> ${x.rating.toFixed(1)}/${x.scale}${x.reviewCount!=null?` · ${x.reviewCount.toLocaleString("el-GR")} reviews`:""}</span>`).join("")}</div>`;
    };
-   const tooltipFor=(p:Stay,rank:number|null,rating:QuickRating|null|undefined)=>`
+   const tooltipFor=(p:Stay,rank:number|null,rating:QuickRating|null|undefined)=>{
+    const signal=rank?"AI SPOTLIGHT":p.mapSignal==="demand"?"HIGH DEMAND":p.mapSignal==="seasonal"?"SEASONAL FIT":p.mapSignal==="value"?"BEST VALUE":"EXPLORE";
+    return `
      <div class="v56MapTip">
-      <div class="v56MapTipTop">${rank?`<span class="v56AiBadge">AI #${rank}</span>`:`<span class="v56LiveBadge">ALL OFFER</span>`}<strong>${html(money(p.price,p.currency))}</strong></div>
+      <div class="v56MapTipTop"><span class="v56AiBadge">${html(signal)}${rank?` · #${rank}`:""}</span><strong>${html(money(p.price,p.currency))}</strong></div>
       <b class="v56MapTipName">${html(p.name)}</b>
       <span class="v56MapTipLoc">⌖ ${html(p.location||p.address||"Ελλάδα")}</span>
+      <div class="v65SignalGrid">
+       <span><b>${Math.round(p.intelligenceScore??0)}</b><small>AI score</small></span>
+       <span><b>${Math.round(p.demandSignal??0)}</b><small>Demand</small></span>
+       <span><b>${Math.round(p.seasonalScore??0)}</b><small>Season</small></span>
+       <span><b>${Math.round(p.priceScore??0)}</b><small>Value</small></span>
+      </div>
       ${ratingMarkup(rating)}
-      <small>Hover verified signals · click to explore</small>
+      <small>Click to continue to the stay funnel</small>
      </div>`;
+   };
    const loadRating=async(p:Stay,marker:any,rank:number|null)=>{
     if(ratingCache.current.has(p.productId)){marker.setTooltipContent(tooltipFor(p,rank,ratingCache.current.get(p.productId)));return}
     if(ratingPending.current.has(p.productId)||!p.destinationSlug)return;
@@ -177,38 +188,35 @@ export function V54FinalHome(){
     }catch{ratingCache.current.set(p.productId,null);marker.setTooltipContent(tooltipFor(p,rank,null))}
     finally{ratingPending.current.delete(p.productId)}
    };
+   if(mapIntelligence?.focus){
+    const f=mapIntelligence.focus;
+    L.marker([f.latitude,f.longitude],{interactive:false,icon:L.divIcon({className:"v65FocusHalo",html:"<span></span><i></i>",iconSize:[120,120],iconAnchor:[60,60]}),zIndexOffset:50}).addTo(g);
+   }
    for(const p of inventory){
     if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))continue;
-    const rank=aiRanks.get(p.productId)??null,verified=primaryVerifiedRating(verifiedRatings[p.productId]??ratingCache.current.get(p.productId));
-    const highVerified=Boolean(verified&&verified.scale>0&&(verified.rating/verified.scale)>=.9&&(verified.reviewCount??0)>=40);
-    const strongVerified=Boolean(verified&&verified.scale>0&&(verified.rating/verified.scale)>=.84);
-    const baseTier=p.starTier??"blue";
-    const tier=rank&&rank<=3||highVerified?"gold":rank&&rank<=7||strongVerified||baseTier==="gold"||baseTier==="green"?"green":"blue";
+    const rank=aiRanks.get(p.productId)??null;
+    const signal=rank&&rank<=5?"ai":p.mapSignal??"explore";
+    const score=Math.max(0,Math.min(100,p.intelligenceScore??50));
+    const size=score>=86?48:score>=76?41:score>=64?34:27;
+    const className=signal==="ai"?"v65StarAi":signal==="demand"?"v65StarDemand":signal==="seasonal"?"v65StarSeasonal":signal==="value"?"v65StarValue":"v65StarExplore";
     const marker=L.marker([p.latitude,p.longitude],{
       icon:L.divIcon({
-       className:tier==="gold"?"v64StarGold":tier==="green"?"v64StarGreen":"v64StarBlue",
-       html:rank?`<span>★<small>#${rank}</small></span>`:`<span>★</span>`,
-       iconSize:tier==="gold"?[42,42]:tier==="green"?[34,34]:[27,27],
-       iconAnchor:tier==="gold"?[21,21]:tier==="green"?[17,17]:[14,14]
+       className,
+       html:rank&&rank<=5?`<span style="--pin-size:${size}px">★<small>#${rank}</small></span>`:`<span style="--pin-size:${size}px">★</span>`,
+       iconSize:[size,size],iconAnchor:[Math.round(size/2),Math.round(size/2)]
       }),
-      zIndexOffset:tier==="gold"?1800-(rank??20):tier==="green"?900:300
+      zIndexOffset:signal==="ai"?1900-(rank??20):signal==="demand"?1200:signal==="seasonal"?950:signal==="value"?800:300
     });
-    marker.bindTooltip(tooltipFor(p,rank,ratingCache.current.get(p.productId)),{direction:"top",offset:[0,-12],opacity:1,className:"v56Tooltip"});
-    marker.on("mouseover",()=>{marker.setTooltipContent(tooltipFor(p,rank,ratingCache.current.get(p.productId)??null))});
+    marker.bindTooltip(tooltipFor(p,rank,ratingCache.current.get(p.productId)),{direction:"top",offset:[0,-14],opacity:1,className:"v56Tooltip"});
+    marker.on("mouseover",()=>marker.setTooltipContent(tooltipFor(p,rank,ratingCache.current.get(p.productId)??null)));
     marker.on("click",()=>{
       const stay=displayFromInventory(p);
-      setSelectedMapStay(stay);
-      hoveredStayRef.current=stay;
+      setSelectedMapStay(stay);hoveredStayRef.current=stay;
       const idx=cards.findIndex(c=>c.id===p.productId);if(idx>=0)setActive(idx);
-      void loadRating(p,marker,rank);
       openStay(stay);
     });
     marker.addTo(g);
    }
-   if(!solutions.length)cards.slice(0,10).forEach((p,i)=>{
-    const icon=L.divIcon({className:"v54PricePin",html:`<span>${p.price?money(p.price,p.currency):"★"}</span>`,iconSize:[74,32],iconAnchor:[37,16]});
-    L.marker([p.lat,p.lon],{icon,zIndexOffset:1000-i}).on("click",()=>{setSelectedMapStay(p);setActive(i);openStay(p)}).addTo(g);
-   });
   });
   return()=>{dead=true};
  },[inventory,cards,solutions,destination,verifiedRatings]);
@@ -270,8 +278,35 @@ export function V54FinalHome(){
     <span className={activeStay?styles.focusStepActive:""}>2 · Δες το funnel</span><i>→</i>
     <span>3 · Ξεκίνα το ταξίδι σου</span>
    </div>
-   <div className={styles.pinLegend}><span><i className={styles.legendGold}>★</i> Top AI</span><span><i className={styles.legendGreen}>★</i> Strong fit</span><span><i className={styles.legendBlue}>★</i> Live</span></div>
+   <div className={styles.pinLegend}><span><i className={styles.legendGold}>★</i> AI</span><span><i className={styles.legendDemand}>★</i> Demand</span><span><i className={styles.legendSeasonal}>★</i> Seasonal</span><span><i className={styles.legendGreen}>★</i> Value</span><span><i className={styles.legendBlue}>★</i> Explore</span></div>
   </div>
+
+  <section id="map" className={styles.mapFirst}>
+   <div className={styles.mapFirstTop}>
+    <div>
+     <small>AI MAP · DEFAULT INTELLIGENCE VIEW</small>
+     <h1>Η AI ξεκινά από την <em>καλύτερη περιοχή τώρα.</em></h1>
+     <p>Το πρώτο focus παράγεται από live demand signal, seasonality και local best value. Μετά εσύ επιλέγεις το stay ή αλλάζεις περιοχή.</p>
+    </div>
+    <div className={styles.mapAiFlow}>
+     <span>{mapIntelligence?.focus?.label??"AI scanning"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
+    </div>
+   </div>
+   <div className={styles.mapStage}>
+    {mapIntelligence?.focus?<div className={styles.mapFocusCard}><span>AI AREA FOCUS</span><b>{mapIntelligence.focus.label}</b><div><i>Demand <strong>{mapIntelligence.focus.demand}</strong></i><i>Season <strong>{mapIntelligence.focus.seasonality}</strong></i><i>Value <strong>{mapIntelligence.focus.value}</strong></i></div><small>{mapIntelligence.focus.reason}</small></div>:null}
+    <div className={styles.mapAiDock}>
+     <div className={styles.mapAiDockHead}><Brain weight="fill"/><div><b>AI Stay Finder</b><span>{busy?"Σκανάρω inventory…":"Διάλεξε vibe — τα υπόλοιπα τα κάνει η AI"}</span></div></div>
+     <div className={styles.mapFunChips}>
+      {["Χαλάρωση","Ρομαντικό","Περιπέτεια","Γαστρονομία"].map(x=><button key={x} className={intent===x?styles.mapFunChipActive:""} onClick={()=>{setIntent(x);const where=destination.trim()?destination.trim()+". ":"";void runAgent(`${where}Θέλω ${x.toLowerCase()} ταξίδι. Διάλεξε τις καλύτερες πραγματικές επιλογές από όλο το inventory.`)}}>{x}</button>)}
+     </div>
+     <button className={styles.surpriseBtn} disabled={busy} onClick={()=>void runAgent("Surprise me. Διάλεξε εσύ την καλύτερη απόδραση από όλο το πραγματικό inventory με βάση ημερομηνίες, budget και profile.")}>🎲 {busy?"Η AI ψάχνει…":"Surprise me"}</button>
+     <p><Sparkle weight="fill"/> {agentMessage}</p>
+    </div>
+    <div className={styles.mapModesTop}><button className={!showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(false)}>Χάρτης</button><button className={showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(true)}>Δορυφόρος</button></div>
+    <div className={styles.mapCanvasWrapTop}><div ref={mapHost} className={styles.map}/>{!mapReady?<div className={styles.mapLoading}>Φορτώνω {inventory.length?inventory.length.toLocaleString("el-GR"):"1.700+"} stays…</div>:null}</div>
+    {activeStay?<div className={styles.mapCard}><div style={activeStay.image?{backgroundImage:`url(${activeStay.image})`}:undefined}/><span><small>{activeStay.location}</small><b>{activeStay.name}</b><strong>{money(activeStay.price,activeStay.currency)}</strong></span><button aria-label="Άνοιξε το ενιαίο funnel" onClick={()=>openStay(activeStay)}>Ξεκίνα <ArrowRight/></button></div>:null}
+   </div>
+  </section>
 
   <section className={`${styles.hero} ${mobilePlannerOpen?styles.mobilePlannerOpen:""}`}>
    <aside id="planner" className={styles.planner}>
@@ -306,32 +341,6 @@ export function V54FinalHome(){
 
     <div className={styles.reasonBox}><Sparkle weight="fill"/><div><b>{runtimeLabel}</b><p>{agentMessage}</p>{question?.quickReplies?.length?<div className={styles.inlineReplies}>{question.quickReplies.slice(0,4).map(q=><button type="button" key={q.value} onClick={()=>void runAgent(q.label)}>{q.label}</button>)}</div>:null}</div></div>
    </aside>
-  </section>
-
-  <section id="map" className={styles.mapFirst}>
-   <div className={styles.mapFirstTop}>
-    <div>
-     <small>LIVE MAP · AI INVENTORY</small>
-     <h1>1.700+ stays. <em>Ένας χάρτης.</em> Η AI βρίσκει τα σωστά.</h1>
-     <p>Παίξε με τον χάρτη ή δώσε ένα feeling. Η TravelAI σκανάρει 1.700+ πραγματικά stays από το ενεργό inventory και περιορίζει τις επιλογές σε λίγες που ταιριάζουν σε εσένα.</p>
-    </div>
-    <div className={styles.mapAiFlow}>
-     <span>{inventory.length?inventory.length.toLocaleString("el-GR"):"1.700+"} stays</span><i>→</i><span>AI reasoning</span><i>→</i><span>Top 10</span><i>→</i><b>Your escape ✨</b>
-    </div>
-   </div>
-   <div className={styles.mapStage}>
-    <div className={styles.mapAiDock}>
-     <div className={styles.mapAiDockHead}><Brain weight="fill"/><div><b>AI Stay Finder</b><span>{busy?"Σκανάρω inventory…":"Διάλεξε vibe — τα υπόλοιπα τα κάνει η AI"}</span></div></div>
-     <div className={styles.mapFunChips}>
-      {["Χαλάρωση","Ρομαντικό","Περιπέτεια","Γαστρονομία"].map(x=><button key={x} className={intent===x?styles.mapFunChipActive:""} onClick={()=>{setIntent(x);const where=destination.trim()?destination.trim()+". ":"";void runAgent(`${where}Θέλω ${x.toLowerCase()} ταξίδι. Διάλεξε τις καλύτερες πραγματικές επιλογές από όλο το inventory.`)}}>{x}</button>)}
-     </div>
-     <button className={styles.surpriseBtn} disabled={busy} onClick={()=>void runAgent("Surprise me. Διάλεξε εσύ την καλύτερη απόδραση από όλο το πραγματικό inventory με βάση ημερομηνίες, budget και profile.")}>🎲 {busy?"Η AI ψάχνει…":"Surprise me"}</button>
-     <p><Sparkle weight="fill"/> {agentMessage}</p>
-    </div>
-    <div className={styles.mapModesTop}><button className={!showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(false)}>Χάρτης</button><button className={showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(true)}>Δορυφόρος</button></div>
-    <div className={styles.mapCanvasWrapTop}><div ref={mapHost} className={styles.map}/>{!mapReady?<div className={styles.mapLoading}>Φορτώνω {inventory.length?inventory.length.toLocaleString("el-GR"):"1.700+"} stays…</div>:null}</div>
-    {activeStay?<div className={styles.mapCard}><div style={activeStay.image?{backgroundImage:`url(${activeStay.image})`}:undefined}/><span><small>{activeStay.location}</small><b>{activeStay.name}</b><strong>{money(activeStay.price,activeStay.currency)}</strong></span><button aria-label="Άνοιξε το ενιαίο funnel" onClick={()=>openStay(activeStay)}>Ξεκίνα <ArrowRight/></button></div>:null}
-   </div>
   </section>
 
   <section id="destinations" className={styles.destinations}>
