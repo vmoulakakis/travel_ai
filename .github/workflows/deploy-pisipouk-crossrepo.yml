@@ -1,6 +1,7 @@
 name: Deploy PISIPOUK cross-repo
 # runtime crash hotfix redeploy
 # header auth guard redeploy
+# supabase fail-safe redeploy
 on:
   push:
     branches: [main]
