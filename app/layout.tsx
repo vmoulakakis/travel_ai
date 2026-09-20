@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { getSiteUrl, SITE_NAME } from "@/lib/site";
 import "./globals.css";
@@ -16,11 +16,20 @@ import "leaflet/dist/leaflet.css";
 
 const resolvedSiteUrl = getSiteUrl();
 
+export const viewport: Viewport = {
+  themeColor: "#173f33",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(resolvedSiteUrl),
   title: { default: "TravelAI | Ο AI agent που καταλαβαίνει την απόδραση που χρειάζεσαι", template: "%s · TravelAI" },
   description: "Μίλα φυσικά με έναν persistent AI travel agent που καταλαβαίνει την ανάγκη σου, ρωτά ό,τι λείπει και αποκαλύπτει έως 10 πραγματικές stay-backed λύσεις πάνω σε διαδραστικό χάρτη.",
-  applicationName: "AI Travel Escape",
+  applicationName: "TravelAI",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "TravelAI" },
   authors: [{ name: SITE_NAME, url: resolvedSiteUrl }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
