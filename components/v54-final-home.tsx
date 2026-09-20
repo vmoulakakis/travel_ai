@@ -14,10 +14,10 @@ type Stay={productId:string;placeId:string;name:string;location:string;address:s
 type Hero={id:string;location:string;imageUrl:string;propertyCount:number;minPrice:number|null;currency:string;latitude:number|null;longitude:number|null};
 type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null};liveOfferCount:number};
 type AgentResponse={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:{id:string;text:string;quickReplies:{label:string;value:string}[]};solutions?:Solution[];trip?:{startDate:string;endDate:string;travelerType:string;moods:string[];budget:number;origin:string};agentRuntime?:{today?:string;timezone?:string;dateRecovery?:{tier?:string;label?:string}|null}};
-type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;demand:number|null};
+type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;intelligence:number|null;seasonal:number|null;priceFit:number|null;starTier:"gold"|"green"|"blue"|null};
 type RatingSignal={provider:"Google Places"|"Tripadvisor"|"Foursquare"|"AI Guest Signal";rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
 type QuickRating={status:"live"|"unavailable";primary:RatingSignal|null;ratings:RatingSignal[]};
-type MapIntelligence={focus:{latitude:number;longitude:number;zoom:number;label:string;score:number;reason:string}|null;weights:{seasonality:number;priceValue:number;demand:number};ratingUpgrade:string};
+type MapIntelligence={focus:{latitude:number;longitude:number;zoom:number;label:string;score:number;reason:string}|null;weights:{seasonality:number;priceValue:number};ratingUpgrade:string};
 
 const defaults:Filters={calm:78,food:72,nature:74,discovery:68,nightlife:28,value:70};
 const money=(n:number|null,c="EUR")=>n?new Intl.NumberFormat("el-GR",{style:"currency",currency:c,maximumFractionDigits:0}).format(n):"Τιμή στον πάροχο";
@@ -110,12 +110,12 @@ export function V54FinalHome(){
   if(solutions.length)return solutions.map(s=>({
    id:s.stay.productId,name:s.stay.name,location:s.destination.name,image:s.stay.imageUrl,
    price:s.stay.price,currency:s.stay.currency,lat:s.stay.latitude,lon:s.stay.longitude,
-   slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,availability:s.stay.availability,demand:null
+   slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,availability:s.stay.availability,intelligence:Math.round(s.score),seasonal:null,priceFit:null,starTier:s.rank<=3?"gold":"green"
   }));
   return inventory.slice(0,12).map((p,i)=>({
    id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:p.imageUrl,price:p.price,currency:p.currency,
    lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
-   why:i===0?"Ισχυρό value / location fit από το live inventory.":"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,demand:p.demandScore
+   why:i===0?"Ισχυρό seasonal / price-value fit από το live inventory.":"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,intelligence:p.intelligenceScore??null,seasonal:p.seasonalScore??null,priceFit:p.priceScore??null,starTier:p.starTier??null
   }));
  },[solutions,inventory]);
 
@@ -145,7 +145,7 @@ export function V54FinalHome(){
    const displayFromInventory=(p:Stay):DisplayStay=>({
     id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:p.imageUrl,price:p.price,currency:p.currency,
     lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
-    why:"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,demand:p.demandScore
+    why:"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,intelligence:p.intelligenceScore??null,seasonal:p.seasonalScore??null,priceFit:p.priceScore??null,starTier:p.starTier??null
    });
    const aiRanks=new Map(solutions.map((s,i)=>[s.stay.productId,i+1]));
    const ratingMarkup=(rating:QuickRating|null|undefined)=>{
@@ -355,8 +355,9 @@ export function V54FinalHome(){
        <div className={styles.cardEyebrow}><small>{s.location}</small><span>{s.score?"AI PICK":"LIVE STAY"}</span></div>
        <h3>{s.name}</h3>
        <div className={styles.cardTrustRow}>
-        {primaryVerifiedRating(verifiedRatings[s.id])?<span className={styles.verifiedRating}><Star weight="fill"/><b>{primaryVerifiedRating(verifiedRatings[s.id])!.rating.toFixed(1)}</b><small>{primaryVerifiedRating(verifiedRatings[s.id])!.provider}{primaryVerifiedRating(verifiedRatings[s.id])!.reviewCount!=null?` · ${primaryVerifiedRating(verifiedRatings[s.id])!.reviewCount!.toLocaleString("el-GR")} reviews`:""}</small></span>:<span><ShieldCheck weight="fill"/><b>Live inventory</b><small>verified offer source</small></span>}
-        {s.score?<span><Sparkle weight="fill"/><b>{Math.round(s.score)}%</b><small>AI match</small></span>:s.demand!=null?<span><Lightning weight="fill"/><b>{Math.round(s.demand)}</b><small>demand signal</small></span>:null}
+        {primaryVerifiedRating(verifiedRatings[s.id])?<span className={styles.verifiedRating}><Star weight="fill"/><b>{primaryVerifiedRating(verifiedRatings[s.id])!.rating.toFixed(1)}</b><small>{primaryVerifiedRating(verifiedRatings[s.id])!.provider}{primaryVerifiedRating(verifiedRatings[s.id])!.reviewCount!=null?` · ${primaryVerifiedRating(verifiedRatings[s.id])!.reviewCount!.toLocaleString("el-GR")} reviews`:""}</small></span>:<span><ShieldCheck weight="fill"/><b>{s.intelligence!=null?s.intelligence+"/100":"Live inventory"}</b><small>{s.intelligence!=null?"map intelligence":"verified offer source"}</small></span>}
+        {s.score?<span><Sparkle weight="fill"/><b>{Math.round(s.score)}%</b><small>AI match</small></span>:s.seasonal!=null?<span><CalendarBlank weight="fill"/><b>{Math.round(s.seasonal)}</b><small>seasonality</small></span>:null}
+        {s.priceFit!=null?<span><Wallet weight="fill"/><b>{Math.round(s.priceFit)}</b><small>price / value</small></span>:null}
        </div>
        <p><b>Γιατί το προτείνει η AI:</b> {s.why}</p>
        <div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><MapPin/> {s.location}</span></div>
