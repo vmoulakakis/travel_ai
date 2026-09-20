@@ -14,7 +14,7 @@ type Stay={productId:string;placeId:string;name:string;location:string;address:s
 type Hero={id:string;location:string;imageUrl:string;propertyCount:number;minPrice:number|null;currency:string;latitude:number|null;longitude:number|null};
 type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null};liveOfferCount:number};
 type AgentResponse={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:{id:string;text:string;quickReplies:{label:string;value:string}[]};solutions?:Solution[];trip?:{startDate:string;endDate:string;travelerType:string;moods:string[];budget:number;origin:string};agentRuntime?:{today?:string;timezone?:string;dateRecovery?:{tier?:string;label?:string}|null}};
-type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string};
+type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;demand:number|null};
 type RatingSignal={provider:"Google Places"|"Tripadvisor"|"Foursquare"|"AI Guest Signal";rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
 type QuickRating={status:"live"|"unavailable";primary:RatingSignal|null;ratings:RatingSignal[]};
 
@@ -23,6 +23,18 @@ const money=(n:number|null,c="EUR")=>n?new Intl.NumberFormat("el-GR",{style:"cur
 const todayIso=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Athens",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const addDays=(iso:string,days:number)=>{const d=new Date(iso+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10)};
 const html=(v:string)=>v.replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[ch]??ch));
+const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const seasonFit=(p:{location:string;destinationSlug:string|null})=>{
+ const month=Number(todayIso().slice(5,7)),text=norm((p.location+" "+(p.destinationSlug??"")));
+ const winter=["arachova","αραχωβ","kalavryta","καλαβρυτ","metsovo","μετσοβ","zagori","ζαγορ","karpenisi","καρπενησ","pelion","πηλιο","parnass","παρνασσ"];
+ const summer=["santorini","σαντοριν","mykon","μυκον","paros","παρο","naxos","ναξ","milos","μηλο","crete","κρητ","chania","χανι","rhodes","ροδο","corfu","κερκυρ","lefkada","λευκαδ","kefal","κεφαλον","zakynth","ζακυνθ","skiath","σκιαθ"];
+ const shoulder=["nafpl","ναυπλ","athens","αθην","thessalon","θεσσαλον","ioannin","ιωανν","meteora","μετεωρ","monemvas","μονεμβασ"];
+ const hit=(xs:string[])=>xs.some(x=>text.includes(x));
+ if([12,1,2].includes(month))return hit(winter)?30:hit(shoulder)?14:3;
+ if([6,7,8,9].includes(month))return hit(summer)?30:hit(shoulder)?12:4;
+ return hit(shoulder)?24:hit(summer)||hit(winter)?14:6;
+};
+const primaryVerifiedRating=(r:QuickRating|null|undefined)=>r?.ratings?.find(x=>x.provider!=="AI Guest Signal")??null;
 
 export function V54FinalHome(){
  const [inventory,setInventory]=useState<Stay[]>([]);
@@ -49,6 +61,8 @@ export function V54FinalHome(){
  const [mapReady,setMapReady]=useState(false);
  const [mapView,setMapView]=useState({lat:36.3932,lon:25.4615,zoom:11});
  const [mobilePlannerOpen,setMobilePlannerOpen]=useState(false);
+ const [verifiedRatings,setVerifiedRatings]=useState<Record<string,QuickRating|null>>({});
+ const [aiFocusLabel,setAiFocusLabel]=useState("AI seasonal focus");
  const hoveredStayRef=useRef<DisplayStay|null>(null);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
@@ -56,6 +70,8 @@ export function V54FinalHome(){
  const tileRef=useRef<TileLayer|null>(null);
  const ratingCache=useRef<Map<string,QuickRating|null>>(new Map());
  const ratingPending=useRef<Set<string>>(new Set());
+ const initialRatingScanDone=useRef(false);
+ const initialAiFocusDone=useRef(false);
 
  useEffect(()=>{
   let cancelled=false;
@@ -104,12 +120,12 @@ export function V54FinalHome(){
   if(solutions.length)return solutions.map(s=>({
    id:s.stay.productId,name:s.stay.name,location:s.destination.name,image:s.stay.imageUrl,
    price:s.stay.price,currency:s.stay.currency,lat:s.stay.latitude,lon:s.stay.longitude,
-   slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,availability:s.stay.availability
+   slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,availability:s.stay.availability,demand:null
   }));
   return inventory.slice(0,12).map((p,i)=>({
    id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:p.imageUrl,price:p.price,currency:p.currency,
    lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
-   why:i===0?"Ισχυρό value / location fit από το live inventory.":"Πραγματικό stay από το ενεργό inventory.",availability:p.availability
+   why:i===0?"Ισχυρό value / location fit από το live inventory.":"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,demand:p.demandScore
   }));
  },[solutions,inventory]);
 
@@ -122,6 +138,39 @@ export function V54FinalHome(){
  },[activeStay?.image,heroMedia,inventory]);
 
  useEffect(()=>{
+  if(initialRatingScanDone.current||inventory.length<6)return;
+  initialRatingScanDone.current=true;
+  const candidates=[...inventory]
+   .filter(p=>p.destinationSlug&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude))
+   .sort((a,b)=>(seasonFit(b)+(b.demandScore??0)*.18)-(seasonFit(a)+(a.demandScore??0)*.18))
+   .slice(0,6);
+  let cancelled=false;
+  void Promise.all(candidates.map(async p=>{
+   try{
+    const r=await fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+     propertyName:p.name,sourceProductId:p.productId,destinationSlug:p.destinationSlug,destinationName:p.location||p.address||"Ελλάδα",latitude:p.latitude,longitude:p.longitude
+    })});
+    const j=await r.json() as {ok?:boolean;result?:QuickRating|null};
+    return[p.productId,j?.ok?j.result??null:null] as const;
+   }catch{return[p.productId,null] as const}
+  })).then(rows=>{if(!cancelled)setVerifiedRatings(Object.fromEntries(rows))});
+  return()=>{cancelled=true};
+ },[inventory]);
+
+ useEffect(()=>{
+  if(initialAiFocusDone.current||!mapRef.current||inventory.length<6)return;
+  const scored=[...inventory].filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)).map(p=>{
+   const vr=primaryVerifiedRating(verifiedRatings[p.productId]);
+   const ratingBoost=vr?Math.max(0,(vr.rating/(vr.scale||5))*100-72)*.7+Math.min(18,Math.log10((vr.reviewCount??0)+1)*4):0;
+   return{p,score:seasonFit(p)+(p.demandScore??0)*.22+ratingBoost,vr};
+  }).sort((a,b)=>b.score-a.score);
+  const best=scored[0];if(!best)return;
+  initialAiFocusDone.current=true;
+  setAiFocusLabel(best.vr?`AI focus · ${best.vr.provider} ${best.vr.rating.toFixed(1)}/${best.vr.scale}`:"AI focus · seasonal + live demand");
+  mapRef.current.flyTo([best.p.latitude,best.p.longitude],10,{duration:1.15});
+ },[inventory,verifiedRatings,mapReady]);
+
+ useEffect(()=>{
   if(!mapRef.current)return;
   let dead=false;
   void import("leaflet").then(L=>{
@@ -131,7 +180,7 @@ export function V54FinalHome(){
    const displayFromInventory=(p:Stay):DisplayStay=>({
     id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:p.imageUrl,price:p.price,currency:p.currency,
     lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
-    why:"Πραγματικό stay από το ενεργό inventory.",availability:p.availability
+    why:"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,demand:p.demandScore
    });
    const aiRanks=new Map(solutions.map((s,i)=>[s.stay.productId,i+1]));
    const ratingMarkup=(rating:QuickRating|null|undefined)=>{
@@ -165,15 +214,19 @@ export function V54FinalHome(){
    };
    for(const p of inventory){
     if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))continue;
-    const rank=aiRanks.get(p.productId)??null;
+    const rank=aiRanks.get(p.productId)??null,verified=primaryVerifiedRating(verifiedRatings[p.productId]??ratingCache.current.get(p.productId));
+    const highVerified=Boolean(verified&&verified.scale>0&&(verified.rating/verified.scale)>=.9&&(verified.reviewCount??0)>=40);
+    const strongVerified=Boolean(verified&&verified.scale>0&&(verified.rating/verified.scale)>=.84);
+    const seasonal=seasonFit(p);
+    const tier=rank&&rank<=3||highVerified?"gold":rank&&rank<=7||strongVerified||seasonal>=24||(p.demandScore??0)>=75?"green":"blue";
     const marker=L.marker([p.latitude,p.longitude],{
       icon:L.divIcon({
-       className:rank?"v58SelectedStar":"v58OfferStar",
+       className:tier==="gold"?"v64StarGold":tier==="green"?"v64StarGreen":"v64StarBlue",
        html:rank?`<span>★<small>#${rank}</small></span>`:`<span>★</span>`,
-       iconSize:rank?[42,42]:[28,28],
-       iconAnchor:rank?[21,21]:[14,14]
+       iconSize:tier==="gold"?[42,42]:tier==="green"?[34,34]:[27,27],
+       iconAnchor:tier==="gold"?[21,21]:tier==="green"?[17,17]:[14,14]
       }),
-      zIndexOffset:rank?1800-rank:300
+      zIndexOffset:tier==="gold"?1800-(rank??20):tier==="green"?900:300
     });
     marker.bindTooltip(tooltipFor(p,rank,ratingCache.current.get(p.productId)),{direction:"top",offset:[0,-12],opacity:1,className:"v56Tooltip"});
     marker.on("mouseover",()=>{marker.setTooltipContent(tooltipFor(p,rank,ratingCache.current.get(p.productId)??null))});
@@ -193,7 +246,7 @@ export function V54FinalHome(){
    });
   });
   return()=>{dead=true};
- },[inventory,cards,solutions,destination]);
+ },[inventory,cards,solutions,destination,verifiedRatings]);
 
  async function runAgent(extra?:string){
   const destinationBrief=destination.trim()?destination.trim()+". ":"";
@@ -236,7 +289,7 @@ export function V54FinalHome(){
  return <main className={styles.page}>
   <div className={styles.mobileTopBar}>
    <a className={styles.mobileBrand} href="/">TRAVEL<span>AI</span></a>
-   <button className={styles.mobileLocation} onClick={()=>document.getElementById("map")?.scrollIntoView({behavior:"smooth"})}><MapPin weight="fill"/><span>{destination||"Όλη η Ελλάδα"}</span></button>
+   <button className={styles.mobileLocation} onClick={()=>document.getElementById("map")?.scrollIntoView({behavior:"smooth"})}><MapPin weight="fill"/><span><b>{destination||"Όλη η Ελλάδα"}</b><small>{aiFocusLabel}</small></span></button>
    <button className={styles.mobileAiButton} onClick={()=>setMobilePlannerOpen(true)}><Brain weight="fill"/></button>
   </div>
   <header className={styles.nav}>
@@ -252,7 +305,7 @@ export function V54FinalHome(){
     <span className={activeStay?styles.focusStepActive:""}>2 · Δες το funnel</span><i>→</i>
     <span>3 · Ξεκίνα το ταξίδι σου</span>
    </div>
-   <div className={styles.pinLegend}><span><i className={styles.legendGold}>★</i> AI selected</span><span><i className={styles.legendBlue}>★</i> All offers</span></div>
+   <div className={styles.pinLegend}><span><i className={styles.legendGold}>★</i> Top AI</span><span><i className={styles.legendGreen}>★</i> Strong fit</span><span><i className={styles.legendBlue}>★</i> Live</span></div>
   </div>
 
   <section className={`${styles.hero} ${mobilePlannerOpen?styles.mobilePlannerOpen:""}`}>
@@ -333,7 +386,17 @@ export function V54FinalHome(){
       onClick={()=>{hoveredStayRef.current=s;setSelectedMapStay(null);setActive(i);openStay(s)}}
       className={i===active&&!selectedMapStay?styles.cardActive:""}>
       <div className={styles.cardPhoto} style={s.image?{backgroundImage:`url(${s.image})`}:undefined}><span>{s.score?Math.round(s.score)+"% MATCH":"LIVE STAY"}</span></div>
-      <div className={styles.cardBody}><small>{s.location}</small><h3>{s.name}</h3><p>{s.why}</p><div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><Star weight="fill"/> AI fit</span></div><div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={e=>{e.stopPropagation();openStay(s)}}>Δες το funnel <ArrowRight/></button></div></div>
+      <div className={styles.cardBody}>
+       <div className={styles.cardEyebrow}><small>{s.location}</small><span>{s.score?"AI PICK":"LIVE STAY"}</span></div>
+       <h3>{s.name}</h3>
+       <div className={styles.cardTrustRow}>
+        {primaryVerifiedRating(verifiedRatings[s.id])?<span className={styles.verifiedRating}><Star weight="fill"/><b>{primaryVerifiedRating(verifiedRatings[s.id])!.rating.toFixed(1)}</b><small>{primaryVerifiedRating(verifiedRatings[s.id])!.provider}{primaryVerifiedRating(verifiedRatings[s.id])!.reviewCount!=null?` · ${primaryVerifiedRating(verifiedRatings[s.id])!.reviewCount!.toLocaleString("el-GR")} reviews`:""}</small></span>:<span><ShieldCheck weight="fill"/><b>Live inventory</b><small>verified offer source</small></span>}
+        {s.score?<span><Sparkle weight="fill"/><b>{Math.round(s.score)}%</b><small>AI match</small></span>:s.demand!=null?<span><Lightning weight="fill"/><b>{Math.round(s.demand)}</b><small>demand signal</small></span>:null}
+       </div>
+       <p><b>Γιατί το προτείνει η AI:</b> {s.why}</p>
+       <div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><MapPin/> {s.location}</span></div>
+       <div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={e=>{e.stopPropagation();openStay(s)}}>Δες γιατί αξίζει <ArrowRight/></button></div>
+      </div>
       <div className={styles.cardHoverPanel} aria-hidden="true">
        <div className={styles.cardHoverPhoto} style={s.image?{backgroundImage:`linear-gradient(180deg,rgba(7,28,22,.04),rgba(7,28,22,.72)),url(${s.image})`}:undefined}>
         <div className={styles.cardHoverTop}><span>{s.score?Math.round(s.score)+"% AI MATCH":"LIVE INVENTORY"}</span><b>{money(s.price,s.currency)}</b></div>
