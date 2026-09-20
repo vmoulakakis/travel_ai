@@ -7,7 +7,7 @@ assert(page.includes("V54FinalHome"),"homepage must render V54 final experience"
 assert(ui.includes("/api/v50/map-stays?limit=2000"),"V54 must request the full live stay universe");
 assert(ui.includes("/api/v50/agent"),"V54 must use the live AI agent");
 assert(ui.includes("conversationContext"),"V54 must send role-aware AI context");
-assert(ui.includes("v54PricePin"),"V54 must render map price pins");
+assert(ui.includes("v65StarAi")&&ui.includes("v65StarDemand")&&ui.includes("v65StarSeasonal")&&ui.includes("v65StarValue")&&ui.includes("v65StarExplore"),"V54 must render V65 intelligence stars and must not regress to legacy price pills");
 assert(ui.includes("showSatellite")&&ui.includes("tile.openstreetmap.org")&&ui.includes("World_Imagery"),"map/satellite mode must be functional");
 assert(ui.includes("FEATURED STAY · AI PICK")&&ui.includes("gallery"),"V54 must include the featured stay landing composition");
 assert(css.includes(".planner")&&css.includes(".cardGrid")&&css.includes(".mapPanel")&&css.includes(".featured"),"V54 art-direction CSS is incomplete");
