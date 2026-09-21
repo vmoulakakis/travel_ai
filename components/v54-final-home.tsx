@@ -295,14 +295,13 @@ export function V54FinalHome(){
  }
 
  function stayHref(stay:DisplayStay){
-  if(!stay.slug)return null;
   const q=new URLSearchParams({start,end,budget:String(budget),origin,travelerType:traveler,dn:stay.location});
-  return `/escape/${encodeURIComponent(stay.slug)}/stay/${encodeURIComponent(stay.id)}?${q}`;
+  return stay.slug
+   ? `/escape/${encodeURIComponent(stay.slug)}/stay/${encodeURIComponent(stay.id)}?${q}`
+   : `/stay/${encodeURIComponent(stay.id)}?${q}`;
  }
  function openStay(stay:DisplayStay){
-  const href=stayHref(stay);
-  if(href)window.location.assign(href);
-  else if(stay.tracking)window.open(stay.tracking,"_blank","noopener,noreferrer");
+  window.location.assign(stayHref(stay));
  }
 
  const destinationTiles=heroMedia.slice(0,6);
