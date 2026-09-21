@@ -101,7 +101,7 @@ async function wikiWikitext(host:string,title:string){
  }catch{return null}
 }
 function wikiListingBlocks(text:string){
- const starts=/\{\{\s*(see|do|eat|drink)\b/gi,out:Array<{type:string;body:string}>=[];let m:RegExpExecArray|null;
+ const starts=/\{\{\s*(see|do|eat|drink|listing)\b/gi,out:Array<{type:string;body:string}>=[];let m:RegExpExecArray|null;
  while((m=starts.exec(text))&&out.length<100){
   let depth=0,end=-1;
   for(let i=m.index;i<text.length-1;i+=1){
@@ -130,7 +130,8 @@ async function wikivoyageFallback(destinationName:string,hotelName:string|null|u
   for(const [index,listing] of wikiListingBlocks(entry.page.text).entries()){
    const name=wikiParam(listing.body,"name")||wikiParam(listing.body,"alt");if(!name||name.length<2)continue;
    const plat=numeric(wikiParam(listing.body,"lat")),plon=numeric(wikiParam(listing.body,"long")||wikiParam(listing.body,"lon"));
-   const kind:LocalPlaceKindV38=listing.type==="eat"?"restaurant":listing.type==="drink"?"nightlife":"attraction";
+   const listingType=listing.type==="listing"?(wikiParam(listing.body,"type").toLowerCase()||"see"):listing.type;
+   const kind:LocalPlaceKindV38=listingType==="eat"?"restaurant":listingType==="drink"?"nightlife":"attraction";
    const explicitUrl=wikiParam(listing.body,"url"),url=/^https?:\/\//i.test(explicitUrl)?explicitUrl:pageUrl;
    rows.push({id:`wikivoyage:${entry.host}:${entry.page.title}:${listing.type}:${index}`,name,kind,source:"Wikivoyage",rating:null,ratingCount:null,ranking:null,address:wikiParam(listing.body,"address")||null,url,imageUrl:null,latitude:plat,longitude:plon,distanceKm:plat!=null&&plon!=null?haversine(lat,lon,plat,plon):null,internalSignal:null});
   }
