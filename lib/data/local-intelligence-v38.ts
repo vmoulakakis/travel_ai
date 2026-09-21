@@ -1,7 +1,7 @@
 import { getTripadvisorBundleV25 } from "@/lib/data/tripadvisor-v25";
 
 export type LocalPlaceKindV38="restaurant"|"nightlife"|"attraction"|"museum"|"beach"|"cafe";
-export type LocalPlaceSourceV38="Tripadvisor"|"Google Places"|"Foursquare"|"OpenStreetMap";
+export type LocalPlaceSourceV38="Tripadvisor"|"Google Places"|"Foursquare"|"OpenStreetMap"|"Wikivoyage";
 export type GuestConfidenceV38="HIGH"|"MEDIUM"|"LOW"|"INSUFFICIENT";
 export interface GuestSignalV38{sampleSize:number;avgRating:number|null;recommendRate:number|null;aiScore:number|null;confidence:GuestConfidenceV38;}
 export interface LocalPlaceV38{
@@ -28,6 +28,8 @@ type FsqPlace={fsq_place_id?:string;name?:string;latitude?:number;longitude?:num
 type FsqPayload={results?:FsqPlace[]};
 type OverpassElement={id?:number;lat?:number;lon?:number;center?:{lat?:number;lon?:number};tags?:Record<string,string>};
 type OverpassPayload={elements?:OverpassElement[]};
+type WikiSearchPayload={query?:{search?:Array<{title?:string}>}};
+type WikiParsePayload={parse?:{title?:string;wikitext?:string}};
 
 const clean=(v:unknown)=>typeof v==="string"&&v.trim()?v.trim():null;
 const numeric=(v:unknown)=>{if(v==null||v==="")return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -50,7 +52,91 @@ async function googleSearch(kind:LocalPlaceKindV38,type:string,lat:number,lon:nu
 
 async function foursquareSearch(kind:LocalPlaceKindV38,query:string,lat:number,lon:number){const key=process.env.FOURSQUARE_API_KEY;if(!key)return[] as LocalPlaceV38[];try{const url=new URL("https://places-api.foursquare.com/places/search");url.searchParams.set("ll",`${lat},${lon}`);url.searchParams.set("radius","22000");url.searchParams.set("query",query);url.searchParams.set("sort","RATING");url.searchParams.set("limit","10");url.searchParams.set("fields","fsq_place_id,name,latitude,longitude,address,locality,rating,website,photos");const response=await fetch(url,{headers:{Authorization:`Bearer ${key}`,"X-Places-Api-Version":"2025-06-17",accept:"application/json"},next:{revalidate:21600},signal:AbortSignal.timeout(6000)});if(!response.ok)return[];const payload=await response.json() as FsqPayload;return(payload.results??[]).flatMap((p,index)=>{const name=clean(p.name),id=clean(p.fsq_place_id);if(!name||!id)return[];const plat=numeric(p.latitude),plon=numeric(p.longitude),photo=p.photos?.[0],imageUrl=photo?.prefix&&photo.suffix?`${photo.prefix}original${photo.suffix}`:null;return[{id:`fsq:${id}`,name,kind,source:"Foursquare" as const,rating:p.rating!=null?Math.max(0,Math.min(5,p.rating/2)):null,ratingCount:null,ranking:index+1,address:[clean(p.address),clean(p.locality)].filter(Boolean).join(", ")||null,url:clean(p.website),imageUrl,latitude:plat,longitude:plon,distanceKm:plat!=null&&plon!=null?haversine(lat,lon,plat,plon):null,internalSignal:null}]})}catch{return[]}}
 
-async function osmFallback(lat:number,lon:number){try{const q=`[out:json][timeout:8];(nwr(around:22000,${lat},${lon})[amenity~"restaurant|bar|cafe"];nwr(around:22000,${lat},${lon})[tourism~"attraction|museum"];nwr(around:22000,${lat},${lon})[natural="beach"];);out center tags 80;`;const response=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded","user-agent":"TravelAI/38 local-intelligence"},body:new URLSearchParams({data:q}),next:{revalidate:43200},signal:AbortSignal.timeout(9000)});if(!response.ok)return[] as LocalPlaceV38[];const payload=await response.json() as OverpassPayload;return(payload.elements??[]).flatMap((e,index)=>{const tags=e.tags??{},name=clean(tags.name)||clean(tags["name:en"])||clean(tags["name:el"]);if(!name)return[];const raw=tags.amenity??tags.tourism??(tags.natural==="beach"?"beach":""),kind:LocalPlaceKindV38=raw==="restaurant"?"restaurant":raw==="bar"?"nightlife":raw==="cafe"?"cafe":raw==="museum"?"museum":raw==="beach"?"beach":"attraction";const plat=numeric(e.lat??e.center?.lat),plon=numeric(e.lon??e.center?.lon);return[{id:`osm:${e.id??index}`,name,kind,source:"OpenStreetMap" as const,rating:null,ratingCount:null,ranking:null,address:[tags["addr:street"],tags["addr:housenumber"],tags["addr:city"]].filter(Boolean).join(" ")||null,url:clean(tags.website),imageUrl:null,latitude:plat,longitude:plon,distanceKm:plat!=null&&plon!=null?haversine(lat,lon,plat,plon):null,internalSignal:null}]})}catch{return[]}}
+async function osmFallback(lat:number,lon:number){
+ const q=`[out:json][timeout:7];(nwr(around:18000,${lat},${lon})[amenity~"restaurant|cafe|bar|pub|nightclub|biergarten"];nwr(around:18000,${lat},${lon})[tourism~"attraction|museum|gallery|viewpoint"];nwr(around:18000,${lat},${lon})[historic];nwr(around:18000,${lat},${lon})[natural="beach"];);out center tags qt 120;`;
+ const endpoints=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+ for(const endpoint of endpoints){
+  try{
+   const response=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded","accept":"application/json","user-agent":"TravelAI/61 local-intelligence"},body:new URLSearchParams({data:q}),next:{revalidate:43200},signal:AbortSignal.timeout(6500)});
+   if(!response.ok)continue;
+   const payload=await response.json() as OverpassPayload;
+   const rows=(payload.elements??[]).flatMap((e,index)=>{
+    const tags=e.tags??{},name=clean(tags.name)||clean(tags["name:en"])||clean(tags["name:el"]);if(!name)return[];
+    const raw=tags.amenity??tags.tourism??(tags.natural==="beach"?"beach":tags.historic?"historic":"");
+    const kind:LocalPlaceKindV38=raw==="restaurant"?"restaurant":raw==="cafe"?"cafe":["bar","pub","nightclub","biergarten"].includes(raw)?"nightlife":["museum","gallery"].includes(raw)?"museum":raw==="beach"?"beach":"attraction";
+    const plat=numeric(e.lat??e.center?.lat),plon=numeric(e.lon??e.center?.lon);
+    return[{id:`osm:${e.id??index}`,name,kind,source:"OpenStreetMap" as const,rating:null,ratingCount:null,ranking:null,address:[tags["addr:street"],tags["addr:housenumber"],tags["addr:city"]].filter(Boolean).join(" ")||null,url:clean(tags.website)??clean(tags["contact:website"]),imageUrl:null,latitude:plat,longitude:plon,distanceKm:plat!=null&&plon!=null?haversine(lat,lon,plat,plon):null,internalSignal:null}];
+   });
+   if(rows.length)return rows;
+  }catch{}
+ }
+ return[] as LocalPlaceV38[];
+}
+
+const wikiClean=(v:string)=>v.replace(/<!--[^]*?-->/g," ").replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g,"$2").replace(/\[\[([^\]]+)\]\]/g,"$1").replace(/<[^>]+>/g," ").replace(/'{2,}/g,"").replace(/\{\{[^{}]*\}\}/g," ").replace(/\s+/g," ").trim();
+function localityHint(hotelName?:string|null){
+ const head=(hotelName??"").split("✦")[0]?.trim()??"";
+ const pieces=head.split(/\s+-\s+/).map(x=>x.trim()).filter(Boolean);
+ return pieces.length>1?pieces[pieces.length-1]:null;
+}
+async function wikiSearchTitle(host:string,query:string){
+ try{
+  const url=new URL(`https://${host}/w/api.php`);
+  url.search=new URLSearchParams({action:"query",list:"search",srsearch:query,srlimit:"1",format:"json",formatversion:"2",origin:"*"}).toString();
+  const response=await fetch(url,{next:{revalidate:86400},signal:AbortSignal.timeout(3500)});
+  if(!response.ok)return null;
+  const payload=await response.json() as WikiSearchPayload;
+  return clean(payload.query?.search?.[0]?.title);
+ }catch{return null}
+}
+async function wikiWikitext(host:string,title:string){
+ try{
+  const url=new URL(`https://${host}/w/api.php`);
+  url.search=new URLSearchParams({action:"parse",page:title,prop:"wikitext",format:"json",formatversion:"2",origin:"*"}).toString();
+  const response=await fetch(url,{next:{revalidate:86400},signal:AbortSignal.timeout(4500)});
+  if(!response.ok)return null;
+  const payload=await response.json() as WikiParsePayload;
+  const text=clean(payload.parse?.wikitext);
+  return text?{title:clean(payload.parse?.title)??title,text}:null;
+ }catch{return null}
+}
+function wikiListingBlocks(text:string){
+ const starts=/\{\{\s*(see|do|eat|drink)\b/gi,out:Array<{type:string;body:string}>=[];let m:RegExpExecArray|null;
+ while((m=starts.exec(text))&&out.length<100){
+  let depth=0,end=-1;
+  for(let i=m.index;i<text.length-1;i+=1){
+   const pair=text.slice(i,i+2);
+   if(pair==="{{"){depth+=1;i+=1;continue}
+   if(pair==="}}"){depth-=1;i+=1;if(depth===0){end=i+1;break}}
+  }
+  if(end>m.index){out.push({type:m[1].toLowerCase(),body:text.slice(m.index,end+1)});starts.lastIndex=end+1}
+ }
+ return out;
+}
+function wikiParam(body:string,key:string){
+ const match=new RegExp(`\\|\\s*${key}\\s*=\\s*([^|\\n}]+)`,"i").exec(body);
+ return match?wikiClean(match[1]):"";
+}
+async function wikivoyageFallback(destinationName:string,hotelName:string|null|undefined,lat:number,lon:number,language:string){
+ const hosts=[language==="el"?"el.wikivoyage.org":"en.wikivoyage.org","en.wikivoyage.org"].filter((x,i,a)=>a.indexOf(x)===i);
+ const queries=[localityHint(hotelName),destinationName].filter((x):x is string=>Boolean(x&&x.length>=2)).filter((x,i,a)=>a.indexOf(x)===i);
+ const searched=await Promise.all(hosts.flatMap(host=>queries.map(async query=>({host,title:await wikiSearchTitle(host,query)}))));
+ const pages=[...new Map(searched.filter((x):x is {host:string;title:string}=>Boolean(x.title)).map(x=>[`${x.host}:${x.title}`,x])).values()].slice(0,4);
+ const parsed=await Promise.all(pages.map(async page=>({host:page.host,page:await wikiWikitext(page.host,page.title)})));
+ const rows:LocalPlaceV38[]=[];
+ for(const entry of parsed){
+  if(!entry.page)continue;
+  const pageUrl=`https://${entry.host}/wiki/${encodeURIComponent(entry.page.title.replace(/ /g,"_"))}`;
+  for(const [index,listing] of wikiListingBlocks(entry.page.text).entries()){
+   const name=wikiParam(listing.body,"name")||wikiParam(listing.body,"alt");if(!name||name.length<2)continue;
+   const plat=numeric(wikiParam(listing.body,"lat")),plon=numeric(wikiParam(listing.body,"long")||wikiParam(listing.body,"lon"));
+   const kind:LocalPlaceKindV38=listing.type==="eat"?"restaurant":listing.type==="drink"?"nightlife":"attraction";
+   const explicitUrl=wikiParam(listing.body,"url"),url=/^https?:\/\//i.test(explicitUrl)?explicitUrl:pageUrl;
+   rows.push({id:`wikivoyage:${entry.host}:${entry.page.title}:${listing.type}:${index}`,name,kind,source:"Wikivoyage",rating:null,ratingCount:null,ranking:null,address:wikiParam(listing.body,"address")||null,url,imageUrl:null,latitude:plat,longitude:plon,distanceKm:plat!=null&&plon!=null?haversine(lat,lon,plat,plon):null,internalSignal:null});
+  }
+ }
+ return rows;
+}
 
 export async function getLocalIntelligenceV38(args:{destinationSlug:string;destinationName:string;hotelName?:string|null;latitude:number;longitude:number;isSummer:boolean;language:"el"|"en"}):Promise<LocalIntelligenceV38>{
  const providers:string[]=[],rows:LocalPlaceV38[]=[];
@@ -69,7 +155,13 @@ export async function getLocalIntelligenceV38(args:{destinationSlug:string;desti
  if(tripadvisor.status==="live"){providers.push("Tripadvisor");const add=(kind:LocalPlaceKindV38,items:typeof tripadvisor.places)=>{for(const p of items)rows.push({id:`ta:${p.locationId}`,name:p.name,kind,source:"Tripadvisor",rating:p.rating,ratingCount:p.reviewCount,ranking:p.ranking,address:p.address,url:p.webUrl,imageUrl:p.imageUrl,latitude:null,longitude:null,distanceKm:null,internalSignal:null})};add("attraction",tripadvisor.places);add("museum",tripadvisor.museums);add("restaurant",tripadvisor.restaurants);add("nightlife",tripadvisor.nightlife);add("beach",tripadvisor.beaches)}
  const google=[...googleRestaurant,...googleBar,...googleAttraction,...googleMuseum,...googleBeach];if(google.length){providers.push("Google Places");rows.push(...google)}
  const fs=[...fsRestaurant,...fsNight,...fsAttraction];if(fs.length){providers.push("Foursquare");rows.push(...fs)}
- let merged=merge(rows,guest.map);if(!merged.length||!merged.some(x=>x.kind==="restaurant")||!merged.some(x=>x.kind==="attraction")){const osm=await osmFallback(args.latitude,args.longitude);if(osm.length){providers.push("OpenStreetMap");merged=merge([...merged,...osm],guest.map)}}
- const by=(kind:LocalPlaceKindV38,limit=8)=>rank(merged.filter(x=>x.kind===kind),limit),status:LocalIntelligenceV38["status"]=providers.some(x=>x==="Tripadvisor"||x==="Google Places"||x==="Foursquare")?(providers.length>=2?"live":"partial"):(providers.includes("OpenStreetMap")?"fallback":"unavailable");
- return{status,providers:[...new Set(providers)],sourceDisclosure:"External ratings are shown only when returned by the named provider. AI Guest Signal is first-party feedback from users who explicitly confirmed they went after their trip window; it is hidden until at least 3 responses exist.",destinationSignal:guest.destination,restaurants:by("restaurant"),nightlife:by("nightlife"),attractions:by("attraction"),museums:by("museum"),beaches:by("beach"),cafes:by("cafe")};
+ let merged=merge(rows,guest.map);
+ const missingCore=()=>!merged.some(x=>x.kind==="restaurant"||x.kind==="cafe")||!merged.some(x=>x.kind==="attraction"||x.kind==="museum"||x.kind==="beach")||!merged.some(x=>x.kind==="nightlife");
+ if(missingCore()){
+  const[osm,wiki]=await Promise.all([osmFallback(args.latitude,args.longitude),wikivoyageFallback(args.destinationName,args.hotelName,args.latitude,args.longitude,args.language)]);
+  if(osm.length){providers.push("OpenStreetMap");merged=merge([...merged,...osm],guest.map)}
+  if(wiki.length){providers.push("Wikivoyage");merged=merge([...merged,...wiki],guest.map)}
+ }
+ const by=(kind:LocalPlaceKindV38,limit=8)=>rank(merged.filter(x=>x.kind===kind),limit),status:LocalIntelligenceV38["status"]=providers.some(x=>x==="Tripadvisor"||x==="Google Places"||x==="Foursquare")?(providers.filter(x=>x==="Tripadvisor"||x==="Google Places"||x==="Foursquare").length>=2?"live":"partial"):(providers.some(x=>x==="OpenStreetMap"||x==="Wikivoyage")?"fallback":"unavailable");
+ return{status,providers:[...new Set(providers)],sourceDisclosure:"Ratings are shown only when returned by the named rating provider. OpenStreetMap and Wikivoyage are used as public-source POI fallbacks when licensed rating providers return no local data; those fallback places are shown without invented ratings. AI Guest Signal is first-party feedback and remains hidden until at least 3 confirmed responses exist.",destinationSignal:guest.destination,restaurants:by("restaurant"),nightlife:by("nightlife"),attractions:by("attraction"),museums:by("museum"),beaches:by("beach"),cafes:by("cafe")};
 }
