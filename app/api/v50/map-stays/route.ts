@@ -51,7 +51,7 @@ const base=()=>process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"
 const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY??"";
 const txt=(v:unknown)=>typeof v==="string"?v.trim():"";
 const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
-const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
+const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();\nconst rad=(n:number)=>n*Math.PI/180;\nfunction kmBetween(aLat:number,aLon:number,bLat:number,bLon:number){const dLat=rad(bLat-aLat),dLon=rad(bLon-aLon),h=Math.sin(dLat/2)**2+Math.cos(rad(aLat))*Math.cos(rad(bLat))*Math.sin(dLon/2)**2;return 6371*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h))}
 function enrichIntelligence(products:Product[],targetMonth:number,catalogBySlug:Map<string,{seasonProfile:string;tags:readonly string[]}>){
  const cleanProducts=products.map(p=>({
   ...p,
@@ -146,6 +146,17 @@ export async function GET(request:Request){
    return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade,targetMonth:intelligence.targetMonth,demandIsDiscriminating:intelligence.demandIsDiscriminating},version:50,fullUniverse:false,demandLayer:{forecastStatus:"disabled",observedDemandStatus:intelligence.demandIsDiscriminating?"live-proxy":"non-discriminating",reason:intelligence.demandIsDiscriminating?"Map ranking uses observed inventory demand_proxy where it varies. This is not presented as demand forecasting.":"Observed demand_proxy is non-discriminating for this sample, so it is excluded from ranking rather than fabricated."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
   }
   const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
+  const resolveDestination=(locationText:string,lat:number,lon:number)=>{
+   const textual=destinationKeys.find(x=>locationText.includes(x.name))?.slug;
+   if(textual)return textual;
+   let best:{slug:string;km:number}|null=null;
+   for(const d of catalog){
+    const km=kmBetween(lat,lon,d.latitude,d.longitude);
+    const radius=Math.max(18,Math.min(55,Number(d.hotelRadiusKm||30)+12));
+    if(km<=radius&&(!best||km<best.km))best={slug:d.slug,km};
+   }
+   return best?.slug??null;
+  };
   const rows:OfferRow[]=[],rowCeiling=quick?600:Math.max(limit*2,2000),offsetCeiling=quick?1000:3000;
   for(let offset=0;offset<offsetCeiling&&rows.length<rowCeiling;offset+=1000){
    const batch=await page(offset,quick?600:1000);rows.push(...batch);if(batch.length<(quick?600:1000))break;
@@ -157,7 +168,7 @@ export async function GET(request:Request){
    if(lat<34||lat>42.5||lon<19||lon>30)continue;
    seen.add(placeId);
    const locationText=norm([txt(row.location_label),txt(place?.location_label),txt(place?.city_raw),txt(place?.address)].filter(Boolean).join(" "));
-   const destinationSlug=destinationKeys.find(x=>locationText.includes(x.name))?.slug??null;
+   const destinationSlug=resolveDestination(locationText,lat,lon);
    products.push({
     productId:txt(row.source_product_id),placeId,name:txt(row.property_name)||txt(place?.property_name),
     location:txt(row.location_label)||txt(place?.location_label)||txt(place?.city_raw),
