@@ -3,7 +3,8 @@ import { interpretIntentV8 } from "@/lib/ai/intent-v8";
 import { createLLMRequestBudgetV16 } from "@/lib/ai/model-router-v9";
 import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
 import { parseTripRequest } from "@/lib/validation/trip";
-import { V8_DIMENSIONS,type V8Dimension,type V8Recommendation } from "@/lib/decision/v8-types";
+import { V8_DIMENSIONS,type V8Dimension,type V8Recommendation,type V8Destination } from "@/lib/decision/v8-types";
+import { seasonalStayFit } from "@/lib/decision/stay-seasonality-v66";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -55,19 +56,21 @@ function validWindow(row:Row,start:string,end:string){
  const f=row.valid_from?Date.parse(row.valid_from.slice(0,10)+"T00:00:00Z"):NaN,t=row.valid_to?Date.parse(row.valid_to.slice(0,10)+"T00:00:00Z"):NaN;
  return row.in_stock!==false&&(!Number.isFinite(f)||f<=s)&&(!Number.isFinite(t)||t>=e);
 }
-function stayRank(row:Row,weights:Record<string,number>,traveler:string,budget:number){
+function stayRank(row:Row,weights:Record<string,number>,traveler:string,budget:number,startDate:string,destination:V8Destination|null){
  const sem=semanticStayScore(row,weights),price=Number(row.price??0),ratio=price>0?price/Math.max(1,budget):0;
  const valueScore=price<=0?52:ratio<=.35?94:ratio<=.65?84:ratio<=1?72:ratio<=1.3?58:42;
  const locationScore=row.distance_km==null?58:row.distance_km<=3?96:row.distance_km<=10?86:row.distance_km<=25?70:54;
  const travelerFit=clamp(Number(row.traveler_fit?.[traveler]??.5)*100),evidenceScore=clamp(Number(row.evidence_score??0)*100);
- return{score:clamp(sem.score*.42+travelerFit*.16+valueScore*.16+locationScore*.12+evidenceScore*.14),sem,valueScore,locationScore,travelerFit,evidenceScore};
+ const month=Math.max(1,Math.min(12,Number(startDate.slice(5,7))||1));
+ const seasonal=seasonalStayFit({month,propertyName:row.property_name,description:row.description,category:row.source_category,location:[row.city,row.address].filter(Boolean).join(" "),destinationSlug:row.destination_slug,destinationSeasonProfile:destination?.seasonProfile,destinationTags:destination?.tags});
+ return{score:clamp(sem.score*.34+travelerFit*.13+valueScore*.14+locationScore*.10+evidenceScore*.12+seasonal.score*.17),sem,valueScore,locationScore,travelerFit,evidenceScore,seasonal};
 }
 function solution(rec:V8Recommendation,x:{row:Row;ranked:ReturnType<typeof stayRank>},language:string){
  const destinationScore=Math.round(rec.score),stayScore=Math.round(x.ranked.score),valueScore=Math.round(x.ranked.valueScore),locationScore=Math.round(x.ranked.locationScore);
  return{
   score:destinationScore,destinationScore,stayScore,valueScore,locationScore,
   destination:{slug:rec.slug,name:language==="en"?rec.destinationEn:rec.destination,nameEn:rec.destinationEn,tags:rec.tags},
-  stay:{sourceProductId:x.row.source_product_id,propertyName:x.row.property_name,trackingUrl:x.row.tracking_url,imageUrl:x.row.image_url??x.row.thumb_url,price:x.row.price,currency:x.row.currency,distanceKm:x.row.distance_km,availability:x.row.availability,semanticScore:Math.round(x.ranked.sem.score),vectorScore:Math.round(x.ranked.sem.vectorScore),travelerFit:Math.round(x.ranked.travelerFit),valueScore,evidenceScore:Math.round(x.ranked.evidenceScore)},
+  stay:{sourceProductId:x.row.source_product_id,propertyName:x.row.property_name,trackingUrl:x.row.tracking_url,imageUrl:x.row.image_url??x.row.thumb_url,price:x.row.price,currency:x.row.currency,distanceKm:x.row.distance_km,availability:x.row.availability,semanticScore:Math.round(x.ranked.sem.score),vectorScore:Math.round(x.ranked.sem.vectorScore),travelerFit:Math.round(x.ranked.travelerFit),valueScore,evidenceScore:Math.round(x.ranked.evidenceScore),seasonalFit:{score:x.ranked.seasonal.score,band:x.ranked.seasonal.band,reason:x.ranked.seasonal.reason}},
   matchedSignals:x.ranked.sem.matched.slice(0,5),
   reason:rec.why
  };
@@ -83,12 +86,12 @@ export async function POST(request:Request){
   inventory(trip.startDate,trip.endDate),
   loadV8DestinationCatalog()
  ]);
- const known=new Set(catalog.map(d=>d.slug)),byDestination=new Map<string,Row[]>();
+ const known=new Set(catalog.map(d=>d.slug)),catalogBySlug=new Map(catalog.map(d=>[d.slug,d])),byDestination=new Map<string,Row[]>();
  for(const row of rows){if(!known.has(row.destination_slug)||!validWindow(row,trip.startDate,trip.endDate))continue;const group=byDestination.get(row.destination_slug)??[];group.push(row);byDestination.set(row.destination_slug,group)}
  const solutions=[];
  for(const rec of canonical.recommendations){
   const offers=byDestination.get(rec.slug)??[];if(!offers.length)continue;
-  const ranked=offers.map(row=>({row,ranked:stayRank(row,intent.weights as Record<string,number>,trip.travelerType,trip.budget)})).sort((a,b)=>b.ranked.score-a.ranked.score);
+  const ranked=offers.map(row=>({row,ranked:stayRank(row,intent.weights as Record<string,number>,trip.travelerType,trip.budget,trip.startDate,catalogBySlug.get(rec.slug)??null)})).sort((a,b)=>b.ranked.score-a.ranked.score);
   const top=ranked[0];if(!top)continue;
   solutions.push({rank:solutions.length+1,...solution(rec,top,trip.language??"el")});
   if(solutions.length>=8)break;
