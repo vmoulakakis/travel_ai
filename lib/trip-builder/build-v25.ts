@@ -1,5 +1,5 @@
 import { researchDestination } from "@/lib/ai/destination-research";
-import { loadV8DestinationCatalog,loadV8StayOffers } from "@/lib/data/destination-v8";
+import { loadV8DestinationCatalog,loadV8StayOfferById,loadV8StayOffers } from "@/lib/data/destination-v8";
 import { assessStayWindowV25 } from "@/lib/data/provider-availability-v25";
 import { getTripadvisorBundleV25 } from "@/lib/data/tripadvisor-v25";
 import { getDailyTripWeatherV25 } from "@/lib/data/trip-weather-v25";
@@ -18,8 +18,8 @@ function guidePath(slug:string,offerId:string,trip:TripRequest){const tripToken=
 function mapWebResearch(result:Awaited<ReturnType<typeof researchDestination>>):InternetResearchV25{const bullets=result.attractions.slice(0,5).flatMap(item=>{const summary=item.summary??null;if(!summary)return[];return[{name:item.name,summary,why:item.whyItFits??null,strength:item.evidenceStrength??"MEDIUM" as const}]});return{status:result.source==="verified-synthesis"?"verified-synthesis":result.source==="research-pending"?"research-pending":"unavailable",overview:result.overview??null,bullets,practicalNotes:result.practicalNotes.slice(0,5),sources:result.sources.map(source=>({title:source.title,url:source.url,domain:source.domain}))}}
 
 export async function buildTripBuilderV25(input:TripBuilderRequestV25):Promise<TripBuilderPlanV25>{
- const{trip,slug,offerId}=input,[catalog,originalOffers]=await Promise.all([loadV8DestinationCatalog(),loadV8StayOffers(slug,trip.startDate,trip.endDate,40)]),destination=catalog.find(item=>item.slug===slug);if(!destination)throw new Error("Destination not found");
- const selected=originalOffers.find(item=>item.sourceProductId===offerId)??null;if(!selected)throw new Error("Selected stay is not valid for the complete requested window");
+ const{trip,slug,offerId}=input,[catalog,originalOffers,directSelected]=await Promise.all([loadV8DestinationCatalog(),loadV8StayOffers(slug,trip.startDate,trip.endDate,40),loadV8StayOfferById(offerId)]),destination=catalog.find(item=>item.slug===slug);if(!destination)throw new Error("Destination not found");
+ const selected=originalOffers.find(item=>item.sourceProductId===offerId)??(directSelected?.sourceProductId===offerId?directSelected:null);if(!selected)throw new Error("Selected stay could not be resolved from active or direct inventory");
  const groupSize=Math.max(1,trip.groupSize??1),lat=selected.latitude??destination.latitude,lon=selected.longitude??destination.longitude,summer=isSummer(trip.startDate,trip.endDate),destinationName=trip.language==="en"?destination.nameEn:destination.nameEl;
  const[availability,weather,tripadvisor,research]=await Promise.all([
   assessStayWindowV25({slug,startDate:trip.startDate,endDate:trip.endDate,offerId:selected.sourceProductId,propertyName:selected.propertyName,groupSize,probeProvider:true}),
