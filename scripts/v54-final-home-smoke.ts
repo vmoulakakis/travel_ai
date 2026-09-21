@@ -17,3 +17,5 @@ assert(ui.includes('value={destination}')&&ui.includes("Πού θέλεις να
 assert(ui.includes("setMapReady(true)")&&css.includes(".mapCanvasWrap"),"map must have an explicit interactive canvas lifecycle");
 assert(css.includes(".navActions")&&css.includes(".fieldCard")&&css.includes(".truthStats"),"V55 approved reference structure is incomplete");
 console.log("V55_FINAL_HOME_OK ai=CLICKABLE planner=TABBED inventory=2000 map=ALL_MARKERS_INTERACTIVE layout=APPROVED_REFERENCE");
+assert(!ui.includes("window.open(stay.tracking"),"V54 must never jump directly from selection to affiliate tracking URL");
+assert(ui.includes("`/stay/${encodeURIComponent(stay.id)}?${q}`")||ui.includes("/escape/${encodeURIComponent(stay.slug)}/stay/"),"V54 selection must always enter the internal stay funnel");
