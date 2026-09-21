@@ -681,3 +681,11 @@
  .mapFocusCard>small{display:none}
  .mapFocusCard i{font-size:6px;padding:3px 6px}
 }
+
+
+/* V64 verified stay enrichment — property imagery inside map tooltip */
+:global(.v56MapTipPhoto){
+ display:block;width:calc(100% + 20px);height:118px;object-fit:cover;
+ margin:-10px -10px 9px;border-radius:11px 11px 7px 7px;
+ background:#dfe9e4;
+}
