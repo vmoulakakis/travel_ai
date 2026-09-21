@@ -1,0 +1,46 @@
+name: Deploy TravelAI prebuilt production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-travel-ai-prebuilt.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Production – travel-ai
+    env:
+      VERCEL_ORG_ID: team_jt3jd1HJUB4sK1oZdl9MUYGs
+      VERCEL_PROJECT_ID: prj_wGO5Tq3kQxrUMi7WA3lvTHxTNGhn
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck local-source fixes
+        run: npm run typecheck
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull production settings
+        run: |
+          test -n "$VERCEL_TOKEN" || (echo "VERCEL_TOKEN unavailable in Production – travel-ai environment" && exit 2)
+          vercel pull --yes --environment=production --scope vassilis-projects-3bf8541b --token "$VERCEL_TOKEN"
+
+      - name: Build production locally
+        run: vercel build --prod --scope vassilis-projects-3bf8541b --token "$VERCEL_TOKEN"
+
+      - name: Deploy prebuilt production
+        run: vercel deploy --prebuilt --prod --yes --scope vassilis-projects-3bf8541b --token "$VERCEL_TOKEN"
