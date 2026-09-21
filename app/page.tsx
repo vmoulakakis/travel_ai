@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { V66MobileAgent } from "@/components/v66-mobile-agent";
+import { V54FinalHome } from "@/components/v54-final-home";
 
 export const dynamic="force-dynamic";
 export const metadata:Metadata={
-  title:{absolute:"TravelAI | Ο AI travel agent που βρίσκει τι αξίζει τώρα"},
-  description:"Mobile-first AI travel agent με εποχικότητα, spatial awareness, demand intelligence και live stays. Λιγότερο ψάξιμο, τρεις ουσιαστικές επιλογές.",
+  title:{absolute:"TravelAI | Η απόδραση που ταιριάζει σε αυτό που πραγματικά θέλεις"},
+  description:"Μίλα φυσικά με έναν AI travel agent που καταλαβαίνει το brief σου, συγκρίνει πραγματικές διαμονές, σε ρωτά μόνο ό,τι χρειάζεται και σου δείχνει τις καλύτερες λύσεις πάνω στον χάρτη.",
   alternates:{canonical:"/",languages:{"el-GR":"/","en-GB":"/en"}},
   openGraph:{
-    title:"TravelAI | AI narrows the noise",
-    description:"Season-aware, spatial-aware, demand-aware travel intelligence in a simple mobile-first experience.",
+    title:"TravelAI | Agentic Escape Intelligence",
+    description:"Από το feeling στην πραγματική ταξιδιωτική λύση — με AI agent, live stays και interactive map.",
     type:"website"
   }
 };
 
 export default function HomePage(){
- return <V66MobileAgent/>;
+ return <V54FinalHome/>;
 }
