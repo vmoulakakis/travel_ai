@@ -32,9 +32,9 @@ function baseTrip(input:Input):TripRequest{
 
 function horizonWeights(start:string,demandOn:boolean){
  const days=Math.max(0,Math.round((Date.parse(start+"T00:00:00Z")-Date.now())/DAY));
- if(days<=14)return{user:.20,season:.14,weather:.23,demand:demandOn?.12:0,value:.11,budget:.10,spatial:.10,label:"near-term"};
- if(days<=45)return{user:.22,season:.19,weather:.17,demand:demandOn?.11:0,value:.11,budget:.10,spatial:.10,label:"mid-term"};
- return{user:.24,season:.26,weather:.08,demand:demandOn?.10:0,value:.11,budget:.11,spatial:.10,label:"seasonal-forecast"};
+ if(days<=14)return{user:.20,season:.14,weather:.23,demand:demandOn ? .12 : 0,value:.11,budget:.10,spatial:.10,label:"near-term"};
+ if(days<=45)return{user:.22,season:.19,weather:.17,demand:demandOn ? .11 : 0,value:.11,budget:.10,spatial:.10,label:"mid-term"};
+ return{user:.24,season:.26,weather:.08,demand:demandOn ? .10 : 0,value:.11,budget:.11,spatial:.10,label:"seasonal-forecast"};
 }
 
 function roleFor(index:number,score:number,season:number,weather:number,demand:number,value:number,demandOn:boolean){
