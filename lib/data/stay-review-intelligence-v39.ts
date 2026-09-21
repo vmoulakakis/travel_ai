@@ -67,9 +67,9 @@ function travelAiComposite(ratings:StayRatingV39[]){
  let weighted=0,totalWeight=0,totalReviews=0;
  for(const r of usable){
   const normalized=Math.max(0,Math.min(100,(r.rating/Math.max(1,r.scale))*100));
-  const confidence=r.confidence==="HIGH"?1:r.confidence==="MEDIUM"?.78:.58;
+  const confidence=r.confidence==="HIGH" ? 1 : r.confidence==="MEDIUM" ? .78 : .58;
   const volume=Math.min(1.45,.72+Math.log10(Math.max(1,(r.reviewCount??0)+1))*.18);
-  const provider=r.provider==="AI Guest Signal"?.55:r.provider==="Foursquare"?.75:1;
+  const provider=r.provider==="AI Guest Signal" ? .55 : r.provider==="Foursquare" ? .75 : 1;
   const weight=confidence*volume*provider;weighted+=normalized*weight;totalWeight+=weight;totalReviews+=Math.max(0,r.reviewCount??0);
  }
  const score=Math.round(weighted/Math.max(.01,totalWeight));
