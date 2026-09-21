@@ -16,7 +16,7 @@ type Solution={rank:number;score:number;destination:{slug:string;name:string;reg
 type AgentResponse={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:{id:string;text:string;quickReplies:{label:string;value:string}[]};solutions?:Solution[];trip?:{startDate:string;endDate:string;travelerType:string;moods:string[];budget:number;origin:string};agentRuntime?:{today?:string;timezone?:string;dateRecovery?:{tier?:string;label?:string}|null}};
 type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;intelligence:number|null;seasonal:number|null;priceFit:number|null;demand:number|null;mapSignal:"ai"|"demand"|"seasonal"|"value"|"explore"|null;starTier:"gold"|"green"|"blue"|null};
 type RatingSignal={provider:"Google Places"|"Tripadvisor"|"Foursquare"|"AI Guest Signal";rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
-type QuickRating={status:"live"|"unavailable";primary:RatingSignal|null;ratings:RatingSignal[]};
+type QuickRating={status:"live"|"unavailable";primary:RatingSignal|null;ratings:RatingSignal[];photoUrl?:string|null;photoProvider?:string|null;matchedName?:string|null};
 type MapIntelligence={focus:{latitude:number;longitude:number;zoom:number;label:string;score:number;demand:number;seasonality:number;value:number;reason:string}|null;weights:{demand:number;seasonality:number;priceValue:number};ratingUpgrade:string;targetMonth?:number;demandIsDiscriminating?:boolean};
 
 const defaults:Filters={calm:78,food:72,nature:74,discovery:68,nightlife:28,value:70};
@@ -52,6 +52,7 @@ export function V54FinalHome(){
  const [mapView,setMapView]=useState({lat:36.3932,lon:25.4615,zoom:11});
  const [mobilePlannerOpen,setMobilePlannerOpen]=useState(false);
  const [verifiedRatings,setVerifiedRatings]=useState<Record<string,QuickRating|null>>({});
+ const [verifiedPhotos,setVerifiedPhotos]=useState<Record<string,string>>({});
  const [mapIntelligence,setMapIntelligence]=useState<MapIntelligence|null>(null);
  const [aiFocusLabel,setAiFocusLabel]=useState("AI seasonal focus");
  const hoveredStayRef=useRef<DisplayStay|null>(null);
@@ -123,16 +124,16 @@ export function V54FinalHome(){
 
  const cards=useMemo<DisplayStay[]>(()=>{
   if(solutions.length)return solutions.map(s=>({
-   id:s.stay.productId,name:s.stay.name,location:s.destination.name,image:s.stay.imageUrl,
+   id:s.stay.productId,name:s.stay.name,location:s.destination.name,image:verifiedPhotos[s.stay.productId]??s.stay.imageUrl,
    price:s.stay.price,currency:s.stay.currency,lat:s.stay.latitude,lon:s.stay.longitude,
    slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,availability:s.stay.availability,intelligence:Math.round(s.score),seasonal:null,priceFit:null,demand:null,mapSignal:"ai",starTier:s.rank<=3?"gold":"green"
   }));
   return inventory.slice(0,12).map((p,i)=>({
-   id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:p.imageUrl,price:p.price,currency:p.currency,
+   id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:verifiedPhotos[p.productId]??p.imageUrl,price:p.price,currency:p.currency,
    lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
    why:i===0?"Ισχυρό seasonal / price-value fit από το live inventory.":"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,intelligence:p.intelligenceScore??null,seasonal:p.seasonalScore??null,priceFit:p.priceScore??null,demand:p.demandSignal??null,mapSignal:p.mapSignal??"explore",starTier:p.starTier??null
   }));
- },[solutions,inventory]);
+ },[solutions,inventory,verifiedPhotos]);
 
  const activeStay=selectedMapStay??cards[active]??cards[0]??null;
  const destinationHero=heroMedia.find(h=>destination.toLocaleLowerCase("el-GR").includes(h.location.toLocaleLowerCase("el-GR"))||h.location.toLocaleLowerCase("el-GR").includes(destination.split(",")[0].trim().toLocaleLowerCase("el-GR")))?.imageUrl??heroMedia[0]?.imageUrl??null;
@@ -141,6 +142,26 @@ export function V54FinalHome(){
   const urls=[activeStay?.image,...heroMedia.map(x=>x.imageUrl),...inventory.slice(0,20).map(x=>x.imageUrl)].filter((x):x is string=>Boolean(x));
   return [...new Set(urls)].slice(0,8);
  },[activeStay?.image,heroMedia,inventory]);
+
+ useEffect(()=>{
+  let cancelled=false;
+  const top=cards.slice(0,3).filter(s=>s.slug&&!ratingCache.current.has(s.id));
+  void Promise.all(top.map(async s=>{
+   try{
+    const response=await fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+     propertyName:s.name,sourceProductId:s.id,destinationSlug:s.slug,destinationName:s.location,latitude:s.lat,longitude:s.lon
+    })});
+    const payload=await response.json() as {ok?:boolean;result?:QuickRating|null};
+    const result=payload?.ok?payload.result??null:null;
+    ratingCache.current.set(s.id,result);
+    if(cancelled)return;
+    setVerifiedRatings(v=>({...v,[s.id]:result}));
+    if(result?.photoUrl)setVerifiedPhotos(v=>({...v,[s.id]:result.photoUrl!}));
+   }catch{if(!cancelled)setVerifiedRatings(v=>({...v,[s.id]:null}))}
+  }));
+  return()=>{cancelled=true};
+ },[cards.length,solutions.length]);
+
 
  useEffect(()=>{
   if(initialAiFocusDone.current||!mapRef.current||!mapReady||!mapIntelligence?.focus)return;
@@ -160,20 +181,22 @@ export function V54FinalHome(){
    layerRef.current?.remove();
    const g=L.layerGroup().addTo(mapRef.current);layerRef.current=g;
    const displayFromInventory=(p:Stay):DisplayStay=>({
-    id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:p.imageUrl,price:p.price,currency:p.currency,
+    id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:verifiedPhotos[p.productId]??p.imageUrl,price:p.price,currency:p.currency,
     lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
     why:"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,intelligence:p.intelligenceScore??null,seasonal:p.seasonalScore??null,priceFit:p.priceScore??null,demand:p.demandSignal??null,mapSignal:p.mapSignal??"explore",starTier:p.starTier??null
    });
    const aiRanks=new Map(solutions.map((s,i)=>[s.stay.productId,i+1]));
    const ratingMarkup=(rating:QuickRating|null|undefined)=>{
     if(rating===undefined)return `<div class="v56RatingLoading">✦ Scanning verified ratings…</div>`;
-    if(!rating?.ratings?.length)return `<div class="v56RatingEmpty">No verified external rating found</div>`;
+    if(!rating?.ratings?.length)return `<div class="v56RatingEmpty">Verified rating not returned yet · click opens full verification funnel</div>`;
     return `<div class="v56RatingRow">${rating.ratings.filter(x=>x.provider!=="AI Guest Signal").slice(0,3).map(x=>`<span><b>${html(x.provider)}</b> ${x.rating.toFixed(1)}/${x.scale}${x.reviewCount!=null?` · ${x.reviewCount.toLocaleString("el-GR")} reviews`:""}</span>`).join("")}</div>`;
    };
    const tooltipFor=(p:Stay,rank:number|null,rating:QuickRating|null|undefined)=>{
     const signal=rank?"AI SPOTLIGHT":p.mapSignal==="demand"?"HIGH DEMAND":p.mapSignal==="seasonal"?"SEASONAL FIT":p.mapSignal==="value"?"BEST VALUE":"EXPLORE";
+    const propertyPhoto=rating?.photoUrl??p.imageUrl;
     return `
      <div class="v56MapTip">
+      ${propertyPhoto?`<img class="v56MapTipPhoto" src="${html(propertyPhoto)}" alt=""/>`:""}
       <div class="v56MapTipTop"><span class="v56AiBadge">${html(signal)}${rank?` · #${rank}`:""}</span><strong>${html(money(p.price,p.currency))}</strong></div>
       <b class="v56MapTipName">${html(p.name)}</b>
       <span class="v56MapTipLoc">⌖ ${html(p.location||p.address||"Ελλάδα")}</span>
@@ -199,6 +222,8 @@ export function V54FinalHome(){
      const j=await r.json() as {ok?:boolean;result?:QuickRating|null};
      const result=j?.ok?j.result??null:null;
      ratingCache.current.set(p.productId,result);
+     setVerifiedRatings(v=>({...v,[p.productId]:result}));
+     if(result?.photoUrl)setVerifiedPhotos(v=>({...v,[p.productId]:result.photoUrl!}));
      marker.setTooltipContent(tooltipFor(p,rank,result));
     }catch{ratingCache.current.set(p.productId,null);marker.setTooltipContent(tooltipFor(p,rank,null))}
     finally{ratingPending.current.delete(p.productId)}
@@ -223,7 +248,7 @@ export function V54FinalHome(){
       zIndexOffset:signal==="ai"?1900-(rank??20):signal==="demand"?1200:signal==="seasonal"?950:signal==="value"?800:300
     });
     marker.bindTooltip(tooltipFor(p,rank,ratingCache.current.get(p.productId)),{direction:"top",offset:[0,-14],opacity:1,className:"v56Tooltip"});
-    marker.on("mouseover",()=>marker.setTooltipContent(tooltipFor(p,rank,ratingCache.current.get(p.productId)??null)));
+    marker.on("mouseover",()=>{marker.setTooltipContent(tooltipFor(p,rank,ratingCache.current.get(p.productId)));void loadRating(p,marker,rank)});
     marker.on("click",()=>{
       const stay=displayFromInventory(p);
       setSelectedMapStay(stay);hoveredStayRef.current=stay;
