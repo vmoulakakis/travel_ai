@@ -1,4 +1,5 @@
 name: Deploy TravelAI prebuilt production
+# quality-pass: local POI dedupe
 
 on:
   push:
