@@ -147,16 +147,16 @@ export function V54FinalHome(){
   let cancelled=false;
   const top=cards.slice(0,3).filter(s=>s.slug&&!ratingCache.current.has(s.id));
   void Promise.all(top.map(async s=>{
+   const requestBody={propertyName:s.name,sourceProductId:s.id,destinationSlug:s.slug,destinationName:s.location,latitude:s.lat,longitude:s.lon};
+   void fetch("/api/v50/stay-media",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(requestBody)})
+    .then(r=>r.json()).then(p=>{const url=p?.ok?p?.result?.photoUrl:null;if(!cancelled&&url)setVerifiedPhotos(v=>({...v,[s.id]:url}))}).catch(()=>{});
    try{
-    const response=await fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-     propertyName:s.name,sourceProductId:s.id,destinationSlug:s.slug,destinationName:s.location,latitude:s.lat,longitude:s.lon
-    })});
+    const response=await fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(requestBody)});
     const payload=await response.json() as {ok?:boolean;result?:QuickRating|null};
     const result=payload?.ok?payload.result??null:null;
     ratingCache.current.set(s.id,result);
     if(cancelled)return;
     setVerifiedRatings(v=>({...v,[s.id]:result}));
-    if(result?.photoUrl)setVerifiedPhotos(v=>({...v,[s.id]:result.photoUrl!}));
    }catch{if(!cancelled)setVerifiedRatings(v=>({...v,[s.id]:null}))}
   }));
   return()=>{cancelled=true};
@@ -215,6 +215,9 @@ export function V54FinalHome(){
     if(ratingPending.current.has(p.productId)||!p.destinationSlug)return;
     ratingPending.current.add(p.productId);
     marker.setTooltipContent(tooltipFor(p,rank,undefined));
+    const mediaBody={propertyName:p.name,sourceProductId:p.productId,destinationSlug:p.destinationSlug,destinationName:p.location||p.address||destination,latitude:p.latitude,longitude:p.longitude};
+    void fetch("/api/v50/stay-media",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(mediaBody)})
+     .then(r=>r.json()).then(j=>{const url=j?.ok?j?.result?.photoUrl:null;if(url)setVerifiedPhotos(v=>({...v,[p.productId]:url}))}).catch(()=>{});
     try{
      const r=await fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
       propertyName:p.name,sourceProductId:p.productId,destinationSlug:p.destinationSlug,destinationName:p.location||p.address||destination,latitude:p.latitude,longitude:p.longitude
@@ -223,7 +226,6 @@ export function V54FinalHome(){
      const result=j?.ok?j.result??null:null;
      ratingCache.current.set(p.productId,result);
      setVerifiedRatings(v=>({...v,[p.productId]:result}));
-     if(result?.photoUrl)setVerifiedPhotos(v=>({...v,[p.productId]:result.photoUrl!}));
      marker.setTooltipContent(tooltipFor(p,rank,result));
     }catch{ratingCache.current.set(p.productId,null);marker.setTooltipContent(tooltipFor(p,rank,null))}
     finally{ratingPending.current.delete(p.productId)}
