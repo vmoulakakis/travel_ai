@@ -41,3 +41,32 @@ export async function getBookingCitySignalV30(args:{latitude:number;longitude:nu
   return{status:"live",reviewScore10,reviewCount,accommodationCount:rows.length,sourceDate};
  }catch{return{status:"unavailable",reviewScore10:null,reviewCount:0,accommodationCount:0,sourceDate}}
 }
+
+
+const textValue=(value:unknown)=>typeof value==="string"?value.trim():"";
+const normName=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9α-ω]+/gi," ").trim();
+function bookingNameFit(expected:string,row:JsonObject){
+ const candidate=textValue(readPath(row,["name"]))||textValue(readPath(row,["accommodation","name"]))||textValue(readPath(row,["property","name"]));
+ const a=new Set(normName(expected).split(/\s+/).filter(x=>x.length>1)),b=new Set(normName(candidate).split(/\s+/).filter(x=>x.length>1));
+ if(!a.size||!b.size)return 0;
+ const common=[...a].filter(x=>b.has(x)).length;
+ return Math.max(common/Math.min(a.size,b.size),common/new Set([...a,...b]).size);
+}
+
+export async function getBookingStayRatingV68(args:{propertyName:string;latitude:number|null;longitude:number|null;language:"el"|"en"}){
+ if(!bookingDemandConfiguredV30()||args.latitude==null||args.longitude==null)return null;
+ const today=new Date(),checkin=iso(addDays(today,30)),checkout=iso(addDays(today,32));
+ try{
+  const search=await bookingPost("/accommodations/search",{coordinates:{latitude:args.latitude,longitude:args.longitude,radius:8},booker:{country:"gr",platform:"desktop",travel_purpose:"leisure"},currency:"EUR",checkin,checkout,guests:{number_of_adults:2,number_of_rooms:1},sort:{by:"review_score",direction:"descending"},rows:20});
+  const rows=array(search.data).map(object).filter((row):row is JsonObject=>Boolean(row));
+  let best:JsonObject|null=null,bestFit=.62;
+  for(const row of rows){const fit=bookingNameFit(args.propertyName,row);if(fit>bestFit){best=row;bestFit=fit}}
+  if(!best)return null;
+  const id=accommodationId(best);if(id==null)return null;
+  const scores=await bookingPost("/accommodations/reviews/scores",{accommodations:[id],languages:[args.language==="el"?"el":"en-gb"]});
+  const row=array(scores.data).map(object).find((x):x is JsonObject=>Boolean(x));if(!row)return null;
+  const score=scoreOf(row),reviewCount=reviewCountOf(row);
+  if(score==null||score<0||score>10)return null;
+  return{rating:score/2,reviewCount:Math.max(0,Math.round(reviewCount)),matchConfidence:bestFit};
+ }catch{return null}
+}
