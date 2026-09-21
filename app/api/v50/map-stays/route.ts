@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
+import { seasonalStayFit } from "@/lib/decision/stay-seasonality-v66";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -51,17 +52,7 @@ const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY??"";
 const txt=(v:unknown)=>typeof v==="string"?v.trim():"";
 const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
 const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
-function seasonalScore(location:string,slug:string|null,month:number){
- const t=norm(location+" "+(slug??""));
- const hit=(xs:string[])=>xs.some(x=>t.includes(x));
- const winter=["arachova","αραχωβ","kalavryta","καλαβρυτ","metsovo","μετσοβ","zagori","ζαγορ","karpenisi","καρπενησ","pelion","πηλιο","parnass","παρνασσ"];
- const summer=["santorini","σαντοριν","mykon","μυκον","paros","παρο","naxos","ναξ","milos","μηλο","crete","κρητ","chania","χανι","rhodes","ροδο","corfu","κερκυρ","lefkada","λευκαδ","kefal","κεφαλον","zakynth","ζακυνθ","skiath","σκιαθ"];
- const shoulder=["nafpl","ναυπλ","athens","αθην","thessalon","θεσσαλον","ioannin","ιωανν","meteora","μετεωρ","monemvas","μονεμβασ"];
- if([12,1,2].includes(month))return hit(winter)?100:hit(shoulder)?72:42;
- if([6,7,8,9].includes(month))return hit(summer)?100:hit(shoulder)?68:40;
- return hit(shoulder)?92:hit(summer)||hit(winter)?66:48;
-}
-function enrichIntelligence(products:Product[],targetMonth:number){
+function enrichIntelligence(products:Product[],targetMonth:number,catalogBySlug:Map<string,{seasonProfile:string;tags:readonly string[]}>){
  const cleanProducts=products.map(p=>({
   ...p,
   price:p.price!=null&&p.price>=5?p.price:null,
@@ -88,7 +79,8 @@ function enrichIntelligence(products:Product[],targetMonth:number){
  }
  const enriched=cleanProducts.map(p=>{
   const groupKey=p.destinationSlug||norm(p.location)||p.placeId;
-  const seasonal=seasonalScore(p.location,p.destinationSlug,targetMonth);
+  const profile=p.destinationSlug?catalogBySlug.get(p.destinationSlug):null;
+  const seasonal=seasonalStayFit({month:targetMonth,propertyName:p.name,category:p.category,location:[p.location,p.address].filter(Boolean).join(" "),destinationSlug:p.destinationSlug,destinationSeasonProfile:profile?.seasonProfile,destinationTags:profile?.tags}).score;
   const median=localMedian.get(groupKey)??null;
   const baseValue=median==null||p.price==null?52:Math.max(12,Math.min(100,Math.round((median/Math.max(1,p.price))*68)));
   const price=Math.max(10,Math.min(100,baseValue+(p.onSale?7:0)+(p.discount!=null&&p.discount>0?Math.min(10,Math.round(p.discount/5)):0)));
@@ -143,16 +135,16 @@ export async function GET(request:Request){
   const targetMonth=parsedMonth?Math.max(1,Math.min(12,Number(parsedMonth))):new Date().getUTCMonth()+1;
   const requested=Number(requestUrl.searchParams.get("limit")??(quick?24:1800));
   const limit=quick?Math.max(12,Math.min(60,Number.isFinite(requested)?Math.round(requested):24)):Math.max(100,Math.min(2000,Number.isFinite(requested)?Math.round(requested):1800));
+  const catalog=await loadV8DestinationCatalog().catch(()=>[]),catalogBySlug=new Map(catalog.map(d=>[d.slug,{seasonProfile:d.seasonProfile,tags:d.tags as readonly string[]} ]));
   if(!key()){
    const fallbackUrl=new URL(process.env.SUPABASE_STAY_PRODUCT_MAP_V32_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/stay-product-map-v32");
    fallbackUrl.searchParams.set("limit",quick?String(limit):"300");
    const fallback=await fetch(fallbackUrl,{headers:{accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(8000)});
    if(!fallback.ok)throw new Error("fallback_map_unavailable");
    const payload=await fallback.json() as Record<string,unknown>,rawProducts=Array.isArray(payload.products)?payload.products as Product[]:[];
-   const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,demandSignal:0,mapSignal:"explore",starTier:"blue" as const})),targetMonth);
+   const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,demandSignal:0,mapSignal:"explore",starTier:"blue" as const})),targetMonth,catalogBySlug);
    return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade,targetMonth:intelligence.targetMonth,demandIsDiscriminating:intelligence.demandIsDiscriminating},version:50,fullUniverse:false,demandLayer:{forecastStatus:"disabled",observedDemandStatus:intelligence.demandIsDiscriminating?"live-proxy":"non-discriminating",reason:intelligence.demandIsDiscriminating?"Map ranking uses observed inventory demand_proxy where it varies. This is not presented as demand forecasting.":"Observed demand_proxy is non-discriminating for this sample, so it is excluded from ranking rather than fabricated."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
   }
-  const catalog=await loadV8DestinationCatalog().catch(()=>[]);
   const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
   const rows:OfferRow[]=[],rowCeiling=quick?600:Math.max(limit*2,2000),offsetCeiling=quick?1000:3000;
   for(let offset=0;offset<offsetCeiling&&rows.length<rowCeiling;offset+=1000){
@@ -179,7 +171,7 @@ export async function GET(request:Request){
    });
    if(products.length>=limit)break;
   }
-  const intelligence=enrichIntelligence(products,targetMonth);
+  const intelligence=enrichIntelligence(products,targetMonth,catalogBySlug);
   return NextResponse.json({
    version:50,
    source:"supabase-stay-offers",
