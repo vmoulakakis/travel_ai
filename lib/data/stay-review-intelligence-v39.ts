@@ -35,28 +35,28 @@ async function googlePhoto(name:string,key:string){
  }catch{return null}
 }
 
-async function google(args:Args){
+async function google(args:Args,includePhoto=false){
  const key=process.env.GOOGLE_PLACES_API_KEY;if(!key)return null;
  try{
   const body:any={textQuery:`${args.propertyName}, ${args.destinationName}`,languageCode:args.language==="el"?"el":"en",maxResultCount:5};
   if(args.latitude!=null&&args.longitude!=null)body.locationBias={circle:{center:{latitude:args.latitude,longitude:args.longitude},radius:12000}};
   const r=await fetch("https://places.googleapis.com/v1/places:searchText",{method:"POST",headers:{"content-type":"application/json","X-Goog-Api-Key":key,"X-Goog-FieldMask":"places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.reviews,places.photos"},body:JSON.stringify(body),cache:"no-store",signal:AbortSignal.timeout(7000)});if(!r.ok)return null;
   const p=await r.json() as any,rows=Array.isArray(p.places)?p.places:[];let best:any=null,bestScore=.52;for(const row of rows){const score=nameFit(args.propertyName,clean(row?.displayName?.text,180));if(score>bestScore){best=row;bestScore=score}}if(!best)return null;
-  const rating=num(best.rating),reviewCount=num(best.userRatingCount),reviews:Array<any>=Array.isArray(best.reviews)?best.reviews:[],photoName=clean(best?.photos?.[0]?.name,500),photoUrl=photoName?await googlePhoto(photoName,key):null;
+  const rating=num(best.rating),reviewCount=num(best.userRatingCount),reviews:Array<any>=Array.isArray(best.reviews)?best.reviews:[],photoName=clean(best?.photos?.[0]?.name,500),photoUrl=includePhoto&&photoName?await googlePhoto(photoName,key):null;
   return{rating:rating==null?null:clamp5(rating),reviewCount:reviewCount==null?null:Math.max(0,Math.round(reviewCount)),photoUrl,matchedName:clean(best?.displayName?.text,180)||null,samples:reviews.slice(0,5).flatMap(row=>{const text=clean(row?.text?.text??row?.originalText?.text,850);if(!text)return[];return[{provider:"Google Places" as const,rating:num(row.rating),author:clean(row?.authorAttribution?.displayName,100)||null,text,publishedAt:clean(row?.publishTime,80)||null}]})};
  }catch{return null}
 }
 
 const TA="https://api.content.tripadvisor.com/api/v1";
 async function taFetch(path:string,params:Record<string,string>,timeout=6500){const key=process.env.TRIPADVISOR_API_KEY;if(!key)throw new Error();const u=new URL(`${TA}${path}`);u.searchParams.set("key",key);for(const[k,v]of Object.entries(params))if(v)u.searchParams.set(k,v);const r=await fetch(u,{headers:{accept:"application/json",referer:process.env.TRIPADVISOR_REFERER||process.env.NEXT_PUBLIC_SITE_URL||"https://travel-ai-lovat-psi.vercel.app"},cache:"no-store",signal:AbortSignal.timeout(timeout)});if(!r.ok)throw new Error();return await r.json() as any}
-async function tripadvisor(args:Args){if(!process.env.TRIPADVISOR_API_KEY)return null;try{
+async function tripadvisor(args:Args,includePhoto=false){if(!process.env.TRIPADVISOR_API_KEY)return null;try{
  const search=await taFetch("/location/search",{searchQuery:args.propertyName,category:"hotels",latLong:args.latitude!=null&&args.longitude!=null?`${args.latitude},${args.longitude}`:"",language:args.language},6500),rows=Array.isArray(search.data)?search.data:[];
  let best:any=null,bestScore=.52;for(const row of rows){const score=nameFit(args.propertyName,clean(row?.name,180));if(score>bestScore){best=row;bestScore=score}}
  const id=best?.location_id?String(best.location_id):"";if(!id)return null;
  const[details,reviews,photos]=await Promise.all([
   taFetch(`/location/${encodeURIComponent(id)}/details`,{language:args.language,currency:"EUR"},5500).catch(()=>null),
   taFetch(`/location/${encodeURIComponent(id)}/reviews`,{language:args.language,limit:"5"},5500).catch(()=>null),
-  taFetch(`/location/${encodeURIComponent(id)}/photos`,{language:args.language,limit:"3"},5500).catch(()=>null)
+  includePhoto?taFetch(`/location/${encodeURIComponent(id)}/photos`,{language:args.language,limit:"3"},5500).catch(()=>null):Promise.resolve(null)
  ]);
  const rating=num(details?.rating),reviewCount=num(details?.num_reviews),reviewRows=Array.isArray(reviews?.data)?reviews.data:[],photoRows=Array.isArray(photos?.data)?photos.data:[],firstPhoto=photoRows[0],photoUrl=clean(firstPhoto?.images?.large?.url??firstPhoto?.images?.medium?.url??firstPhoto?.images?.original?.url,1200)||null;
  return{rating:rating==null?null:clamp5(rating),reviewCount:reviewCount==null?null:Math.max(0,Math.round(reviewCount)),photoUrl,matchedName:clean(details?.name??best?.name,180)||null,samples:reviewRows.slice(0,5).flatMap((row:any)=>{const text=clean(row?.text??row?.review_text,850);if(!text)return[];return[{provider:"Tripadvisor" as const,rating:num(row?.rating),author:clean(row?.user?.username??row?.user?.display_name,100)||null,text,publishedAt:clean(row?.published_date??row?.travel_date,80)||null}]})}
@@ -94,6 +94,14 @@ export async function getStayRatingQuickV50(args:Args){
    ??ratings.find(x=>x.provider==="Foursquare")
    ??ratings[0]
    ??null;
- const photoUrl=g?.photoUrl??t?.photoUrl??null,photoProvider=g?.photoUrl?"Google Places":t?.photoUrl?"Tripadvisor":null,matchedName=g?.matchedName??t?.matchedName??null;
- return{status:ratings.length?"live":"unavailable" as const,primary,ratings,photoUrl,photoProvider,matchedName};
+ return{status:ratings.length?"live":"unavailable" as const,primary,ratings};
+}
+
+
+export async function getStayPhotoQuickV64(args:Args){
+ const[g,t]=await Promise.all([google(args,true),tripadvisor(args,true)]);
+ const photoUrl=g?.photoUrl??t?.photoUrl??null;
+ const provider=g?.photoUrl?"Google Places":t?.photoUrl?"Tripadvisor":null;
+ const matchedName=g?.matchedName??t?.matchedName??null;
+ return{photoUrl,provider,matchedName};
 }
