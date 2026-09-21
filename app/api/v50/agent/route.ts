@@ -13,6 +13,7 @@ import {
 } from "@/lib/ai/v50-agent-state";
 import { loadV8DestinationCatalog,loadV8StayOffers } from "@/lib/data/destination-v8";
 import { assessStayAvailabilityV20 } from "@/lib/decision/stay-availability-v20";
+import { seasonalStayFit } from "@/lib/decision/stay-seasonality-v66";
 import { createLLMRequestBudgetV16,generateJsonWithRoutingV16 } from "@/lib/ai/model-router-v9";
 import type { V8Recommendation,V8StayOffer } from "@/lib/decision/v8-types";
 
@@ -53,20 +54,21 @@ const truthScore=(offer:V8StayOffer,start:string,end:string)=>{
   return 0;
 };
 
-function offerScore(offer:V8StayOffer,budget:number,start:string,end:string){
+function offerScore(offer:V8StayOffer,budget:number,start:string,end:string,destination:{slug:string;seasonProfile?:string|null;tags?:readonly string[]|null}){
   const truth=truthScore(offer,start,end);
-  if(!truth)return -1;
+  if(!truth)return null;
   const distance=offer.distanceKm==null?52:offer.distanceKm<=3?96:offer.distanceKm<=10?84:offer.distanceKm<=25?66:44;
-  const price=moneyFit(offer.price??null,budget);
-  return truth*.52+distance*.18+price*.30;
+  const price=moneyFit(offer.price??null,budget),month=Math.max(1,Math.min(12,Number(start.slice(5,7))||1));
+  const seasonal=seasonalStayFit({month,propertyName:offer.propertyName,description:offer.description,category:offer.category,location:[offer.city,offer.address].filter(Boolean).join(" "),destinationSlug:destination.slug,destinationSeasonProfile:destination.seasonProfile,destinationTags:destination.tags});
+  return{score:truth*.42+distance*.14+price*.22+seasonal.score*.22,seasonal};
 }
 
-async function bestStay(recommendation:V8Recommendation,budget:number,start:string,end:string){
+async function bestStay(recommendation:V8Recommendation,budget:number,start:string,end:string,destination:{slug:string;seasonProfile?:string|null;tags?:readonly string[]|null}){
   const offers=await loadV8StayOffers(recommendation.slug,start,end,60).catch(()=>[]);
   const ranked=offers
-    .map(offer=>({offer,score:offerScore(offer,budget,start,end),availability:assessStayAvailabilityV20(offer,start,end)}))
-    .filter(x=>x.score>=0)
-    .sort((a,b)=>b.score-a.score);
+    .map(offer=>{const fit=offerScore(offer,budget,start,end,destination);return fit?{offer,score:fit.score,seasonal:fit.seasonal,availability:assessStayAvailabilityV20(offer,start,end)}:null})
+    .filter((x):x is NonNullable<typeof x>=>Boolean(x))
+    .sort((a,b)=>b.score-a.score||(a.offer.price??Number.MAX_SAFE_INTEGER)-(b.offer.price??Number.MAX_SAFE_INTEGER));
   return{best:ranked[0]??null,offerCount:ranked.length};
 }
 
@@ -345,7 +347,7 @@ export async function POST(request:Request){
         })
       : recommendation.recommendations;
     const candidates=terrainFiltered.slice(0,12);
-    const stayRows=await Promise.all(candidates.map(async rec=>({rec,...await bestStay(rec,trip.budget,trip.startDate,trip.endDate)})));
+    const stayRows=await Promise.all(candidates.map(async rec=>({rec,...await bestStay(rec,trip.budget,trip.startDate,trip.endDate,catalogBySlug.get(rec.slug)??{slug:rec.slug,tags:rec.tags})})));
     const solutions=stayRows
       .filter((row):row is typeof row & {best:NonNullable<typeof row.best>}=>Boolean(row.best))
       .slice(0,10)
@@ -385,7 +387,8 @@ export async function POST(request:Request){
             trackingUrl:offer.trackingUrl,
             availability:availability.truth,
             availabilityConfidence:availability.confidence,
-            distanceKm:offer.distanceKm
+            distanceKm:offer.distanceKm,
+            seasonalFit:{score:row.best.seasonal.score,band:row.best.seasonal.band,reason:row.best.seasonal.reason}
           },
           liveOfferCount:row.offerCount
         };
