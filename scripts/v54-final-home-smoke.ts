@@ -6,7 +6,7 @@ const css=readFileSync("components/v67-four-step-funnel.module.css","utf8");
 const selector=readFileSync("app/api/v67/select-one/route.ts","utf8");
 assert(page.includes("V67FourStepFunnel"),"homepage must render V67 four-step funnel");
 assert(ui.includes("/api/v67/select-one"),"V67 must select one winner through the full-inventory selection engine");
-assert(selector.includes("limit","2000")&&selector.includes("getDailyTripWeatherV25"),"selection must evaluate the full stay universe and weather-check destination finalists");
+assert(selector.includes("limit")&&selector.includes("2000")&&selector.includes("getDailyTripWeatherV25"),"selection must evaluate the full stay universe and weather-check destination finalists");
 assert(selector.includes("seasonalScore")&&selector.includes("demandIsDiscriminating")&&selector.includes("priceScore"),"selection must use season, meaningful demand and local value");
 assert(ui.includes("/api/trip-builder")&&ui.includes("/api/escape/stay-local")&&ui.includes("/api/escape/events"),"funnel must load weather, local intelligence and dated events");
 assert(ui.includes("/api/guide/email")&&ui.includes("QRCode.toDataURL")&&ui.includes("plan.guide.path"),"final step must support email, QR and PDF");
