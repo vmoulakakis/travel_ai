@@ -8,7 +8,6 @@ const mapApi=readFileSync("app/api/v50/map-stays/route.ts","utf8");
 const agentApi=readFileSync("app/api/v50/agent/route.ts","utf8");
 const state=readFileSync("lib/ai/v50-agent-state.ts","utf8");
 const skill=readFileSync("skills/web-design/SKILL.md","utf8");
-if(home.includes("V67FourStepFunnel")){const v67=readFileSync("components/v67-four-step-funnel.tsx","utf8"),selector=readFileSync("app/api/v67/select-one/route.ts","utf8");assert(v67.includes("/api/v67/select-one")&&v67.includes("/api/trip-builder"),"V67 homepage must use full-inventory selection and trip builder");assert(selector.includes("demandIsDiscriminating")&&selector.includes("getDailyTripWeatherV25"),"V67 must use meaningful demand plus date weather");console.log("V67_HOME_OK one-winner=YES full-inventory=YES four-step=YES");process.exit(0)}
 
 assert(home.includes("V54FinalHome")||home.includes("V50TravelIntelligenceHome"),"Greek root must render V54 final home or the retained V50 homepage");
 assert(ui.includes("/api/v50/map-stays?limit=1800"),"V50 must request the live stay universe");

@@ -1,3 +1,0 @@
-TravelAI production deploy trigger
-Source main before trigger: 720e23656283c64ce20c03482f6b42a7681c09fb
-Reconnect trigger: 2026-09-21

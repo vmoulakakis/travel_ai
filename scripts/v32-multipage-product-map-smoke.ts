@@ -12,6 +12,6 @@ assert(map.includes("tile.openstreetmap.org")&&map.includes('setEngine("osm")'),
 assert(map.includes("stay-price-marker")&&map.includes("trackingUrl")&&map.includes("/api/stay-map?limit=240"),"real product marker wiring missing");
 assert(data.includes("stay-product-map-v32")&&data.includes("latitude")&&data.includes("longitude"),"safe product map data adapter missing");
 assert(!map.includes("SUPABASE_SERVICE_ROLE_KEY")&&!api.includes("SUPABASE_SERVICE_ROLE_KEY"),"server credentials must never enter the browser/API surface");
-assert(/pair\(\s*["']\/stays-map["']\s*,\s*["']\/en\/stays-map["']/.test(sitemap),"stay map hreflang sitemap pair missing");
+assert(sitemap.includes('pair("/stays-map","/en/stays-map"'),"stay map hreflang sitemap pair missing");
 assert(css.includes(".wf-mobile-menu")&&css.includes(".stay-map-workspace")&&css.includes(".stay-price-marker"),"responsive product-map design system missing");
 console.log("V32 multipage + product-map smoke passed");

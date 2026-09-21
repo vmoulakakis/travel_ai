@@ -3,7 +3,6 @@ import path from "node:path";
 
 const read=(file:string)=>fs.readFileSync(path.join(process.cwd(),file),"utf8");
 const home=read("app/page.tsx"),homeEn=read("app/en/page.tsx");
-if(home.includes("V67FourStepFunnel")){const ui=read("components/v67-four-step-funnel.tsx"),guide=read("app/api/guide/route.ts"),email=read("app/api/guide/email/route.ts");if(!ui.includes("QRCode.toDataURL")||!ui.includes("/api/escape/stay-local")||!ui.includes("/api/escape/events")||!guide.includes("offer.trackingUrl")||!email.includes("selected.trackingUrl")){console.error("V67 360 truth smoke FAILED");process.exit(1)}console.log("V67_TRUTH_CONTRACTS_OK local=grounded events=dated pdf=qr tracking=exact");process.exit(0)}
 const v54=home.includes("V54FinalHome"),v50=home.includes("V50TravelIntelligenceHome"),v40=home.includes("V40DiscoveryExperience"),v50Family=v54||v50;
 const funnel=read(v54?"components/v54-final-home.tsx":v50?"components/v50-travel-intelligence-home.tsx":v40?"components/v40-discovery-experience.tsx":"components/v38-escape-funnel.tsx");
 const builder=read(v54?"components/v50-stay-funnel.tsx":(v50||v40)?"components/v40-stay-workspace.tsx":"components/v38-escape-builder-client.tsx");

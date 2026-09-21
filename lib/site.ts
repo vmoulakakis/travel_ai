@@ -13,5 +13,5 @@ export function getSiteUrl() {
   return normalizeSiteUrl(raw);
 }
 
-export const SITE_NAME = "TravelAI";
-export const SITE_TAGLINE = "AI travel planning για την Ελλάδα";
+export const SITE_NAME = "Ελληνικός AI Travel Guru";
+export const SITE_TAGLINE = "Το ταξίδι που ταιριάζει σε εσένα";
