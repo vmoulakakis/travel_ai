@@ -10,11 +10,11 @@ import styles from "./v54-final-home.module.css";
 
 type FilterKey="calm"|"food"|"nature"|"discovery"|"nightlife"|"value";
 type Filters=Record<FilterKey,number>;
-type Stay={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null;intelligenceScore?:number;seasonalScore?:number;priceScore?:number;demandSignal?:number;mapSignal?:"ai"|"demand"|"seasonal"|"value"|"explore";starTier?:"gold"|"green"|"blue"};
+type Stay={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null;intelligenceScore?:number;seasonalScore?:number;priceScore?:number;demandSignal?:number;mapSignal?:"ai"|"discovery"|"demand"|"seasonal"|"value"|"explore";starTier?:"gold"|"green"|"blue"};
 type Hero={id:string;location:string;imageUrl:string;propertyCount:number;minPrice:number|null;currency:string;latitude:number|null;longitude:number|null};
 type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null;seasonalFit?:{score:number;band:string;reason:string}};liveOfferCount:number};
 type AgentResponse={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:{id:string;text:string;quickReplies:{label:string;value:string}[]};solutions?:Solution[];trip?:{startDate:string;endDate:string;travelerType:string;moods:string[];budget:number;origin:string};agentRuntime?:{today?:string;timezone?:string;dateRecovery?:{tier?:string;label?:string}|null}};
-type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;intelligence:number|null;seasonal:number|null;priceFit:number|null;demand:number|null;mapSignal:"ai"|"demand"|"seasonal"|"value"|"explore"|null;starTier:"gold"|"green"|"blue"|null};
+type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;intelligence:number|null;seasonal:number|null;priceFit:number|null;demand:number|null;mapSignal:"ai"|"discovery"|"demand"|"seasonal"|"value"|"explore"|null;starTier:"gold"|"green"|"blue"|null};
 type RatingSignal={provider:"Google Places"|"Tripadvisor"|"Foursquare"|"AI Guest Signal";rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
 type QuickRating={status:"live"|"unavailable";primary:RatingSignal|null;ratings:RatingSignal[];photoUrl?:string|null;photoProvider?:string|null;matchedName?:string|null};
 type MapIntelligence={focus:{latitude:number;longitude:number;zoom:number;label:string;score:number;demand:number;seasonality:number;value:number;reason:string}|null;weights:{demand:number;seasonality:number;priceValue:number};ratingUpgrade:string;targetMonth?:number;demandIsDiscriminating?:boolean};
@@ -192,7 +192,7 @@ export function V54FinalHome(){
     return `<div class="v56RatingRow">${rating.ratings.filter(x=>x.provider!=="AI Guest Signal").slice(0,3).map(x=>`<span><b>${html(x.provider)}</b> ${x.rating.toFixed(1)}/${x.scale}${x.reviewCount!=null?` · ${x.reviewCount.toLocaleString("el-GR")} reviews`:""}</span>`).join("")}</div>`;
    };
    const tooltipFor=(p:Stay,rank:number|null,rating:QuickRating|null|undefined)=>{
-    const signal=rank?"AI SPOTLIGHT":p.mapSignal==="demand"?"HIGH DEMAND":p.mapSignal==="seasonal"?"SEASONAL FIT":p.mapSignal==="value"?"BEST VALUE":"EXPLORE";
+    const signal=rank?"AI SPOTLIGHT":p.mapSignal==="discovery"?"TRAVELAI DISCOVERY":p.mapSignal==="demand"?"HIGH DEMAND":p.mapSignal==="seasonal"?"SEASONAL FIT":p.mapSignal==="value"?"BEST VALUE":"EXPLORE";
     const propertyPhoto=rating?.photoUrl??p.imageUrl;
     return `
      <div class="v56MapTip">
@@ -237,17 +237,18 @@ export function V54FinalHome(){
    for(const p of inventory){
     if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))continue;
     const rank=aiRanks.get(p.productId)??null;
-    const signal=rank&&rank<=5?"ai":p.mapSignal??"explore";
     const score=Math.max(0,Math.min(100,p.intelligenceScore??50));
-    const size=score>=86?48:score>=76?41:score>=64?34:27;
-    const className=signal==="ai"?"v65StarAi":signal==="demand"?"v65StarDemand":signal==="seasonal"?"v65StarSeasonal":signal==="value"?"v65StarValue":"v65StarExplore";
+    const isDiscovery=!rank&&score>=82&&(p.seasonalScore??0)>=70&&(p.priceScore??0)>=68;
+    const signal=rank&&rank<=5?"ai":isDiscovery?"discovery":p.mapSignal??"explore";
+    const size=signal==="discovery"?58:score>=86?48:score>=76?41:score>=64?34:27;
+    const className=signal==="ai"?"v65StarAi":signal==="discovery"?"v66StarDiscovery":signal==="demand"?"v65StarDemand":signal==="seasonal"?"v65StarSeasonal":signal==="value"?"v65StarValue":"v65StarExplore";
     const marker=L.marker([p.latitude,p.longitude],{
       icon:L.divIcon({
        className,
        html:rank&&rank<=5?`<span style="--pin-size:${size}px">★<small>#${rank}</small></span>`:`<span style="--pin-size:${size}px">★</span>`,
        iconSize:[size,size],iconAnchor:[Math.round(size/2),Math.round(size/2)]
       }),
-      zIndexOffset:signal==="ai"?1900-(rank??20):signal==="demand"?1200:signal==="seasonal"?950:signal==="value"?800:300
+      zIndexOffset:signal==="ai"?1900-(rank??20):signal==="discovery"?1650:signal==="demand"?1200:signal==="seasonal"?950:signal==="value"?800:300
     });
     marker.bindTooltip(tooltipFor(p,rank,ratingCache.current.get(p.productId)),{direction:"top",offset:[0,-14],opacity:1,className:"v56Tooltip"});
     marker.on("mouseover",()=>{marker.setTooltipContent(tooltipFor(p,rank,ratingCache.current.get(p.productId)));void loadRating(p,marker,rank)});
@@ -326,7 +327,7 @@ export function V54FinalHome(){
     <span className={activeStay?styles.focusStepActive:""}>2 · Δες το funnel</span><i>→</i>
     <span>3 · Ξεκίνα το ταξίδι σου</span>
    </div>
-   <div className={styles.pinLegend}><span><i className={styles.legendGold}>★</i> AI</span><span><i className={styles.legendDemand}>★</i> Demand</span><span><i className={styles.legendSeasonal}>★</i> Seasonal</span><span><i className={styles.legendGreen}>★</i> Value</span><span><i className={styles.legendBlue}>★</i> Explore</span></div>
+   <div className={styles.pinLegend}><span className={styles.discoveryLegend}><i className={styles.legendDiscovery}>★</i> Discovery</span><span><i className={styles.legendGold}>★</i> AI</span><span><i className={styles.legendDemand}>★</i> Demand</span><span><i className={styles.legendSeasonal}>★</i> Seasonal</span><span><i className={styles.legendGreen}>★</i> Value</span><span><i className={styles.legendBlue}>★</i> Explore</span></div>
   </div>
 
   <section id="map" className={styles.mapFirst}>
@@ -334,7 +335,7 @@ export function V54FinalHome(){
     <div>
      <small>AI MAP · DEFAULT INTELLIGENCE VIEW</small>
      <h1>Η AI ξεκινά από την <em>καλύτερη περιοχή τώρα.</em></h1>
-     <p>Το πρώτο focus παράγεται από live demand signal, seasonality και local best value. Μετά εσύ επιλέγεις το stay ή αλλάζεις περιοχή.</p>
+     <p>Το πρώτο focus παράγεται από live demand signal, seasonality και local best value. Τα μεγάλα ⭐ Discovery αναδεικνύουν μέρη με υψηλή εμπειρία, καλό seasonal fit και value — χωρίς να κρύβουν κανένα από τα 1.700+ stays.</p>
     </div>
     <div className={styles.mapAiFlow}>
      <span>{mapIntelligence?.focus?.label??"AI scanning"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
@@ -347,7 +348,7 @@ export function V54FinalHome(){
      <div className={styles.mapFunChips}>
       {["Χαλάρωση","Ρομαντικό","Περιπέτεια","Γαστρονομία"].map(x=><button key={x} className={intent===x?styles.mapFunChipActive:""} onClick={()=>{setIntent(x);const where=destination.trim()?destination.trim()+". ":"";void runAgent(`${where}Θέλω ${x.toLowerCase()} ταξίδι. Διάλεξε τις καλύτερες πραγματικές επιλογές από όλο το inventory.`)}}>{x}</button>)}
      </div>
-     <button className={styles.surpriseBtn} disabled={busy} onClick={()=>void runAgent("Surprise me. Διάλεξε εσύ την καλύτερη απόδραση από όλο το πραγματικό inventory με βάση ημερομηνίες, budget και profile.")}>🎲 {busy?"Η AI ψάχνει…":"Surprise me"}</button>
+     <button className={styles.discoveryTrigger} disabled={busy} onClick={()=>void runAgent("Βρες μου κάτι που δεν θα έβρισκα μόνος μου. Προτίμησε λιγότερο γνωστή περιοχή με ισχυρό seasonal fit, καλό value, αυθεντική εμπειρία και πραγματικό stay από το inventory. Εξήγησε καθαρά γιατί τώρα και γιατί αξίζει.")}>✨ {busy?"Η AI ανακαλύπτει…":"Βρες μου κάτι που δεν θα έβρισκα μόνος μου"}</button>\n     <button className={styles.surpriseBtn} disabled={busy} onClick={()=>void runAgent("Surprise me. Διάλεξε εσύ την καλύτερη απόδραση από όλο το πραγματικό inventory με βάση ημερομηνίες, budget και profile.")}>🎲 {busy?"Η AI ψάχνει…":"Surprise me"}</button>
      <p><Sparkle weight="fill"/> {agentMessage}</p>
     </div>
     <div className={styles.mapModesTop}><button className={!showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(false)}>Χάρτης</button><button className={showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(true)}>Δορυφόρος</button></div>
