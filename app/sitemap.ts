@@ -20,6 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...pair("/proorismoi","/en/destinations","weekly",.95),
     ...pair("/seasonal","/en/seasonal","weekly",.88),
     ...pair("/guides","/en/guides","weekly",.86),
+    { url: `${base}/guides/hidden-greece`, changeFrequency: "monthly", priority: .89 },
     ...pair("/how-ai-works","/en/how-ai-works","monthly",.8),
     ...greek.flatMap(item => {
       const el = `${base}/proorismoi/${item.slug}`;
