@@ -13,6 +13,12 @@ type Stay={
 };
 type Rating={provider:string;rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
 type RatingPayload={ratings?:Rating[]}|null;
+type NearbyPlace={id:string;name:string;category:"food"|"drink"|"activity";subtype:string;latitude:number;longitude:number;distanceKm:number;website:string|null;openingHours:string|null;cuisine:string|null};
+type NearbyDetails={
+ ok:boolean;radiusKm:number;
+ weather:{status:"trip-window"|"nearest-forecast"|"unavailable";summary:{label:string;maxC:number|null;minC:number|null;rainPct:number|null;windKmh:number|null}|null;days:Array<{date:string;icon:string;label:string;maxC:number;minC:number;rainPct:number;windKmh:number}>};
+ nearby:{food:NearbyPlace[];drink:NearbyPlace[];activities:NearbyPlace[]};
+};
 
 const clamp=(n:number,a=0,b=100)=>Math.max(a,Math.min(b,n));
 const today=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Athens",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
@@ -51,6 +57,10 @@ export function MapIntelligenceV2(){
  const [view,setView]=useState({lat:38.2,lon:23.7,zoom:6});
  const [ready,setReady]=useState(false);
  const [loading,setLoading]=useState(true);
+ const [detailsOpen,setDetailsOpen]=useState(false);
+ const [detailsLoading,setDetailsLoading]=useState(false);
+ const [details,setDetails]=useState<NearbyDetails|null>(null);
+ const [detailsError,setDetailsError]=useState<string|null>(null);
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
  const layerRef=useRef<LayerGroup|null>(null);
@@ -159,6 +169,37 @@ export function MapIntelligenceV2(){
  const rating=active?repLabel(ratings[active.productId]):null;
  const signalLabel=active?.dominant==="match"?"AI Best Match":active?.dominant==="reviews"?"Strong Reviews":active?.dominant==="season"?"Best Now":active?.dominant==="value"?"Best Value":active?.dominant==="demand"?"High Demand":"Explore";
 
+ useEffect(()=>{
+  setDetailsOpen(false);setDetails(null);setDetailsError(null);
+ },[active?.productId]);
+
+ useEffect(()=>{
+  if(!active||ratings[active.productId]!==undefined||ratingPending.current.has(active.productId))return;
+  ratingPending.current.add(active.productId);
+  fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+   propertyName:active.name,sourceProductId:active.productId,destinationSlug:active.destinationSlug,destinationName:active.location,latitude:active.latitude,longitude:active.longitude
+  })}).then(r=>r.json()).then(x=>setRatings(v=>({...v,[active.productId]:x?.ok?x.result??null:null})))
+   .catch(()=>setRatings(v=>({...v,[active.productId]:null}))).finally(()=>ratingPending.current.delete(active.productId));
+ },[active?.productId]);
+
+ async function open360Reasoning(){
+  if(!active)return;
+  setDetailsOpen(true);setDetailsLoading(true);setDetailsError(null);
+  try{
+   const q=new URLSearchParams({lat:String(active.latitude),lon:String(active.longitude),start,end});
+   const r=await fetch(`/api/v50/nearby-intelligence?${q.toString()}`,{cache:"no-store"});
+   const j=await r.json() as NearbyDetails;
+   if(!r.ok||!j?.ok)throw new Error("nearby");
+   setDetails(j);
+  }catch{
+   setDetailsError("Δεν επέστρεψαν τώρα live nearby δεδομένα. Κράτησα το verified rating και τα TravelAI scores χωρίς να εφεύρω πληροφορίες.");
+  }finally{setDetailsLoading(false)}
+ }
+
+ const flyNearby=(p:NearbyPlace)=>{
+  const map=mapRef.current;if(map)map.flyTo([p.latitude,p.longitude],15,{duration:.65});
+ };
+
  return <main className={styles.page}>
   <header className={styles.topbar}>
    <a href="/" className={styles.brand}>TRAVEL<span>AI</span><small>MAP INTELLIGENCE LAB</small></a>
@@ -230,7 +271,40 @@ export function MapIntelligenceV2(){
       <div><span><TrendUp/> Best signal</span><b>{signalLabel}</b></div>
       <div><span><Compass/> Trade-off</span><b>{active.spatial<65?"Πιο μακριά από το viewport που εξερευνάς":"Δεν φαίνεται ισχυρό spatial penalty"}</b></div>
      </div>
-     <button className={styles.cta} onClick={()=>{const slug=active.destinationSlug;if(slug)window.location.href=`/escape/${encodeURIComponent(slug)}/stay/${encodeURIComponent(active.productId)}?start=${start}&end=${end}&budget=${budget}&travelerType=${traveler}&dn=${encodeURIComponent(active.location)}`;}}>Δες το πλήρες reasoning <Sparkle weight="fill"/></button>
+     <button className={styles.cta} onClick={()=>void open360Reasoning()}>Άνοιξε 360° reasoning <Sparkle weight="fill"/></button>
+    </div>
+   </aside>:null}
+
+   {active&&detailsOpen?<aside className={styles.deepReason}>
+    <div className={styles.deepHead}>
+     <div><span>TRAVELAI · 360° AROUND THIS PLACE</span><h2>{active.location}</h2><p>{active.name}</p></div>
+     <button onClick={()=>setDetailsOpen(false)} aria-label="Κλείσιμο 360 reasoning"><X/></button>
+    </div>
+
+    <div className={styles.deepSummary}>
+     <div className={styles.ratingBig}><small>VERIFIED RATING</small><b>{rating?.text??"—"}</b><span>{rating?.sub??"Δεν έχει επιστρέψει verified external rating ακόμη"}</span></div>
+     <div><small>PERSONAL MATCH</small><b>{Math.round(active.match)}/100</b><span>{signalLabel}</span></div>
+     <div><small>SEASON NOW</small><b>{Math.round(active.seasonalScore??60)}/100</b><span>{start} → {end}</span></div>
+    </div>
+
+    {detailsLoading?<div className={styles.deepLoading}><Sparkle weight="fill"/><b>Scanning weather + nearby life…</b><span>φαγητό · ποτό · δραστηριότητες · spatial context</span></div>:null}
+    {detailsError?<div className={styles.deepError}>{detailsError}</div>:null}
+
+    {details?.weather?.summary?<section className={styles.weatherBlock}>
+     <div className={styles.deepSectionTitle}><span>WEATHER</span><b>{details.weather.status==="trip-window"?"στις ημερομηνίες σου":"nearest available forecast"}</b></div>
+     <div className={styles.weatherHero}><strong>{details.weather.days[0]?.icon??"🌤️"}</strong><div><b>{details.weather.summary.label}</b><span>{Math.round(details.weather.summary.minC??0)}°–{Math.round(details.weather.summary.maxC??0)}°C · rain {Math.round(details.weather.summary.rainPct??0)}% · wind {Math.round(details.weather.summary.windKmh??0)} km/h</span></div></div>
+     <div className={styles.weatherDays}>{details.weather.days.slice(0,5).map(d=><div key={d.date}><small>{new Date(d.date+"T00:00:00").toLocaleDateString("el-GR",{weekday:"short",day:"numeric"})}</small><b>{d.icon} {Math.round(d.maxC)}°</b><span>{d.label} · {Math.round(d.rainPct)}%</span></div>)}</div>
+    </section>:null}
+
+    {details?<div className={styles.nearbyGrid}>
+     <NearbySection title="🍽️ FOOD NEARBY" items={details.nearby.food} onPick={flyNearby}/>
+     <NearbySection title="🍸 DRINK NEARBY" items={details.nearby.drink} onPick={flyNearby}/>
+     <NearbySection title="🧭 THINGS TO DO" items={details.nearby.activities} onPick={flyNearby}/>
+    </div>:null}
+
+    <div className={styles.deepFoot}>
+     <div><b>There + nearby intelligence</b><span>Verified stay rating + Open-Meteo weather + nearby open geographic data. Δεν εμφανίζονται ανύπαρκτα venue ratings.</span></div>
+     <button onClick={()=>{const slug=active.destinationSlug;if(slug)window.location.href=`/escape/${encodeURIComponent(slug)}/stay/${encodeURIComponent(active.productId)}?start=${start}&end=${end}&budget=${budget}&travelerType=${traveler}&dn=${encodeURIComponent(active.location)}`;}}>Δες τη διαμονή →</button>
     </div>
    </aside>:null}
 
@@ -242,4 +316,16 @@ export function MapIntelligenceV2(){
    </div>
   </section>
  </main>
+}
+
+function NearbySection({title,items,onPick}:{title:string;items:NearbyPlace[];onPick:(p:NearbyPlace)=>void}){
+ return <section className={styles.nearbySection}>
+  <div className={styles.deepSectionTitle}><span>{title}</span><b>{items.length?items.length+" επιλογές":"χωρίς live results"}</b></div>
+  <div className={styles.placeList}>
+   {items.length?items.slice(0,6).map(p=><button key={p.id} onClick={()=>onPick(p)}>
+    <span><b>{p.name}</b><small>{p.cuisine??p.subtype}{p.openingHours?` · ${p.openingHours}`:""}</small></span>
+    <em>{p.distanceKm.toFixed(1)} km ↗</em>
+   </button>):<p>Δεν βρέθηκαν αρκετά επαληθεύσιμα open-data σημεία σε ακτίνα 4,5 km.</p>}
+  </div>
+ </section>
 }
