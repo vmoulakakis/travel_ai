@@ -1,0 +1,245 @@
+"use client";
+
+import {useEffect,useMemo,useRef,useState} from "react";
+import type {LayerGroup,Map as LeafletMap,TileLayer} from "leaflet";
+import {Brain,CalendarBlank,Compass,Crosshair,MapPin,Sparkle,Star,TrendUp,Users,Wallet,X} from "@phosphor-icons/react";
+import styles from "./map-intelligence-v2.module.css";
+
+type Stay={
+ productId:string;placeId?:string;name:string;location:string;address?:string;
+ latitude:number;longitude:number;imageUrl:string|null;price:number|null;currency:string;
+ intelligenceScore?:number;seasonalScore?:number;priceScore?:number;demandSignal?:number;
+ mapSignal?:"ai"|"discovery"|"demand"|"seasonal"|"value"|"explore";destinationSlug?:string|null;
+};
+type Rating={provider:string;rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
+type RatingPayload={ratings?:Rating[]}|null;
+
+const clamp=(n:number,a=0,b=100)=>Math.max(a,Math.min(b,n));
+const today=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Athens",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+const addDays=(iso:string,d:number)=>{const x=new Date(iso+"T00:00:00Z");x.setUTCDate(x.getUTCDate()+d);return x.toISOString().slice(0,10)};
+const money=(n:number|null,c="EUR")=>n!=null&&n>=5?new Intl.NumberFormat("el-GR",{style:"currency",currency:c,maximumFractionDigits:0}).format(n):"τιμή στον πάροχο";
+const haversine=(a:{lat:number;lon:number},b:{lat:number;lon:number})=>{
+ const R=6371,rad=Math.PI/180,dLat=(b.lat-a.lat)*rad,dLon=(b.lon-a.lon)*rad;
+ const q=Math.sin(dLat/2)**2+Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2;
+ return 2*R*Math.asin(Math.sqrt(q));
+};
+const repScore=(r:RatingPayload)=>{
+ const best=r?.ratings?.filter(x=>x.provider!=="AI Guest Signal").sort((a,b)=>(b.reviewCount??0)-(a.reviewCount??0))[0];
+ if(!best)return null;
+ const normalized=best.rating/best.scale*100;
+ const volume=Math.min(1,Math.log10((best.reviewCount??0)+10)/4);
+ return clamp(normalized*.82+volume*18);
+};
+const repLabel=(r:RatingPayload)=>{
+ const best=r?.ratings?.filter(x=>x.provider!=="AI Guest Signal").sort((a,b)=>(b.reviewCount??0)-(a.reviewCount??0))[0];
+ return best?{text:`${best.rating.toFixed(1)}/${best.scale}`,sub:`${best.provider}${best.reviewCount!=null?` · ${best.reviewCount.toLocaleString("el-GR")} reviews`:""}`}:null;
+};
+
+type Scored=Stay&{match:number;spatial:number;reputation:number|null;confidence:number;dominant:"match"|"reviews"|"season"|"value"|"demand"|"explore"};
+
+export function MapIntelligenceV2(){
+ const [inventory,setInventory]=useState<Stay[]>([]);
+ const [ratings,setRatings]=useState<Record<string,RatingPayload>>({});
+ const [selected,setSelected]=useState<Scored|null>(null);
+ const [mode,setMode]=useState<"global"|"local">("global");
+ const [satellite,setSatellite]=useState(true);
+ const [intent,setIntent]=useState("Χαλάρωση");
+ const [start,setStart]=useState(()=>addDays(today(),14));
+ const [end,setEnd]=useState(()=>addDays(today(),17));
+ const [budget,setBudget]=useState(800);
+ const [traveler,setTraveler]=useState("couple");
+ const [view,setView]=useState({lat:38.2,lon:23.7,zoom:6});
+ const [ready,setReady]=useState(false);
+ const [loading,setLoading]=useState(true);
+ const mapHost=useRef<HTMLDivElement|null>(null);
+ const mapRef=useRef<LeafletMap|null>(null);
+ const layerRef=useRef<LayerGroup|null>(null);
+ const tileRef=useRef<TileLayer|null>(null);
+ const ratingPending=useRef(new Set<string>());
+
+ useEffect(()=>{
+  let dead=false;setLoading(true);
+  fetch(`/api/v50/map-stays?limit=2000&start=${encodeURIComponent(start)}`,{cache:"no-store"})
+   .then(r=>r.json()).then(x=>{if(!dead)setInventory(Array.isArray(x.products)?x.products:[])}).catch(()=>{})
+   .finally(()=>{if(!dead)setLoading(false)});
+  return()=>{dead=true};
+ },[start]);
+
+ useEffect(()=>{
+  let dead=false;
+  void import("leaflet").then(L=>{
+   if(dead||!mapHost.current||mapRef.current)return;
+   const map=L.map(mapHost.current,{zoomControl:false,attributionControl:false,minZoom:5,maxZoom:18,worldCopyJump:true}).setView([38.2,23.7],6);
+   L.control.zoom({position:"bottomright"}).addTo(map);
+   tileRef.current=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:18}).addTo(map);
+   mapRef.current=map;
+   const sync=()=>{const c=map.getCenter();setView({lat:c.lat,lon:c.lng,zoom:map.getZoom()})};
+   map.on("moveend",sync);sync();window.setTimeout(()=>{map.invalidateSize();setReady(true)},80);
+  });
+  return()=>{dead=true;mapRef.current?.remove();mapRef.current=null};
+ },[]);
+
+ useEffect(()=>{
+  if(!mapRef.current)return;
+  void import("leaflet").then(L=>{
+   if(!mapRef.current)return;
+   tileRef.current?.remove();
+   tileRef.current=L.tileLayer(satellite
+    ?"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    :"https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18}).addTo(mapRef.current);
+  });
+ },[satellite]);
+
+ const scored=useMemo<Scored[]>(()=>{
+  const center={lat:view.lat,lon:view.lon};
+  const moodBoost=intent==="Χαλάρωση"?3:intent==="Ρομαντικό"?2:intent==="Γαστρονομία"?1:0;
+  return inventory.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)).map(p=>{
+   const ai=clamp((p.intelligenceScore??58)+moodBoost);
+   const season=clamp(p.seasonalScore??60);
+   const value=clamp(p.priceScore??55);
+   const demand=clamp(p.demandSignal??50);
+   const distance=haversine(center,{lat:p.latitude,lon:p.longitude});
+   const spatial=mode==="local"?clamp(100-distance/4):72;
+   const reputation=repScore(ratings[p.productId]);
+   const confidence=clamp(48+
+     (p.intelligenceScore!=null?14:0)+(p.seasonalScore!=null?10:0)+(p.priceScore!=null?8:0)+(reputation!=null?20:0));
+   const rep=reputation??72;
+   const match=clamp(ai*.30+rep*.17+season*.16+spatial*.14+value*.10+demand*.05+72*.04+confidence*.04);
+   const signals=[
+    ["reviews",rep] as const,["season",season] as const,["value",value] as const,["demand",demand] as const
+   ].sort((a,b)=>b[1]-a[1]);
+   const dominant:Scored["dominant"]=match>=88?"match":signals[0]?.[0]??"explore";
+   return {...p,match,spatial,reputation,confidence,dominant};
+  }).sort((a,b)=>b.match-a.match);
+ },[inventory,ratings,mode,view.lat,view.lon,intent]);
+
+ const top=scored.slice(0,12);
+
+ useEffect(()=>{
+  for(const p of top.slice(0,8)){
+   if(ratings[p.productId]!==undefined||ratingPending.current.has(p.productId))continue;
+   ratingPending.current.add(p.productId);
+   fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+    propertyName:p.name,sourceProductId:p.productId,destinationSlug:p.destinationSlug,destinationName:p.location,latitude:p.latitude,longitude:p.longitude
+   })}).then(r=>r.json()).then(x=>setRatings(v=>({...v,[p.productId]:x?.ok?x.result??null:null})))
+    .catch(()=>setRatings(v=>({...v,[p.productId]:null}))).finally(()=>ratingPending.current.delete(p.productId));
+  }
+ },[top.map(x=>x.productId).join("|")]);
+
+ useEffect(()=>{
+  if(!mapRef.current||!ready)return;
+  let dead=false;
+  void import("leaflet").then(L=>{
+   if(dead||!mapRef.current)return;
+   layerRef.current?.remove();
+   const layer=L.layerGroup().addTo(mapRef.current);layerRef.current=layer;
+   const rank=new Map(top.map((x,i)=>[x.productId,i+1]));
+   const items=scored.slice(0,Math.min(420,scored.length));
+   for(const p of items){
+    const r=rank.get(p.productId);
+    const size=Math.round(22+Math.pow(p.match/100,2.15)*48+(r&&r<=3?8:0));
+    const cls=`mi2Star mi2-${p.dominant}`;
+    const marker=L.marker([p.latitude,p.longitude],{
+     icon:L.divIcon({
+      className:cls,
+      html:`<span style="--s:${size}px;--confidence:${Math.round(p.confidence)}"><i>★</i>${r&&r<=5?`<b>#${r}</b>`:""}<em></em></span>`,
+      iconSize:[size,size],iconAnchor:[size/2,size/2]
+     }),
+     zIndexOffset:r?2000-r*20:Math.round(p.match*8)
+    });
+    marker.on("mouseover",()=>{setSelected(p)});
+    marker.on("click",()=>{setSelected(p);mapRef.current?.flyTo([p.latitude,p.longitude],Math.max(10,mapRef.current.getZoom()),{duration:.65})});
+    marker.addTo(layer);
+   }
+  });
+  return()=>{dead=true};
+ },[scored,top.map(x=>x.productId).join("|"),ready]);
+
+ const active=selected??top[0]??null;
+ const rating=active?repLabel(ratings[active.productId]):null;
+ const signalLabel=active?.dominant==="match"?"AI Best Match":active?.dominant==="reviews"?"Strong Reviews":active?.dominant==="season"?"Best Now":active?.dominant==="value"?"Best Value":active?.dominant==="demand"?"High Demand":"Explore";
+
+ return <main className={styles.page}>
+  <header className={styles.topbar}>
+   <a href="/" className={styles.brand}>TRAVEL<span>AI</span><small>MAP INTELLIGENCE LAB</small></a>
+   <div className={styles.modeSwitch}>
+    <button className={mode==="global"?styles.active:""} onClick={()=>setMode("global")}><Brain weight="fill"/> Best for me</button>
+    <button className={mode==="local"?styles.active:""} onClick={()=>setMode("local")}><Crosshair weight="fill"/> Best around here</button>
+   </div>
+   <a href="/" className={styles.back}>← production</a>
+  </header>
+
+  <section className={styles.stage}>
+   <div ref={mapHost} className={styles.map}/>
+   {!ready||loading?<div className={styles.loading}><Sparkle weight="fill"/><b>TravelAI is reasoning over the map…</b><span>{inventory.length?inventory.length.toLocaleString("el-GR")+" live stays":"loading live inventory"}</span></div>:null}
+
+   <div className={styles.glow}/>
+   <aside className={styles.control}>
+    <div className={styles.eyebrow}><Sparkle weight="fill"/> AI 360° TRAVEL DECISION ENGINE</div>
+    <h1>Ο χάρτης δεν δείχνει απλώς μέρη.<br/><em>Σου δείχνει τι αξίζει περισσότερο τώρα.</em></h1>
+    <p>Το μέγεθος κάθε ⭐ είναι το συνολικό personal match. Το χρώμα εξηγεί <b>γιατί</b> ανεβαίνει.</p>
+
+    <div className={styles.form}>
+     <label><CalendarBlank/><span>Από</span><input type="date" value={start} min={today()} onChange={e=>setStart(e.target.value)}/></label>
+     <label><CalendarBlank/><span>Έως</span><input type="date" value={end} min={start} onChange={e=>setEnd(e.target.value)}/></label>
+     <label><Users/><span>Παρέα</span><select value={traveler} onChange={e=>setTraveler(e.target.value)}><option value="couple">Ζευγάρι</option><option value="solo">Solo</option><option value="family">Οικογένεια</option><option value="friends">Φίλοι</option></select></label>
+     <label><Wallet/><span>Budget</span><select value={budget} onChange={e=>setBudget(Number(e.target.value))}><option value={500}>≤ €500</option><option value={800}>€500–800</option><option value={1200}>€800–1.200</option><option value={2000}>Premium</option></select></label>
+    </div>
+
+    <div className={styles.vibes}>{["Χαλάρωση","Ρομαντικό","Περιπέτεια","Γαστρονομία"].map(x=><button key={x} className={intent===x?styles.vibeActive:""} onClick={()=>setIntent(x)}>{x}</button>)}</div>
+
+    <div className={styles.legend}>
+     <span><i className={styles.gold}>★</i> AI match</span>
+     <span><i className={styles.purple}>★</i> Reviews</span>
+     <span><i className={styles.cyan}>★</i> Season</span>
+     <span><i className={styles.green}>★</i> Value</span>
+     <span><i className={styles.coral}>★</i> Demand</span>
+    </div>
+
+    <div className={styles.topPicks}>
+     {top.slice(0,3).map((p,i)=><button key={p.productId} onClick={()=>{setSelected(p);mapRef.current?.flyTo([p.latitude,p.longitude],11,{duration:.8})}}>
+      <b>#{i+1}</b><span><strong>{p.location}</strong><small>{Math.round(p.match)}% match · {money(p.price,p.currency)}</small></span><em>→</em>
+     </button>)}
+    </div>
+   </aside>
+
+   <div className={styles.mapTools}>
+    <button className={!satellite?styles.toolActive:""} onClick={()=>setSatellite(false)}>Map</button>
+    <button className={satellite?styles.toolActive:""} onClick={()=>setSatellite(true)}>Satellite</button>
+   </div>
+
+   {active?<aside className={styles.reason}>
+    <button className={styles.close} onClick={()=>setSelected(null)} aria-label="Κλείσιμο"><X/></button>
+    <div className={styles.reasonHero} style={active.imageUrl?{backgroundImage:`linear-gradient(180deg,rgba(8,21,18,.04),rgba(8,21,18,.82)),url(${active.imageUrl})`}:undefined}>
+     <span>{signalLabel}</span>
+     <div><small><MapPin weight="fill"/> {active.location}</small><h2>{active.name}</h2></div>
+     <strong>{Math.round(active.match)}<small>/100</small></strong>
+    </div>
+    <div className={styles.reasonBody}>
+     <div className={styles.metrics}>
+      <span><b>{Math.round(active.intelligenceScore??58)}</b><small>Needs match</small></span>
+      <span><b>{rating?.text??(active.reputation!=null?Math.round(active.reputation):"—")}</b><small>{rating?.sub??"Reputation"}</small></span>
+      <span><b>{Math.round(active.seasonalScore??60)}</b><small>Season now</small></span>
+      <span><b>{Math.round(active.spatial)}</b><small>Spatial fit</small></span>
+      <span><b>{Math.round(active.priceScore??55)}</b><small>Value</small></span>
+      <span><b>{Math.round(active.confidence)}%</b><small>Confidence</small></span>
+     </div>
+     <div className={styles.why}>
+      <h3><Brain weight="fill"/> Why TravelAI ranks it here</h3>
+      <p><b>{Math.round(active.match)}% συνολικό match.</b> Συνδυάζει needs-fit, seasonality, value, spatial relevance και reputation signal όπου υπάρχει verified evidence.</p>
+      <div><span><TrendUp/> Best signal</span><b>{signalLabel}</b></div>
+      <div><span><Compass/> Trade-off</span><b>{active.spatial<65?"Πιο μακριά από το viewport που εξερευνάς":"Δεν φαίνεται ισχυρό spatial penalty"}</b></div>
+     </div>
+     <button className={styles.cta} onClick={()=>{const slug=active.destinationSlug;if(slug)window.location.href=`/escape/${encodeURIComponent(slug)}/stay/${encodeURIComponent(active.productId)}?start=${start}&end=${end}&budget=${budget}&travelerType=${traveler}&dn=${encodeURIComponent(active.location)}`;}}>Δες το πλήρες reasoning <Sparkle weight="fill"/></button>
+    </div>
+   </aside>:null}
+
+   <div className={styles.status}>
+    <span><i/> LIVE</span>
+    <b>{inventory.length.toLocaleString("el-GR")} stays</b>
+    <span>viewport {view.zoom.toFixed(0)}x</span>
+    <span>{mode==="local"?"spatial-aware ranking":"global personal ranking"}</span>
+   </div>
+  </section>
+ </main>
+}
