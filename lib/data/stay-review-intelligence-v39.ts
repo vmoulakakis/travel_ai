@@ -69,6 +69,27 @@ async function google(args:Args,includePhoto=false,includeReviews=true){
    candidates.push(...rows);
    if(rows.length)break;
   }
+  if(args.latitude!=null&&args.longitude!=null){
+   try{
+    const nearbyMask=includeReviews
+     ?"places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.reviews,places.photos"
+     :"places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos";
+    const nearby=await fetch("https://places.googleapis.com/v1/places:searchNearby",{
+     method:"POST",
+     headers:{"content-type":"application/json","X-Goog-Api-Key":key,"X-Goog-FieldMask":nearbyMask},
+     body:JSON.stringify({
+      includedTypes:["hotel","resort_hotel","bed_and_breakfast","guest_house","hostel","motel"],
+      maxResultCount:20,rankPreference:"DISTANCE",languageCode:args.language==="el"?"el":"en",
+      locationRestriction:{circle:{center:{latitude:args.latitude,longitude:args.longitude},radius:6000}}
+     }),
+     cache:"no-store",signal:AbortSignal.timeout(7000)
+    });
+    if(nearby.ok){
+     const np=await nearby.json() as any,nrows=Array.isArray(np?.places)?np.places:[];
+     candidates.push(...nrows);
+    }
+   }catch{}
+  }
   let best:any=null,bestScore=.34;
   for(const row of candidates){
    const candidate=clean(row?.displayName?.text,180),nf=nameFit(canonical||args.propertyName,candidate);
