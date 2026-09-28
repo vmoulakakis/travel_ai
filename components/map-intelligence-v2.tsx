@@ -13,7 +13,7 @@ type Stay={
 };
 type Rating={provider:string;rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
 type RatingPayload={primary?:Rating|null;ratings?:Rating[]}|null;
-type NearbyPlace={id:string;name:string;category:"food"|"drink"|"activity";subtype:string;latitude:number;longitude:number;distanceKm:number;website:string|null;openingHours:string|null;cuisine:string|null};
+type NearbyPlace={id:string;name:string;category:"food"|"drink"|"activity";subtype:string;latitude:number;longitude:number;distanceKm:number;website:string|null;openingHours:string|null;cuisine:string|null;rating?:number|null;reviewCount?:number|null;provider?:"Google Places"|"Foursquare"|"OpenStreetMap";confidence?:"HIGH"|"MEDIUM"|"LOW"};
 type NearbyDetails={
  ok:boolean;radiusKm:number;
  weather:{status:"trip-window"|"nearest-forecast"|"unavailable";summary:{label:string;maxC:number|null;minC:number|null;rainPct:number|null;windKmh:number|null}|null;days:Array<{date:string;icon:string;label:string;maxC:number;minC:number;rainPct:number;windKmh:number}>};
@@ -322,7 +322,7 @@ export function MapIntelligenceV2(){
     </div>:null}
 
     <div className={styles.deepFoot}>
-     <div><b>There + nearby intelligence</b><span>Verified stay rating + Open-Meteo weather + nearby open geographic data. Δεν εμφανίζονται ανύπαρκτα venue ratings.</span></div>
+     <div><b>There + nearby intelligence</b><span>Verified stay rating + Open-Meteo + Google Places / Foursquare / OpenStreetMap cascade. Κάθε venue rating εμφανίζεται μόνο όταν επιστρέφεται από provider.</span></div>
      <button onClick={()=>{const slug=active.destinationSlug;if(slug)window.location.href=`/escape/${encodeURIComponent(slug)}/stay/${encodeURIComponent(active.productId)}?start=${start}&end=${end}&budget=${budget}&travelerType=${traveler}&dn=${encodeURIComponent(active.location)}`;}}>Δες τη διαμονή →</button>
     </div>
    </aside>:null}
@@ -343,11 +343,13 @@ function NearbySection({title,items,ratings,onPick}:{title:string;items:NearbyPl
   <div className={styles.placeList}>
    {items.length?items.slice(0,6).map(p=>{
     const vr=repLabel(ratings[p.id]);
+    const direct=p.rating!=null?{text:p.rating.toFixed(1)+"/5",sub:`${p.provider??"provider"}${p.reviewCount!=null?` · ${p.reviewCount.toLocaleString("el-GR")} reviews`:""}`}:null;
+    const shown=direct??vr;
     return <button key={p.id} onClick={()=>onPick(p)}>
-     <span><b>{p.name}</b><small>{p.cuisine??p.subtype}{vr?.sub?` · ${vr.sub}`:p.openingHours?` · ${p.openingHours}`:""}</small></span>
-     <em>{vr?<>★ {vr.text} · {p.distanceKm.toFixed(1)} km</>:<>{p.distanceKm.toFixed(1)} km ↗</>}</em>
+     <span><b>{p.name}</b><small>{p.cuisine??p.subtype}{shown?.sub?` · ${shown.sub}`:p.openingHours?` · ${p.openingHours}`:""}</small></span>
+     <em>{shown?<>★ {shown.text} · {p.distanceKm.toFixed(1)} km</>:<>{p.distanceKm.toFixed(1)} km · {p.provider??"verified map"} ↗</>}</em>
     </button>
-   }):<p>Δεν βρέθηκαν αρκετά επαληθεύσιμα open-data σημεία σε ακτίνα 4,5 km.</p>}
+   }):<p>Οι live providers δεν επέστρεψαν αρκετά αξιόπιστα σημεία στην περιοχή. Δεν δημιουργούμε filler αποτελέσματα.</p>}
   </div>
  </section>
 }
