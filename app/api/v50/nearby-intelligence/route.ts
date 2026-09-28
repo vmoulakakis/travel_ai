@@ -8,7 +8,7 @@ export const maxDuration=60;
 
 type NearbyItem={
  id:string;name:string;category:"food"|"drink"|"activity";
- subtype:string;latitude:number;longitude:number;distanceKm:number;
+ subtype:string;latitude:number|null;longitude:number|null;distanceKm:number|null;
  website:string|null;openingHours:string|null;cuisine:string|null;
  rating:number|null;reviewCount:number|null;
  provider:"Google Places"|"Foursquare"|"OpenStreetMap"|"Web Research";
@@ -59,9 +59,10 @@ const dedupe=(rows:NearbyItem[])=>{
 const rank=(rows:NearbyItem[])=>[...rows].sort((a,b)=>{
  const ar=a.rating??0,br=b.rating??0;
  const ac=Math.log10((a.reviewCount??0)+10),bc=Math.log10((b.reviewCount??0)+10);
- const ap=a.provider==="Google Places"?8:a.provider==="Foursquare"?4:0;
- const bp=b.provider==="Google Places"?8:b.provider==="Foursquare"?4:0;
- return (br*13+bc*7-b.distanceKm*1.6+bp)-(ar*13+ac*7-a.distanceKm*1.6+ap);
+ const ap=a.provider==="Google Places"?8:a.provider==="Foursquare"?4:a.provider==="Web Research"?2:0;
+ const bp=b.provider==="Google Places"?8:b.provider==="Foursquare"?4:b.provider==="Web Research"?2:0;
+ const ad=a.distanceKm??12,bd=b.distanceKm??12;
+ return (br*13+bc*7-bd*1.6+bp)-(ar*13+ac*7-ad*1.6+ap);
 });
 
 function classify(tags:Record<string,string>|undefined){
@@ -313,7 +314,7 @@ Return up to 7 food, 6 drink, 8 activity venues.`,
    if(webResearch?.venues?.length){
     const toItem=(x:WebVenue):NearbyItem=>({
      id:"web-"+Buffer.from(x.sourceUrl+x.name).toString("base64url").slice(0,40),name:x.name,category:x.category,subtype:x.subtype,
-     latitude:lat,longitude:lon,distanceKm:0,website:x.sourceUrl,openingHours:null,cuisine:null,
+     latitude:null,longitude:null,distanceKm:null,website:x.sourceUrl,openingHours:null,cuisine:null,
      rating:x.rating,reviewCount:x.reviewCount,provider:"Web Research",sourceUrl:x.sourceUrl,confidence:x.confidence
     });
     const webRows=webResearch.venues.map(toItem);
