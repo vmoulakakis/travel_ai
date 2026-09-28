@@ -164,3 +164,48 @@ export async function enrichTopPages(results:KeylessSearchResult[],limit=8){
   }).slice(0,limit);
   return (await Promise.all(priority.map(x=>fetchPageEvidence(x.url)))).filter((x):x is PageEvidence=>Boolean(x));
 }
+
+
+export type CommonsPhoto={
+  url:string;
+  thumbUrl:string;
+  title:string;
+  credit:string|null;
+  sourceUrl:string|null;
+};
+
+export async function commonsAreaPhotos(areaName:string,limit=6):Promise<CommonsPhoto[]>{
+  const q=areaName.trim();if(!q)return[];
+  try{
+    const u=new URL("https://commons.wikimedia.org/w/api.php");
+    u.searchParams.set("action","query");
+    u.searchParams.set("generator","search");
+    u.searchParams.set("gsrsearch",q+" Greece");
+    u.searchParams.set("gsrnamespace","6");
+    u.searchParams.set("gsrlimit",String(Math.max(4,Math.min(12,limit*2))));
+    u.searchParams.set("prop","imageinfo");
+    u.searchParams.set("iiprop","url|extmetadata");
+    u.searchParams.set("iiurlwidth","1600");
+    u.searchParams.set("format","json");
+    u.searchParams.set("origin","*");
+    const r=await fetch(u,{headers:{"user-agent":UA},cache:"no-store",signal:AbortSignal.timeout(7000)});
+    if(!r.ok)return[];
+    const j=await r.json() as any,pages=Object.values(j?.query?.pages??{}) as any[];
+    const out:CommonsPhoto[]=[];
+    for(const p of pages){
+      const info=p?.imageinfo?.[0],url=typeof info?.url==="string"?info.url:"",thumb=typeof info?.thumburl==="string"?info.thumburl:"";
+      if(!url||!thumb)continue;
+      const meta=info?.extmetadata??{};
+      const rawArtist=typeof meta?.Artist?.value==="string"?meta.Artist.value:"";
+      const credit=stripTags([rawArtist,typeof meta?.LicenseShortName?.value==="string"?meta.LicenseShortName.value:""].filter(Boolean).join(" · ")).slice(0,180)||null;
+      out.push({
+        url,thumbUrl:thumb,
+        title:String(p?.title??"").replace(/^File:/,"").slice(0,180),
+        credit,
+        sourceUrl:typeof info?.descriptionurl==="string"?info.descriptionurl:null
+      });
+      if(out.length>=limit)break;
+    }
+    return out;
+  }catch{return[]}
+}
