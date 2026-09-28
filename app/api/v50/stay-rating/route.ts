@@ -13,7 +13,7 @@ export async function POST(request:Request){
  try{
   const body=await request.json().catch(()=>null) as Record<string,unknown>|null;
   const propertyName=text(body?.propertyName,180),sourceProductId=text(body?.sourceProductId,180),destinationSlug=text(body?.destinationSlug,80).toLowerCase(),destinationName=text(body?.destinationName,160),latitude=finite(body?.latitude),longitude=finite(body?.longitude);
-  if(!propertyName||!id.test(sourceProductId)||!destinationName||(destinationSlug&&!slug.test(destinationSlug))){
+  if(!propertyName||!id.test(sourceProductId)||(destinationSlug&&!slug.test(destinationSlug))||(!destinationName&&(latitude==null||longitude==null))){
    return NextResponse.json({ok:false,error:"invalid_rating_request"},{status:400});
   }
   const result=await getStayRatingQuickV50({propertyName,sourceProductId,destinationSlug,destinationName,latitude,longitude,language:"el"});
