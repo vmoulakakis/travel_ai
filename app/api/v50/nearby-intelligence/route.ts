@@ -295,18 +295,20 @@ Return up to 7 food, 6 drink, 8 activity venues.`,
     prompt:researchEvidence,
     preference:"critical",
     validate:v=>{
-     const allowed=(x:unknown)=>x==="HIGH"||x==="MEDIUM"||x==="LOW"?x:"LOW";
-     const hotel=v.hotel&&typeof v.hotel==="object"&&typeof v.hotel.name==="string"&&typeof v.hotel.sourceUrl==="string"
-      ?{name:v.hotel.name.trim().slice(0,180),rating:Number.isFinite(Number(v.hotel.rating))?Math.max(0,Math.min(5,Number(v.hotel.rating))):null,reviewCount:Number.isFinite(Number(v.hotel.reviewCount))?Math.max(0,Math.round(Number(v.hotel.reviewCount))):null,sourceUrl:v.hotel.sourceUrl.slice(0,1000),sourceTitle:String(v.hotel.sourceTitle??"").slice(0,220),confidence:allowed(v.hotel.confidence)}
+     const allowed=(x:unknown):"HIGH"|"MEDIUM"|"LOW"=>x==="HIGH"||x==="MEDIUM"||x==="LOW"?x:"LOW";
+     const rawHotel=v.hotel&&typeof v.hotel==="object"?v.hotel as Record<string,unknown>:null;
+     const hotel:WebResearchExtract["hotel"]=rawHotel&&typeof rawHotel.name==="string"&&typeof rawHotel.sourceUrl==="string"
+      ?{name:rawHotel.name.trim().slice(0,180),rating:Number.isFinite(Number(rawHotel.rating))?Math.max(0,Math.min(5,Number(rawHotel.rating))):null,reviewCount:Number.isFinite(Number(rawHotel.reviewCount))?Math.max(0,Math.round(Number(rawHotel.reviewCount))):null,sourceUrl:rawHotel.sourceUrl.slice(0,1000),sourceTitle:String(rawHotel.sourceTitle??"").slice(0,220),confidence:allowed(rawHotel.confidence)}
       :null;
-     const venues=Array.isArray(v.venues)?v.venues.flatMap((x:any)=>{
-      const category=x?.category==="food"||x?.category==="drink"||x?.category==="activity"?x.category:null;
-      const name=typeof x?.name==="string"?x.name.trim().slice(0,180):"";
-      const sourceUrl=typeof x?.sourceUrl==="string"?x.sourceUrl.trim().slice(0,1000):"";
+     const venues:WebVenue[]=Array.isArray(v.venues)?v.venues.flatMap((raw:unknown)=>{
+      const x=raw&&typeof raw==="object"?raw as Record<string,unknown>:null;if(!x)return[];
+      const category:WebVenue["category"]|null=x.category==="food"||x.category==="drink"||x.category==="activity"?x.category:null;
+      const name=typeof x.name==="string"?x.name.trim().slice(0,180):"";
+      const sourceUrl=typeof x.sourceUrl==="string"?x.sourceUrl.trim().slice(0,1000):"";
       if(!category||!name||!sourceUrl)return[];
-      return[{name,category,subtype:typeof x?.subtype==="string"?x.subtype.trim().slice(0,100):category,rating:Number.isFinite(Number(x?.rating))?Math.max(0,Math.min(5,Number(x.rating))):null,reviewCount:Number.isFinite(Number(x?.reviewCount))?Math.max(0,Math.round(Number(x.reviewCount))):null,sourceUrl,sourceTitle:typeof x?.sourceTitle==="string"?x.sourceTitle.trim().slice(0,220):"",evidence:typeof x?.evidence==="string"?x.evidence.trim().slice(0,260):"",confidence:allowed(x?.confidence)}];
+      return[{name,category,subtype:typeof x.subtype==="string"?x.subtype.trim().slice(0,100):category,rating:Number.isFinite(Number(x.rating))?Math.max(0,Math.min(5,Number(x.rating))):null,reviewCount:Number.isFinite(Number(x.reviewCount))?Math.max(0,Math.round(Number(x.reviewCount))):null,sourceUrl,sourceTitle:typeof x.sourceTitle==="string"?x.sourceTitle.trim().slice(0,220):"",evidence:typeof x.evidence==="string"?x.evidence.trim().slice(0,260):"",confidence:allowed(x.confidence)}];
      }).slice(0,21):[];
-     const areaNotes=Array.isArray(v.areaNotes)?v.areaNotes.map((x:any)=>String(x).trim().slice(0,220)).filter(Boolean).slice(0,6):[];
+     const areaNotes=Array.isArray(v.areaNotes)?v.areaNotes.map((x:unknown)=>String(x).trim().slice(0,220)).filter(Boolean).slice(0,6):[];
      return hotel||venues.length?{hotel,venues,areaNotes}:null;
     }
    }).catch(()=>null);
