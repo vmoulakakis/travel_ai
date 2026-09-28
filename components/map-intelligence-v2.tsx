@@ -2,7 +2,7 @@
 
 import {useEffect,useMemo,useRef,useState} from "react";
 import type {LayerGroup,Map as LeafletMap,TileLayer} from "leaflet";
-import {Brain,CalendarBlank,Compass,Crosshair,MapPin,Sparkle,Star,TrendUp,Users,Wallet,X} from "@phosphor-icons/react";
+import {Brain,CalendarBlank,Compass,Crosshair,MapPin,Sparkle,TrendUp,Users,Wallet,X} from "@phosphor-icons/react";
 import styles from "./map-intelligence-v2.module.css";
 
 type Stay={
@@ -148,7 +148,7 @@ export function MapIntelligenceV2(){
      zIndexOffset:r?2000-r*20:Math.round(p.match*8)
     });
     marker.on("mouseover",()=>{setSelected(p)});
-    marker.on("click",()=>{setSelected(p);mapRef.current?.flyTo([p.latitude,p.longitude],Math.max(10,mapRef.current.getZoom()),{duration:.65})});
+    marker.on("click",()=>{setSelected(p);const map=mapRef.current;if(map)map.flyTo([p.latitude,p.longitude],Math.max(10,map.getZoom()),{duration:.65})});
     marker.addTo(layer);
    }
   });
@@ -197,7 +197,7 @@ export function MapIntelligenceV2(){
     </div>
 
     <div className={styles.topPicks}>
-     {top.slice(0,3).map((p,i)=><button key={p.productId} onClick={()=>{setSelected(p);mapRef.current?.flyTo([p.latitude,p.longitude],11,{duration:.8})}}>
+     {top.slice(0,3).map((p,i)=><button key={p.productId} onClick={()=>{setSelected(p);const map=mapRef.current;if(map)map.flyTo([p.latitude,p.longitude],11,{duration:.8})}}>
       <b>#{i+1}</b><span><strong>{p.location}</strong><small>{Math.round(p.match)}% match · {money(p.price,p.currency)}</small></span><em>→</em>
      </button>)}
     </div>
