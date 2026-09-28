@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {createLLMRequestBudgetV16,generateJsonWithRoutingV16} from "@/lib/ai/model-router-v9";
+import {enrichTopPages,researchQueries} from "@/lib/research/keyless-web-search-v51";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -10,7 +11,8 @@ type NearbyItem={
  subtype:string;latitude:number;longitude:number;distanceKm:number;
  website:string|null;openingHours:string|null;cuisine:string|null;
  rating:number|null;reviewCount:number|null;
- provider:"Google Places"|"Foursquare"|"OpenStreetMap";
+ provider:"Google Places"|"Foursquare"|"OpenStreetMap"|"Web Research";
+ sourceUrl?:string|null;
  confidence:"HIGH"|"MEDIUM"|"LOW";
 };
 type AreaSummary={
@@ -255,11 +257,79 @@ export async function GET(request:Request){
 
  const [weather,nearby]=await Promise.all([weatherPromise,nearbyPromise]);
 
+ type WebVenue={name:string;category:"food"|"drink"|"activity";subtype:string;rating:number|null;reviewCount:number|null;sourceUrl:string;sourceTitle:string;evidence:string;confidence:"HIGH"|"MEDIUM"|"LOW"};
+ type WebResearchExtract={hotel:{name:string;rating:number|null;reviewCount:number|null;sourceUrl:string;sourceTitle:string;confidence:"HIGH"|"MEDIUM"|"LOW"}|null;venues:WebVenue[];areaNotes:string[]};
+ let webResearch:WebResearchExtract|null=null;
+
+ if(nearby.food.length<4||nearby.drink.length<3||nearby.activities.length<5){
+  try{
+   const cleanHotel=hotelName.replace(/\s*✦.*$/,"").replace(/\s+[–—-]\s+\d+.*$/,"").trim();
+   const queries=[
+    `"${cleanHotel}" "${areaName}" rating reviews`,
+    `"${areaName}" best restaurants reviews`,
+    `"${areaName}" restaurants Tripadvisor`,
+    `"${areaName}" bars cafes nightlife`,
+    `"${areaName}" things to do attractions Tripadvisor`,
+    `"${areaName}" δραστηριότητες αξιοθέατα εστιατόρια καφέ`
+   ].filter(x=>x.replace(/[" ]/g,"").length>5);
+   const results=await researchQueries(queries,7);
+   const pages=await enrichTopPages(results,8);
+   const researchEvidence=JSON.stringify({
+    hotel:cleanHotel,area:areaName,coordinates:{lat,lon},
+    searchResults:results.slice(0,34).map(x=>({title:x.title,url:x.url,snippet:x.snippet,host:x.host,query:x.query})),
+    pages:pages.map(p=>({url:p.url,title:p.title,text:p.text.slice(0,3500),jsonLd:p.jsonLd}))
+   });
+   const routed=await generateJsonWithRoutingV16<WebResearchExtract>({
+    context:{task:"research",text:researchEvidence,deterministicConfidence:.35,forceSemantic:true,preferOpenAI:true},
+    budget:createLLMRequestBudgetV16(),
+    system:`You are the TravelAI web evidence extractor. Use ONLY the supplied web search results, snippets, page text and JSON-LD. Never invent a venue, rating, review count or source.
+Identify the exact selected hotel when supported and extract its rating/review count only if explicitly evidenced.
+Extract useful named venues for food, drink and activities in/near the requested area. A venue name must be explicitly present in the evidence. For rating/reviewCount, use null unless explicitly present in the same source evidence.
+Prefer direct venue/provider pages, Tripadvisor, official tourism pages and strong local sources over generic listicles. Deduplicate aliases.
+Return JSON only:
+{"hotel":{"name":"","rating":4.5,"reviewCount":123,"sourceUrl":"","sourceTitle":"","confidence":"HIGH|MEDIUM|LOW"}|null,
+"venues":[{"name":"","category":"food|drink|activity","subtype":"","rating":null,"reviewCount":null,"sourceUrl":"","sourceTitle":"","evidence":"short supporting phrase","confidence":"HIGH|MEDIUM|LOW"}],
+"areaNotes":["evidence-grounded note"]}.
+Return up to 7 food, 6 drink, 8 activity venues.`,
+    prompt:researchEvidence,
+    preference:"critical",
+    validate:v=>{
+     const allowed=(x:unknown)=>x==="HIGH"||x==="MEDIUM"||x==="LOW"?x:"LOW";
+     const hotel=v.hotel&&typeof v.hotel==="object"&&typeof v.hotel.name==="string"&&typeof v.hotel.sourceUrl==="string"
+      ?{name:v.hotel.name.trim().slice(0,180),rating:Number.isFinite(Number(v.hotel.rating))?Math.max(0,Math.min(5,Number(v.hotel.rating))):null,reviewCount:Number.isFinite(Number(v.hotel.reviewCount))?Math.max(0,Math.round(Number(v.hotel.reviewCount))):null,sourceUrl:v.hotel.sourceUrl.slice(0,1000),sourceTitle:String(v.hotel.sourceTitle??"").slice(0,220),confidence:allowed(v.hotel.confidence)}
+      :null;
+     const venues=Array.isArray(v.venues)?v.venues.flatMap((x:any)=>{
+      const category=x?.category==="food"||x?.category==="drink"||x?.category==="activity"?x.category:null;
+      const name=typeof x?.name==="string"?x.name.trim().slice(0,180):"";
+      const sourceUrl=typeof x?.sourceUrl==="string"?x.sourceUrl.trim().slice(0,1000):"";
+      if(!category||!name||!sourceUrl)return[];
+      return[{name,category,subtype:typeof x?.subtype==="string"?x.subtype.trim().slice(0,100):category,rating:Number.isFinite(Number(x?.rating))?Math.max(0,Math.min(5,Number(x.rating))):null,reviewCount:Number.isFinite(Number(x?.reviewCount))?Math.max(0,Math.round(Number(x.reviewCount))):null,sourceUrl,sourceTitle:typeof x?.sourceTitle==="string"?x.sourceTitle.trim().slice(0,220):"",evidence:typeof x?.evidence==="string"?x.evidence.trim().slice(0,260):"",confidence:allowed(x?.confidence)}];
+     }).slice(0,21):[];
+     const areaNotes=Array.isArray(v.areaNotes)?v.areaNotes.map((x:any)=>String(x).trim().slice(0,220)).filter(Boolean).slice(0,6):[];
+     return hotel||venues.length?{hotel,venues,areaNotes}:null;
+    }
+   }).catch(()=>null);
+   webResearch=routed?.value??null;
+   if(webResearch?.venues?.length){
+    const toItem=(x:WebVenue):NearbyItem=>({
+     id:"web-"+Buffer.from(x.sourceUrl+x.name).toString("base64url").slice(0,40),name:x.name,category:x.category,subtype:x.subtype,
+     latitude:lat,longitude:lon,distanceKm:0,website:x.sourceUrl,openingHours:null,cuisine:null,
+     rating:x.rating,reviewCount:x.reviewCount,provider:"Web Research",sourceUrl:x.sourceUrl,confidence:x.confidence
+    });
+    const webRows=webResearch.venues.map(toItem);
+    nearby.food=rank(dedupe([...nearby.food,...webRows.filter(x=>x.category==="food")])).slice(0,8);
+    nearby.drink=rank(dedupe([...nearby.drink,...webRows.filter(x=>x.category==="drink")])).slice(0,8);
+    nearby.activities=rank(dedupe([...nearby.activities,...webRows.filter(x=>x.category==="activity")])).slice(0,10);
+    nearby.confidence=nearby.food.length>=3&&nearby.activities.length>=3?"HIGH":"MEDIUM";
+   }
+  }catch{}
+ }
+
  let areaSummary:AreaSummary|null=null;
  if(nearby.food.length||nearby.drink.length||nearby.activities.length){
   try{
    const evidence=JSON.stringify({
-    hotel:hotelName,area:areaName,start,end,weather:weather.summary,
+    hotel:hotelName,area:areaName,start,end,weather:weather.summary,webResearch,
     food:nearby.food.slice(0,5).map(x=>({name:x.name,rating:x.rating,reviews:x.reviewCount,distanceKm:x.distanceKm,provider:x.provider})),
     drink:nearby.drink.slice(0,5).map(x=>({name:x.name,rating:x.rating,reviews:x.reviewCount,distanceKm:x.distanceKm,provider:x.provider})),
     activities:nearby.activities.slice(0,6).map(x=>({name:x.name,rating:x.rating,reviews:x.reviewCount,distanceKm:x.distanceKm,provider:x.provider}))
@@ -282,14 +352,14 @@ export async function GET(request:Request){
 
  return NextResponse.json({
   ok:true,generatedAt:new Date().toISOString(),radiusKm:nearby.usedRadiusKm,
-  hotel:{name:hotelName||null,area:areaName||null,latitude:lat,longitude:lon},
-  weather,nearby,areaSummary,
+  hotel:{name:hotelName||null,area:areaName||null,latitude:lat,longitude:lon,webRating:webResearch?.hotel??null},
+  weather,nearby,areaSummary,webResearch,
   completeness:{
    food:nearby.food.length,drink:nearby.drink.length,activities:nearby.activities.length,
    sufficient:nearby.food.length>=3&&nearby.activities.length>=3,
    message:nearby.food.length||nearby.drink.length||nearby.activities.length
     ?`Area intelligence expanded automatically to ${nearby.usedRadiusKm} km.`
-    :"All configured place providers returned no usable places; this is a provider/data incident, not a valid travel conclusion."
+    :"Configured place providers and keyless web research returned no usable evidence; treat as a research incident, never as proof that the area has no options."
   }
  },{headers:{"cache-control":"public, s-maxage=900, stale-while-revalidate=3600","x-travel-nearby":"v51-area-intelligence"}});
 }
