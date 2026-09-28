@@ -17,7 +17,9 @@ type NearbyPlace={id:string;name:string;category:"food"|"drink"|"activity";subty
 type NearbyDetails={
  ok:boolean;radiusKm:number;
  weather:{status:"trip-window"|"nearest-forecast"|"unavailable";summary:{label:string;maxC:number|null;minC:number|null;rainPct:number|null;windKmh:number|null}|null;days:Array<{date:string;icon:string;label:string;maxC:number;minC:number;rainPct:number;windKmh:number}>};
- nearby:{food:NearbyPlace[];drink:NearbyPlace[];activities:NearbyPlace[]};
+ nearby:{food:NearbyPlace[];drink:NearbyPlace[];activities:NearbyPlace[];usedRadiusKm?:number;confidence?:string};
+ areaSummary?:{verdict:string;food:string;drink:string;activities:string;weather:string;tradeoff:string;confidence:"HIGH"|"MEDIUM"|"LOW"}|null;
+ completeness?:{food:number;drink:number;activities:number;sufficient:boolean;message:string};
 };
 
 const clamp=(n:number,a=0,b=100)=>Math.max(a,Math.min(b,n));
@@ -39,6 +41,13 @@ const repScore=(r:RatingPayload)=>{
 const repLabel=(r:RatingPayload)=>{
  const best=r?.ratings?.filter(x=>x.provider!=="AI Guest Signal").sort((a,b)=>(b.reviewCount??0)-(a.reviewCount??0))[0];
  return best?{text:`${best.rating.toFixed(1)}/${best.scale}`,sub:`${best.provider}${best.reviewCount!=null?` · ${best.reviewCount.toLocaleString("el-GR")} reviews`:""}`}:null;
+};
+const escapeEligible=(p:Stay)=>{
+ const text=[p.name,p.location,p.address].filter(Boolean).join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ if(/ημιδιαμον|day\s*use|hourly|short\s*stay|love\s*hotel|rooms?\s*by\s*hour/i.test(text))return false;
+ const athensCenter={lat:37.9838,lon:23.7275};
+ const distance=haversine(athensCenter,{lat:p.latitude,lon:p.longitude});
+ return distance>=24;
 };
 
 type Scored=Stay&{match:number;spatial:number;reputation:number|null;confidence:number;dominant:"match"|"reviews"|"season"|"value"|"demand"|"explore"};
@@ -104,7 +113,7 @@ export function MapIntelligenceV2(){
  const scored=useMemo<Scored[]>(()=>{
   const center={lat:view.lat,lon:view.lon};
   const moodBoost=intent==="Χαλάρωση"?3:intent==="Ρομαντικό"?2:intent==="Γαστρονομία"?1:0;
-  return inventory.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)).map(p=>{
+  return inventory.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&escapeEligible(p)).map(p=>{
    const ai=clamp((p.intelligenceScore??58)+moodBoost);
    const season=clamp(p.seasonalScore??60);
    const value=clamp(p.priceScore??55);
@@ -187,13 +196,13 @@ export function MapIntelligenceV2(){
   if(!active)return;
   setDetailsOpen(true);setDetailsLoading(true);setDetailsError(null);
   try{
-   const q=new URLSearchParams({lat:String(active.latitude),lon:String(active.longitude),start,end});
+   const q=new URLSearchParams({lat:String(active.latitude),lon:String(active.longitude),start,end,name:active.name,area:active.location});
    const r=await fetch(`/api/v50/nearby-intelligence?${q.toString()}`,{cache:"no-store"});
    const j=await r.json() as NearbyDetails;
    if(!r.ok||!j?.ok)throw new Error("nearby");
    setDetails(j);
   }catch{
-   setDetailsError("Δεν επέστρεψαν τώρα live nearby δεδομένα. Κράτησα το verified rating και τα TravelAI scores χωρίς να εφεύρω πληροφορίες.");
+   setDetailsError("Προσωρινή αστοχία live provider. Αυτό δεν θεωρείται «δεν υπάρχουν επιλογές» — το TravelAI πρέπει να επαναλάβει την area search από εναλλακτική πηγή.");
   }finally{setDetailsLoading(false)}
  }
 
@@ -309,6 +318,18 @@ export function MapIntelligenceV2(){
     {detailsLoading?<div className={styles.deepLoading}><Sparkle weight="fill"/><b>Scanning weather + nearby life…</b><span>φαγητό · ποτό · δραστηριότητες · spatial context</span></div>:null}
     {detailsError?<div className={styles.deepError}>{detailsError}</div>:null}
 
+    {details?.areaSummary?<section className={styles.areaVerdict}>
+     <div className={styles.deepSectionTitle}><span>🧠 AI AREA VERDICT</span><b>{details.areaSummary.confidence} confidence · radius {details.radiusKm} km</b></div>
+     <h3>{details.areaSummary.verdict}</h3>
+     <div className={styles.areaFacts}>
+      <span><b>🍽️ Food</b>{details.areaSummary.food}</span>
+      <span><b>🍸 Drink</b>{details.areaSummary.drink}</span>
+      <span><b>🧭 Activities</b>{details.areaSummary.activities}</span>
+      <span><b>🌤️ Weather</b>{details.areaSummary.weather}</span>
+     </div>
+     {details.areaSummary.tradeoff?<p><b>Trade-off:</b> {details.areaSummary.tradeoff}</p>:null}
+    </section>:null}
+
     {details?.weather?.summary?<section className={styles.weatherBlock}>
      <div className={styles.deepSectionTitle}><span>WEATHER</span><b>{details.weather.status==="trip-window"?"στις ημερομηνίες σου":"nearest available forecast"}</b></div>
      <div className={styles.weatherHero}><strong>{details.weather.days[0]?.icon??"🌤️"}</strong><div><b>{details.weather.summary.label}</b><span>{Math.round(details.weather.summary.minC??0)}°–{Math.round(details.weather.summary.maxC??0)}°C · rain {Math.round(details.weather.summary.rainPct??0)}% · wind {Math.round(details.weather.summary.windKmh??0)} km/h</span></div></div>
@@ -349,7 +370,7 @@ function NearbySection({title,items,ratings,onPick}:{title:string;items:NearbyPl
      <span><b>{p.name}</b><small>{p.cuisine??p.subtype}{shown?.sub?` · ${shown.sub}`:p.openingHours?` · ${p.openingHours}`:""}</small></span>
      <em>{shown?<>★ {shown.text} · {p.distanceKm.toFixed(1)} km</>:<>{p.distanceKm.toFixed(1)} km · {p.provider??"verified map"} ↗</>}</em>
     </button>
-   }):<p>Οι live providers δεν επέστρεψαν αρκετά αξιόπιστα σημεία στην περιοχή. Δεν δημιουργούμε filler αποτελέσματα.</p>}
+   }):<p>⚠️ Provider/data incident — το TravelAI δεν το ερμηνεύει ως «δεν υπάρχουν επιλογές».</p>}
   </div>
  </section>
 }
