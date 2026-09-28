@@ -12,7 +12,7 @@ type Stay={
  mapSignal?:"ai"|"discovery"|"demand"|"seasonal"|"value"|"explore";destinationSlug?:string|null;
 };
 type Rating={provider:string;rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
-type RatingPayload={ratings?:Rating[]}|null;
+type RatingPayload={primary?:Rating|null;ratings?:Rating[]}|null;
 type NearbyPlace={id:string;name:string;category:"food"|"drink"|"activity";subtype:string;latitude:number;longitude:number;distanceKm:number;website:string|null;openingHours:string|null;cuisine:string|null};
 type NearbyDetails={
  ok:boolean;radiusKm:number;
@@ -61,6 +61,7 @@ export function MapIntelligenceV2(){
  const [detailsLoading,setDetailsLoading]=useState(false);
  const [details,setDetails]=useState<NearbyDetails|null>(null);
  const [detailsError,setDetailsError]=useState<string|null>(null);
+ const [venueRatings,setVenueRatings]=useState<Record<string,RatingPayload>>({});
  const mapHost=useRef<HTMLDivElement|null>(null);
  const mapRef=useRef<LeafletMap|null>(null);
  const layerRef=useRef<LayerGroup|null>(null);
@@ -170,7 +171,7 @@ export function MapIntelligenceV2(){
  const signalLabel=active?.dominant==="match"?"AI Best Match":active?.dominant==="reviews"?"Strong Reviews":active?.dominant==="season"?"Best Now":active?.dominant==="value"?"Best Value":active?.dominant==="demand"?"High Demand":"Explore";
 
  useEffect(()=>{
-  setDetailsOpen(false);setDetails(null);setDetailsError(null);
+  setDetailsOpen(false);setDetails(null);setDetailsError(null);setVenueRatings({});
  },[active?.productId]);
 
  useEffect(()=>{
@@ -199,6 +200,24 @@ export function MapIntelligenceV2(){
  const flyNearby=(p:NearbyPlace)=>{
   const map=mapRef.current;if(map)map.flyTo([p.latitude,p.longitude],15,{duration:.65});
  };
+
+ useEffect(()=>{
+  if(!details||!active)return;
+  const candidates=[
+   ...details.nearby.food.slice(0,3),
+   ...details.nearby.drink.slice(0,3),
+   ...details.nearby.activities.slice(0,3)
+  ];
+  for(const p of candidates){
+   if(venueRatings[p.id]!==undefined)continue;
+   const sourceId=p.id.replace(/[^a-zA-Z0-9:_-]/g,"-").slice(0,170)||"nearby";
+   fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+    propertyName:p.name,sourceProductId:sourceId,destinationSlug:active.destinationSlug||"nearby",
+    destinationName:active.location,latitude:p.latitude,longitude:p.longitude
+   })}).then(r=>r.json()).then(x=>setVenueRatings(v=>({...v,[p.id]:x?.ok?x.result??null:null})))
+    .catch(()=>setVenueRatings(v=>({...v,[p.id]:null})));
+  }
+ },[details,active?.productId]);
 
  return <main className={styles.page}>
   <header className={styles.topbar}>
@@ -297,9 +316,9 @@ export function MapIntelligenceV2(){
     </section>:null}
 
     {details?<div className={styles.nearbyGrid}>
-     <NearbySection title="🍽️ FOOD NEARBY" items={details.nearby.food} onPick={flyNearby}/>
-     <NearbySection title="🍸 DRINK NEARBY" items={details.nearby.drink} onPick={flyNearby}/>
-     <NearbySection title="🧭 THINGS TO DO" items={details.nearby.activities} onPick={flyNearby}/>
+     <NearbySection title="🍽️ FOOD NEARBY" items={details.nearby.food} ratings={venueRatings} onPick={flyNearby}/>
+     <NearbySection title="🍸 DRINK NEARBY" items={details.nearby.drink} ratings={venueRatings} onPick={flyNearby}/>
+     <NearbySection title="🧭 THINGS TO DO" items={details.nearby.activities} ratings={venueRatings} onPick={flyNearby}/>
     </div>:null}
 
     <div className={styles.deepFoot}>
@@ -318,14 +337,17 @@ export function MapIntelligenceV2(){
  </main>
 }
 
-function NearbySection({title,items,onPick}:{title:string;items:NearbyPlace[];onPick:(p:NearbyPlace)=>void}){
+function NearbySection({title,items,ratings,onPick}:{title:string;items:NearbyPlace[];ratings:Record<string,RatingPayload>;onPick:(p:NearbyPlace)=>void}){
  return <section className={styles.nearbySection}>
   <div className={styles.deepSectionTitle}><span>{title}</span><b>{items.length?items.length+" επιλογές":"χωρίς live results"}</b></div>
   <div className={styles.placeList}>
-   {items.length?items.slice(0,6).map(p=><button key={p.id} onClick={()=>onPick(p)}>
-    <span><b>{p.name}</b><small>{p.cuisine??p.subtype}{p.openingHours?` · ${p.openingHours}`:""}</small></span>
-    <em>{p.distanceKm.toFixed(1)} km ↗</em>
-   </button>):<p>Δεν βρέθηκαν αρκετά επαληθεύσιμα open-data σημεία σε ακτίνα 4,5 km.</p>}
+   {items.length?items.slice(0,6).map(p=>{
+    const vr=repLabel(ratings[p.id]);
+    return <button key={p.id} onClick={()=>onPick(p)}>
+     <span><b>{p.name}</b><small>{p.cuisine??p.subtype}{vr?.sub?` · ${vr.sub}`:p.openingHours?` · ${p.openingHours}`:""}</small></span>
+     <em>{vr?<>★ {vr.text} · {p.distanceKm.toFixed(1)} km</>:<>{p.distanceKm.toFixed(1)} km ↗</>}</em>
+    </button>
+   }):<p>Δεν βρέθηκαν αρκετά επαληθεύσιμα open-data σημεία σε ακτίνα 4,5 km.</p>}
   </div>
  </section>
 }
