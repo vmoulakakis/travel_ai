@@ -21,6 +21,22 @@ type Args={propertyName:string;sourceProductId:string;destinationSlug:string;des
 const clean=(v:unknown,max=900)=>typeof v==="string"?v.trim().replace(/\s+/g," ").slice(0,max):"";
 const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
 const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
+function canonicalPropertyName(v:string){
+ const cleaned=clean(v,220)
+  .replace(/<[^>]+>/g," ")
+  .replace(/\s*✦.*$/,"")
+  .replace(/\s+[–—-]\s+\d+%.*$/,"")
+  .replace(/^\s*\d\s*[★*]\s*/,"")
+  .replace(/\s+/g," ").trim();
+ const dash=cleaned.split(/\s+[–—-]\s+/);
+ if(dash.length>1&&dash[0].length>=4)return dash[0].trim();
+ return cleaned;
+}
+const geoKm=(aLat:number,aLon:number,bLat:number,bLon:number)=>{
+ const r=(n:number)=>n*Math.PI/180,R=6371,dLat=r(bLat-aLat),dLon=r(bLon-aLon);
+ const h=Math.sin(dLat/2)**2+Math.cos(r(aLat))*Math.cos(r(bLat))*Math.sin(dLon/2)**2;
+ return 2*R*Math.asin(Math.sqrt(h));
+};
 const stop=new Set(["hotel","hotels","resort","resorts","spa","suites","suite","apartments","apartment","rooms","room","the","and","by","4","5"]);
 function tokens(v:string){return norm(v).split(/\s+/).filter(x=>x.length>1&&!stop.has(x))}
 function nameFit(expected:string,candidate:string){const a=new Set(tokens(expected)),b=new Set(tokens(candidate));if(!a.size||!b.size)return 0;const common=[...a].filter(x=>b.has(x)).length;return Math.max(common/Math.min(a.size,b.size),common/new Set([...a,...b]).size)}
@@ -38,10 +54,31 @@ async function googlePhoto(name:string,key:string){
 async function google(args:Args,includePhoto=false,includeReviews=true){
  const key=process.env.GOOGLE_PLACES_API_KEY;if(!key)return null;
  try{
-  const body:any={textQuery:`${args.propertyName}, ${args.destinationName}`,languageCode:args.language==="el"?"el":"en",maxResultCount:5};
-  if(args.latitude!=null&&args.longitude!=null)body.locationBias={circle:{center:{latitude:args.latitude,longitude:args.longitude},radius:12000}};
-  const r=await fetch("https://places.googleapis.com/v1/places:searchText",{method:"POST",headers:{"content-type":"application/json","X-Goog-Api-Key":key,"X-Goog-FieldMask":includeReviews?"places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.reviews,places.photos":"places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.photos"},body:JSON.stringify(body),cache:"no-store",signal:AbortSignal.timeout(7000)});if(!r.ok)return null;
-  const p=await r.json() as any,rows=Array.isArray(p.places)?p.places:[];let best:any=null,bestScore=.52;for(const row of rows){const score=nameFit(args.propertyName,clean(row?.displayName?.text,180));if(score>bestScore){best=row;bestScore=score}}if(!best)return null;
+  const canonical=canonicalPropertyName(args.propertyName);
+  const queries=[canonical,args.propertyName].filter((x,i,a)=>x&&a.indexOf(x)===i);
+  let candidates:any[]=[];
+  for(const q of queries){
+   const body:any={textQuery:`${q}, ${args.destinationName}`,languageCode:args.language==="el"?"el":"en",maxResultCount:8};
+   if(args.latitude!=null&&args.longitude!=null)body.locationBias={circle:{center:{latitude:args.latitude,longitude:args.longitude},radius:15000}};
+   const mask=includeReviews
+    ?"places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.reviews,places.photos"
+    :"places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos";
+   const r=await fetch("https://places.googleapis.com/v1/places:searchText",{method:"POST",headers:{"content-type":"application/json","X-Goog-Api-Key":key,"X-Goog-FieldMask":mask},body:JSON.stringify(body),cache:"no-store",signal:AbortSignal.timeout(7000)});
+   if(!r.ok)continue;
+   const p=await r.json() as any,rows=Array.isArray(p.places)?p.places:[];
+   candidates.push(...rows);
+   if(rows.length)break;
+  }
+  let best:any=null,bestScore=.34;
+  for(const row of candidates){
+   const candidate=clean(row?.displayName?.text,180),nf=nameFit(canonical||args.propertyName,candidate);
+   const pLat=num(row?.location?.latitude),pLon=num(row?.location?.longitude);
+   const dist=args.latitude!=null&&args.longitude!=null&&pLat!=null&&pLon!=null?geoKm(args.latitude,args.longitude,pLat,pLon):null;
+   const geo=dist==null?.5:dist<=1?1:dist<=3?.9:dist<=8?.7:dist<=15?.45:.1;
+   const score=nf*.78+geo*.22;
+   if(score>bestScore){best=row;bestScore=score}
+  }
+  if(!best)return null;
   const rating=num(best.rating),reviewCount=num(best.userRatingCount),reviews:Array<any>=includeReviews&&Array.isArray(best.reviews)?best.reviews:[],photoName=clean(best?.photos?.[0]?.name,500),photoUrl=includePhoto&&photoName?await googlePhoto(photoName,key):null;
   return{rating:rating==null?null:clamp5(rating),reviewCount:reviewCount==null?null:Math.max(0,Math.round(reviewCount)),photoUrl,matchedName:clean(best?.displayName?.text,180)||null,samples:reviews.slice(0,5).flatMap(row=>{const text=clean(row?.text?.text??row?.originalText?.text,850);if(!text)return[];return[{provider:"Google Places" as const,rating:num(row.rating),author:clean(row?.authorAttribution?.displayName,100)||null,text,publishedAt:clean(row?.publishTime,80)||null}]})};
  }catch{return null}
@@ -50,8 +87,22 @@ async function google(args:Args,includePhoto=false,includeReviews=true){
 const TA="https://api.content.tripadvisor.com/api/v1";
 async function taFetch(path:string,params:Record<string,string>,timeout=6500){const key=process.env.TRIPADVISOR_API_KEY;if(!key)throw new Error();const u=new URL(`${TA}${path}`);u.searchParams.set("key",key);for(const[k,v]of Object.entries(params))if(v)u.searchParams.set(k,v);const r=await fetch(u,{headers:{accept:"application/json",referer:process.env.TRIPADVISOR_REFERER||process.env.NEXT_PUBLIC_SITE_URL||"https://travel-ai-lovat-psi.vercel.app"},cache:"no-store",signal:AbortSignal.timeout(timeout)});if(!r.ok)throw new Error();return await r.json() as any}
 async function tripadvisor(args:Args,includePhoto=false,includeReviews=true){if(!process.env.TRIPADVISOR_API_KEY)return null;try{
- const search=await taFetch("/location/search",{searchQuery:args.propertyName,category:"hotels",latLong:args.latitude!=null&&args.longitude!=null?`${args.latitude},${args.longitude}`:"",language:args.language},6500),rows=Array.isArray(search.data)?search.data:[];
- let best:any=null,bestScore=.52;for(const row of rows){const score=nameFit(args.propertyName,clean(row?.name,180));if(score>bestScore){best=row;bestScore=score}}
+ const canonical=canonicalPropertyName(args.propertyName);
+ let rows:any[]=[];
+ for(const q of [canonical,args.propertyName].filter((x,i,a)=>x&&a.indexOf(x)===i)){
+  const search=await taFetch("/location/search",{searchQuery:q,category:"hotels",latLong:args.latitude!=null&&args.longitude!=null?`${args.latitude},${args.longitude}`:"",language:args.language},6500).catch(()=>null);
+  rows=Array.isArray(search?.data)?search.data:[];
+  if(rows.length)break;
+ }
+ let best:any=null,bestScore=.34;
+ for(const row of rows){
+  const nf=nameFit(canonical||args.propertyName,clean(row?.name,180));
+  const pLat=num(row?.latitude),pLon=num(row?.longitude);
+  const dist=args.latitude!=null&&args.longitude!=null&&pLat!=null&&pLon!=null?geoKm(args.latitude,args.longitude,pLat,pLon):null;
+  const geo=dist==null?.5:dist<=1?1:dist<=3?.9:dist<=8?.7:dist<=15?.45:.1;
+  const score=nf*.82+geo*.18;
+  if(score>bestScore){best=row;bestScore=score}
+ }
  const id=best?.location_id?String(best.location_id):"";if(!id)return null;
  const[details,reviews,photos]=await Promise.all([
   taFetch(`/location/${encodeURIComponent(id)}/details`,{language:args.language,currency:"EUR"},5500).catch(()=>null),
@@ -62,9 +113,9 @@ async function tripadvisor(args:Args,includePhoto=false,includeReviews=true){if(
  return{rating:rating==null?null:clamp5(rating),reviewCount:reviewCount==null?null:Math.max(0,Math.round(reviewCount)),photoUrl,matchedName:clean(details?.name??best?.name,180)||null,samples:reviewRows.slice(0,5).flatMap((row:any)=>{const text=clean(row?.text??row?.review_text,850);if(!text)return[];return[{provider:"Tripadvisor" as const,rating:num(row?.rating),author:clean(row?.user?.username??row?.user?.display_name,100)||null,text,publishedAt:clean(row?.published_date??row?.travel_date,80)||null}]})}
  }catch{return null}}
 
-async function foursquare(args:Args){const key=process.env.FOURSQUARE_API_KEY;if(!key||args.latitude==null||args.longitude==null)return null;try{const u=new URL("https://places-api.foursquare.com/places/search");u.searchParams.set("ll",`${args.latitude},${args.longitude}`);u.searchParams.set("radius","12000");u.searchParams.set("query",args.propertyName);u.searchParams.set("limit","5");u.searchParams.set("fields","fsq_place_id,name,rating,stats");const r=await fetch(u,{headers:{Authorization:`Bearer ${key}`,"X-Places-Api-Version":"2025-06-17",accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(6000)});if(!r.ok)return null;const p=await r.json() as any,rows=Array.isArray(p.results)?p.results:[];let best:any=null,bestScore=.55;for(const row of rows){const score=nameFit(args.propertyName,clean(row?.name,180));if(score>bestScore){best=row;bestScore=score}}const raw=num(best?.rating);if(raw==null)return null;return{rating:clamp5(raw/2),reviewCount:num(best?.stats?.total_ratings)}}catch{return null}}
+async function foursquare(args:Args){const key=process.env.FOURSQUARE_API_KEY;if(!key||args.latitude==null||args.longitude==null)return null;try{const u=new URL("https://places-api.foursquare.com/places/search");u.searchParams.set("ll",`${args.latitude},${args.longitude}`);u.searchParams.set("radius","12000");u.searchParams.set("query",canonicalPropertyName(args.propertyName));u.searchParams.set("limit","5");u.searchParams.set("fields","fsq_place_id,name,rating,stats");const r=await fetch(u,{headers:{Authorization:`Bearer ${key}`,"X-Places-Api-Version":"2025-06-17",accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(6000)});if(!r.ok)return null;const p=await r.json() as any,rows=Array.isArray(p.results)?p.results:[];let best:any=null,bestScore=.55;for(const row of rows){const score=nameFit(args.propertyName,clean(row?.name,180));if(score>bestScore){best=row;bestScore=score}}const raw=num(best?.rating);if(raw==null)return null;return{rating:clamp5(raw/2),reviewCount:num(best?.stats?.total_ratings)}}catch{return null}}
 
-async function guestSignal(args:Args){const base=(process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL)?.replace(/\/$/,""),key=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!base||!key)return null;try{const r=await fetch(`${base}/rest/v1/rpc/get_ai_guest_signal_v38`,{method:"POST",headers:{apikey:key,Authorization:`Bearer ${key}`,"content-type":"application/json"},body:JSON.stringify({p_destination_slug:args.destinationSlug,p_subject_kind:"stay",p_subject_key:args.sourceProductId}),cache:"no-store",signal:AbortSignal.timeout(4500)});if(!r.ok)return null;const rows=await r.json() as any[],x=rows?.[0];const sampleSize=Math.max(0,Math.round(num(x?.sample_size)??0)),score=num(x?.ai_score);if(sampleSize<3||score==null)return null;return{score:Math.max(0,Math.min(100,score)),sampleSize,avgRating:num(x?.avg_rating),recommendRate:num(x?.recommend_rate)}}catch{return null}}
+async function guestSignal(args:Args){if(!args.destinationSlug)return null;const base=(process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL)?.replace(/\/$/,""),key=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!base||!key)return null;try{const r=await fetch(`${base}/rest/v1/rpc/get_ai_guest_signal_v38`,{method:"POST",headers:{apikey:key,Authorization:`Bearer ${key}`,"content-type":"application/json"},body:JSON.stringify({p_destination_slug:args.destinationSlug,p_subject_kind:"stay",p_subject_key:args.sourceProductId}),cache:"no-store",signal:AbortSignal.timeout(4500)});if(!r.ok)return null;const rows=await r.json() as any[],x=rows?.[0];const sampleSize=Math.max(0,Math.round(num(x?.sample_size)??0)),score=num(x?.ai_score);if(sampleSize<3||score==null)return null;return{score:Math.max(0,Math.min(100,score)),sampleSize,avgRating:num(x?.avg_rating),recommendRate:num(x?.recommend_rate)}}catch{return null}}
 
 const themes:[string,string[]][]=[
  ["θέα / τοποθεσία",["view","location","θέα","τοποθεσία","scenery","mountain","sea"]],
