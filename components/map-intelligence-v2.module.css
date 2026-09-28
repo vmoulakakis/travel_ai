@@ -55,3 +55,41 @@
 .areaVerdict .deepSectionTitle span{color:#f5d07c}.areaVerdict .deepSectionTitle b{color:#9fb6ab}
 .areaVerdict h3{font:500 18px/1.28 Georgia,serif;margin:8px 0 11px;color:#fff}.areaFacts{display:grid;grid-template-columns:1fr 1fr;gap:6px}.areaFacts span{display:block;padding:9px;border-radius:11px;background:rgba(255,255,255,.07);font-size:6.5px;line-height:1.45;color:#bdd0c7}.areaFacts span b{display:block;color:#fff;font-size:7px;margin-bottom:3px}.areaVerdict>p{margin:9px 0 0;padding-top:9px;border-top:1px solid rgba(255,255,255,.1);font-size:6.5px;line-height:1.45;color:#b8cbc2}.areaVerdict>p b{color:#f5d07c}
 @media(max-width:560px){.areaFacts{grid-template-columns:1fr}.areaVerdict h3{font-size:16px}}
+
+
+/* V51 cinematic readability pass */
+.control{width:min(440px,calc(100% - 32px));padding:19px}
+.eyebrow{font-size:9px}.control h1{font-size:34px;line-height:1.02}.control>p{font-size:11px;line-height:1.55}
+.form span{font-size:9px}.form input,.form select{font-size:11px}.vibes button{font-size:10px;padding:8px 11px}.legend span{font-size:9px}.topPicks strong{font-size:11px}.topPicks small{font-size:9px}
+.reason{width:min(420px,calc(100% - 32px))}.reasonHero{min-height:210px;padding:18px}.reasonHero>span{font-size:9px}.reasonHero>div small{font-size:10px}.reasonHero h2{font-size:27px;max-width:310px}.reasonHero>strong{width:72px;height:72px;font-size:24px}.reasonHero>strong small{font-size:9px}
+.reasonBody{padding:16px}.metrics span{padding:11px}.metrics b{font-size:15px}.metrics small{font-size:9px}.why{padding:13px}.why h3{font-size:12px}.why p{font-size:10.5px;line-height:1.55}.why>div span,.why>div b{font-size:9px}.cta{padding:14px;font-size:11px}
+
+.deepReason{width:min(820px,calc(100% - 32px));border-radius:30px;background:rgba(247,250,248,.985)}
+.deepHead{padding:22px 24px 19px}.deepHead span{font-size:9px}.deepHead h2{font-size:38px;margin-top:8px}.deepHead p{font-size:11px;line-height:1.35;max-width:650px}.deepHead button{width:38px;height:38px}
+.cinematicGallery{display:grid;grid-template-columns:1.8fr 1fr 1fr;gap:7px;padding:8px;background:#0a2019}
+.hotelShot,.areaShot{min-height:210px;border-radius:16px;background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:flex-end;padding:16px;color:#fff;text-decoration:none;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.areaShot{min-height:210px}.hotelShot span,.areaShot span{font-size:8px;letter-spacing:.13em;font-weight:900;color:#f4d17d}.hotelShot b,.areaShot b{font:600 22px/1.02 Georgia,serif;margin-top:5px;text-shadow:0 2px 18px rgba(0,0,0,.55)}.areaShot b{font-size:18px}.areaShot small{font-size:8px;line-height:1.25;color:#d7e4dd;margin-top:5px;text-shadow:0 1px 8px rgba(0,0,0,.65)}
+.deepSummary>div{padding:17px 18px}.deepSummary small{font-size:8px}.deepSummary b{font-size:28px;margin:7px 0 5px}.deepSummary span{font-size:10px;line-height:1.4}
+.deepLoading{margin:18px 18px 0;padding:18px}.deepLoading svg{font-size:26px}.deepLoading b{font-size:12px}.deepLoading span{font-size:9px}
+.deepError{margin:18px 18px 0;padding:14px;font-size:10px}
+.weatherBlock,.nearbySection{padding:18px 18px 0}.deepSectionTitle{margin-bottom:11px}.deepSectionTitle span{font-size:10px}.deepSectionTitle b{font-size:9px}
+.weatherHero{padding:16px}.weatherHero>strong{font-size:40px}.weatherHero b{font-size:22px}.weatherHero span{font-size:11px;margin-top:6px}.weatherDays{gap:8px;margin-top:9px}.weatherDays>div{padding:11px 9px}.weatherDays small{font-size:8px}.weatherDays b{font-size:12px;margin:5px 0}.weatherDays span{font-size:8px}
+.nearbyGrid{gap:0 12px}.placeList{gap:7px}.placeList button{padding:12px 13px;border-radius:14px}.placeList b{font-size:11px}.placeList small{font-size:9px;margin-top:4px}.placeList em{font-size:9px}.placeList p{font-size:10px;line-height:1.5;padding:13px}
+.deepFoot{margin:18px;padding:15px}.deepFoot b{font-size:11px}.deepFoot span{font-size:9px;line-height:1.5}.deepFoot button{padding:12px 16px;font-size:10px}
+.areaVerdict{margin:18px 18px 0;padding:18px;border-radius:20px}.areaVerdict h3{font-size:24px;line-height:1.3;margin:10px 0 14px}.areaFacts{gap:8px}.areaFacts span{padding:12px;font-size:10px;line-height:1.5}.areaFacts span b{font-size:10px;margin-bottom:4px}.areaVerdict>p{font-size:10px;line-height:1.55;padding-top:11px;margin-top:11px}
+
+@media(max-width:980px){
+ .deepReason{width:min(720px,calc(100% - 20px));right:10px}
+ .cinematicGallery{grid-template-columns:1.5fr 1fr}.cinematicGallery .areaShot:last-child{display:none}
+}
+@media(max-width:760px){
+ .control{width:auto;padding:13px}.control h1{font-size:24px}.form span{font-size:7px}.form input,.form select{font-size:9px}.vibes button{font-size:8px}
+ .reason{width:auto}.reasonHero h2{font-size:21px}.metrics b{font-size:12px}.metrics small{font-size:8px}.why p{font-size:9px}
+ .deepReason{left:6px;right:6px;top:6px;bottom:6px;width:auto;border-radius:20px}
+ .deepHead{padding:16px}.deepHead h2{font-size:29px}.deepHead p{font-size:10px}
+ .cinematicGallery{grid-template-columns:1fr 1fr;padding:6px;gap:6px}.hotelShot{grid-column:1/-1;min-height:190px}.areaShot{min-height:130px}.hotelShot b{font-size:20px}.areaShot b{font-size:16px}
+ .deepSummary{grid-template-columns:1fr 1fr}.deepSummary>div:first-child{grid-column:1/-1}.deepSummary small{font-size:7px}.deepSummary b{font-size:23px}.deepSummary span{font-size:9px}
+ .areaVerdict h3{font-size:20px}.areaFacts{grid-template-columns:1fr}
+ .weatherDays{grid-template-columns:repeat(2,1fr)}
+ .nearbyGrid{grid-template-columns:1fr}.nearbyGrid>.nearbySection:last-child{grid-column:auto}
+}
