@@ -226,6 +226,55 @@ export async function GET(request:Request){
   return[] as NearbyItem[];
  };
 
+ const directOsmMap=async(radiusKm=12)=>{
+  try{
+   const latDelta=radiusKm/111,lonDelta=radiusKm/(111*Math.max(.35,Math.cos(lat*Math.PI/180)));
+   const bbox=[lon-lonDelta,lat-latDelta,lon+lonDelta,lat+latDelta].map(x=>x.toFixed(6)).join(",");
+   const url="https://api.openstreetmap.org/api/0.6/map?bbox="+bbox;
+   const r=await fetch(url,{headers:{"user-agent":"TravelAI/1.0 (area intelligence; contact via site)"},cache:"no-store",signal:AbortSignal.timeout(15000)});
+   if(!r.ok)return[] as NearbyItem[];
+   const xml=(await r.text()).slice(0,6000000);
+   const dec=(s:string)=>s.replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">");
+   const tags=(body:string)=>{
+    const out:Record<string,string>={};const re=/<tag\s+k="([^"]+)"\s+v="([^"]*)"\s*\/>/g;let m:RegExpExecArray|null;
+    while((m=re.exec(body)))out[dec(m[1])]=dec(m[2]);return out;
+   };
+   const nodes=new Map<string,{lat:number;lon:number;tags:Record<string,string>}>();
+   const nodeRe=/<node\s+([^>]*\bid="([^"]+)"[^>]*)>([\s\S]*?)<\/node>|<node\s+([^>]*\bid="([^"]+)"[^>]*)\/>/g;
+   let nm:RegExpExecArray|null;
+   while((nm=nodeRe.exec(xml))){
+    const attrs=nm[1]??nm[4]??"",id=nm[2]??nm[5]??"";
+    const lm=attrs.match(/\blat="([^"]+)"/),om=attrs.match(/\blon="([^"]+)"/);
+    const nlat=lm?Number(lm[1]):NaN,nlon=om?Number(om[1]):NaN;if(!id||!Number.isFinite(nlat)||!Number.isFinite(nlon))continue;
+    nodes.set(id,{lat:nlat,lon:nlon,tags:tags(nm[3]??"")});
+   }
+   const out:NearbyItem[]=[];
+   const push=(id:string,t:Record<string,string>,pLat:number,pLon:number)=>{
+    const kind=classify(t);if(!kind)return;
+    const name=(t.name??t["name:el"]??t["name:en"]??"").trim();if(!name)return;
+    const distance=km(lat,lon,pLat,pLon);if(distance>radiusKm*1.25)return;
+    out.push({
+     id:"osm-map-"+id,name,category:kind.category,subtype:pretty(kind.subtype),
+     latitude:pLat,longitude:pLon,distanceKm:Number(distance.toFixed(1)),
+     website:t.website??t["contact:website"]??null,openingHours:t.opening_hours??null,
+     cuisine:t.cuisine?pretty(t.cuisine):null,rating:null,reviewCount:null,
+     provider:"OpenStreetMap",confidence:"MEDIUM"
+    });
+   };
+   for(const [id,n] of nodes)if(Object.keys(n.tags).length)push("n"+id,n.tags,n.lat,n.lon);
+   const wayRe=/<way\s+[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/way>/g;let wm:RegExpExecArray|null;
+   while((wm=wayRe.exec(xml))){
+    const t=tags(wm[2]);if(!classify(t))continue;
+    const refs=[...wm[2].matchAll(/<nd\s+ref="([^"]+)"\s*\/>/g)].map(x=>x[1]);
+    const pts=refs.map(id=>nodes.get(id)).filter((x):x is {lat:number;lon:number;tags:Record<string,string>}=>Boolean(x));
+    if(!pts.length)continue;
+    const pLat=pts.reduce((s,x)=>s+x.lat,0)/pts.length,pLon=pts.reduce((s,x)=>s+x.lon,0)/pts.length;
+    push("w"+wm[1],t,pLat,pLon);
+   }
+   return rank(dedupe(out)).slice(0,40);
+  }catch{return[] as NearbyItem[]}
+ };
+
  const nearbyPromise=(async()=>{
   const radii=[5000,12000,25000,40000];
   let food:NearbyItem[]=[],drink:NearbyItem[]=[],activities:NearbyItem[]=[],usedRadius=5;
@@ -251,6 +300,14 @@ export async function GET(request:Request){
    drink=rank(dedupe([...drink,...gd,...gtd,...fd,...o.filter(x=>x.category==="drink")])).slice(0,8);
    activities=rank(dedupe([...activities,...ga,...gta,...fa,...o.filter(x=>x.category==="activity")])).slice(0,10);
    usedRadius=radius/1000;
+  }
+  if(food.length<3||drink.length<2||activities.length<3){
+   const rawMap=await directOsmMap(12);
+   sourceCounts.osm+=rawMap.length;
+   food=rank(dedupe([...food,...rawMap.filter(x=>x.category==="food")])).slice(0,8);
+   drink=rank(dedupe([...drink,...rawMap.filter(x=>x.category==="drink")])).slice(0,8);
+   activities=rank(dedupe([...activities,...rawMap.filter(x=>x.category==="activity")])).slice(0,10);
+   usedRadius=Math.max(usedRadius,12);
   }
   return{food,drink,activities,usedRadiusKm:usedRadius,sources:sourceCounts,
    confidence:food.length>=3&&drink.length>=2&&activities.length>=3?"HIGH":food.length||drink.length||activities.length?"MEDIUM":"LOW" as const};
