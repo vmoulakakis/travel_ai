@@ -101,6 +101,27 @@ async function searchEndpoint(endpoint:string,query:string,parser:(html:string,q
   return parser(await r.text(),query);
 }
 
+async function searxSearch(base:string,query:string,maxResults:number):Promise<KeylessSearchResult[]>{
+  try{
+    const u=new URL("/search",base);
+    u.searchParams.set("q",query);
+    u.searchParams.set("format","json");
+    u.searchParams.set("categories","general");
+    u.searchParams.set("language","all");
+    u.searchParams.set("safesearch","1");
+    const r=await fetch(u,{headers:{"user-agent":UA,"accept":"application/json"},cache:"no-store",signal:AbortSignal.timeout(10000)});
+    if(!r.ok)return[];
+    const j=await r.json() as any,rows=Array.isArray(j?.results)?j.results:[];
+    return rows.flatMap((x:any)=>{
+      const url=typeof x?.url==="string"?x.url.trim():"";
+      const title=typeof x?.title==="string"?stripTags(x.title):"";
+      const snippet=typeof x?.content==="string"?stripTags(x.content):"";
+      if(!url||!title||!allowedUrl(url))return[];
+      return[{title,url,snippet,host:hostOf(url),query}];
+    }).slice(0,maxResults);
+  }catch{return[]}
+}
+
 export async function keylessWebSearch(query:string,maxResults=8):Promise<KeylessSearchResult[]>{
   const q=query.trim().slice(0,300);if(!q)return[];
   for(const [endpoint,parser] of [
@@ -111,6 +132,14 @@ export async function keylessWebSearch(query:string,maxResults=8):Promise<Keyles
       const rows=await searchEndpoint(endpoint,q,parser);
       if(rows.length)return rows.slice(0,maxResults);
     }catch{}
+  }
+  const searxBases=[
+    process.env.SEARXNG_URL?.trim(),
+    "https://sciresearch1-searxng.hf.space"
+  ].filter((x):x is string=>Boolean(x));
+  for(const base of searxBases){
+    const rows=await searxSearch(base,q,maxResults);
+    if(rows.length)return rows;
   }
   return[];
 }
