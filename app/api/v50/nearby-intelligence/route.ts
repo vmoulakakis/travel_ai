@@ -1,6 +1,6 @@
 import {NextResponse} from "next/server";
 import {createLLMRequestBudgetV16,generateJsonWithRoutingV16} from "@/lib/ai/model-router-v9";
-import {enrichTopPages,researchQueries} from "@/lib/research/keyless-web-search-v51";
+import {commonsAreaPhotos,enrichTopPages,researchQueries} from "@/lib/research/keyless-web-search-v51";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -255,7 +255,7 @@ export async function GET(request:Request){
    confidence:food.length>=3&&drink.length>=2&&activities.length>=3?"HIGH":food.length||drink.length||activities.length?"MEDIUM":"LOW" as const};
  })();
 
- const [weather,nearby]=await Promise.all([weatherPromise,nearbyPromise]);
+ const [weather,nearby,photos]=await Promise.all([weatherPromise,nearbyPromise,commonsAreaPhotos(areaName,6)]);
 
  type WebVenue={name:string;category:"food"|"drink"|"activity";subtype:string;rating:number|null;reviewCount:number|null;sourceUrl:string;sourceTitle:string;evidence:string;confidence:"HIGH"|"MEDIUM"|"LOW"};
  type WebResearchExtract={hotel:{name:string;rating:number|null;reviewCount:number|null;sourceUrl:string;sourceTitle:string;confidence:"HIGH"|"MEDIUM"|"LOW"}|null;venues:WebVenue[];areaNotes:string[]};
@@ -353,7 +353,7 @@ Return up to 7 food, 6 drink, 8 activity venues.`,
  return NextResponse.json({
   ok:true,generatedAt:new Date().toISOString(),radiusKm:nearby.usedRadiusKm,
   hotel:{name:hotelName||null,area:areaName||null,latitude:lat,longitude:lon,webRating:webResearch?.hotel??null},
-  weather,nearby,areaSummary,webResearch,
+  weather,nearby,areaSummary,webResearch,photos,
   completeness:{
    food:nearby.food.length,drink:nearby.drink.length,activities:nearby.activities.length,
    sufficient:nearby.food.length>=3&&nearby.activities.length>=3,
