@@ -13,13 +13,15 @@ type Stay={
 };
 type Rating={provider:string;rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
 type RatingPayload={primary?:Rating|null;ratings?:Rating[]}|null;
-type NearbyPlace={id:string;name:string;category:"food"|"drink"|"activity";subtype:string;latitude:number;longitude:number;distanceKm:number;website:string|null;openingHours:string|null;cuisine:string|null;rating?:number|null;reviewCount?:number|null;provider?:"Google Places"|"Foursquare"|"OpenStreetMap";confidence?:"HIGH"|"MEDIUM"|"LOW"};
+type NearbyPlace={id:string;name:string;category:"food"|"drink"|"activity";subtype:string;latitude:number|null;longitude:number|null;distanceKm:number|null;website:string|null;openingHours:string|null;cuisine:string|null;rating?:number|null;reviewCount?:number|null;provider?:"Google Places"|"Foursquare"|"OpenStreetMap"|"Web Research";sourceUrl?:string|null;confidence?:"HIGH"|"MEDIUM"|"LOW"};
 type NearbyDetails={
  ok:boolean;radiusKm:number;
  weather:{status:"trip-window"|"nearest-forecast"|"unavailable";summary:{label:string;maxC:number|null;minC:number|null;rainPct:number|null;windKmh:number|null}|null;days:Array<{date:string;icon:string;label:string;maxC:number;minC:number;rainPct:number;windKmh:number}>};
  nearby:{food:NearbyPlace[];drink:NearbyPlace[];activities:NearbyPlace[];usedRadiusKm?:number;confidence?:string};
  areaSummary?:{verdict:string;food:string;drink:string;activities:string;weather:string;tradeoff:string;confidence:"HIGH"|"MEDIUM"|"LOW"}|null;
  completeness?:{food:number;drink:number;activities:number;sufficient:boolean;message:string};
+ hotel?:{name:string|null;area:string|null;latitude:number;longitude:number;webRating?:{name:string;rating:number|null;reviewCount:number|null;sourceUrl:string;sourceTitle:string;confidence:"HIGH"|"MEDIUM"|"LOW"}|null};
+ photos?:Array<{url:string;thumbUrl:string;title:string;credit:string|null;sourceUrl:string|null}>;
 };
 
 const clamp=(n:number,a=0,b=100)=>Math.max(a,Math.min(b,n));
@@ -123,10 +125,10 @@ export function MapIntelligenceV2(){
    const reputation=repScore(ratings[p.productId]);
    const confidence=clamp(48+
      (p.intelligenceScore!=null?14:0)+(p.seasonalScore!=null?10:0)+(p.priceScore!=null?8:0)+(reputation!=null?20:0));
-   const rep=reputation??72;
+   const rep=reputation??58;
    const match=clamp(ai*.30+rep*.17+season*.16+spatial*.14+value*.10+demand*.05+72*.04+confidence*.04);
    const signals=[
-    ["reviews",rep] as const,["season",season] as const,["value",value] as const,["demand",demand] as const
+    ...(reputation!=null?[["reviews",reputation] as const]:[]),["season",season] as const,["value",value] as const,["demand",demand] as const
    ].sort((a,b)=>b[1]-a[1]);
    const dominant:Scored["dominant"]=match>=88?"match":signals[0]?.[0]??"explore";
    return {...p,match,spatial,reputation,confidence,dominant};
@@ -196,7 +198,7 @@ export function MapIntelligenceV2(){
   if(!active)return;
   setDetailsOpen(true);setDetailsLoading(true);setDetailsError(null);
   try{
-   const q=new URLSearchParams({lat:String(active.latitude),lon:String(active.longitude),start,end,name:active.name,area:active.location});
+   const q=new URLSearchParams({lat:String(active.latitude),lon:String(active.longitude),start,end,name:active.name,area:active.location,slug:active.destinationSlug??""});
    const r=await fetch(`/api/v50/nearby-intelligence?${q.toString()}`,{cache:"no-store"});
    const j=await r.json() as NearbyDetails;
    if(!r.ok||!j?.ok)throw new Error("nearby");
@@ -207,7 +209,8 @@ export function MapIntelligenceV2(){
  }
 
  const flyNearby=(p:NearbyPlace)=>{
-  const map=mapRef.current;if(map)map.flyTo([p.latitude,p.longitude],15,{duration:.65});
+  if(p.latitude!=null&&p.longitude!=null){const map=mapRef.current;if(map)map.flyTo([p.latitude,p.longitude],15,{duration:.65});return}
+  const source=p.sourceUrl??p.website;if(source)window.open(source,"_blank","noopener,noreferrer");
  };
 
  useEffect(()=>{
@@ -218,6 +221,7 @@ export function MapIntelligenceV2(){
    ...details.nearby.activities.slice(0,3)
   ];
   for(const p of candidates){
+   if(p.provider==="Web Research"||p.latitude==null||p.longitude==null)continue;
    if(venueRatings[p.id]!==undefined)continue;
    const sourceId=p.id.replace(/[^a-zA-Z0-9:_-]/g,"-").slice(0,170)||"nearby";
    fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
@@ -309,8 +313,17 @@ export function MapIntelligenceV2(){
      <button onClick={()=>setDetailsOpen(false)} aria-label="Κλείσιμο 360 reasoning"><X/></button>
     </div>
 
+    <div className={styles.cinematicGallery}>
+     <div className={styles.hotelShot} style={active.imageUrl?{backgroundImage:`linear-gradient(180deg,rgba(3,15,12,.04),rgba(3,15,12,.62)),url(${active.imageUrl})`}:undefined}>
+      <span>SELECTED STAY</span><b>{active.name.replace(/\s*✦.*$/,"")}</b>
+     </div>
+     {(details?.photos??[]).slice(0,3).map((p,i)=><a key={p.url} className={styles.areaShot} href={p.sourceUrl??p.url} target="_blank" rel="noreferrer" style={{backgroundImage:`linear-gradient(180deg,rgba(3,15,12,.02),rgba(3,15,12,.58)),url(${p.thumbUrl})`}}>
+      <span>{i===0?"AREA NOW":"DISCOVER"}</span><b>{active.location}</b>{p.credit?<small>{p.credit}</small>:null}
+     </a>)}
+    </div>
+
     <div className={styles.deepSummary}>
-     <div className={styles.ratingBig}><small>VERIFIED RATING</small><b>{rating?.text??"—"}</b><span>{rating?.sub??"Δεν έχει επιστρέψει verified external rating ακόμη"}</span></div>
+     <div className={styles.ratingBig}><small>VERIFIED RATING</small><b>{rating?.text??(details?.hotel?.webRating?.rating!=null?details.hotel.webRating.rating.toFixed(1)+"/5":"—")}</b><span>{rating?.sub??(details?.hotel?.webRating?("Web research · "+(details.hotel.webRating.reviewCount!=null?details.hotel.webRating.reviewCount.toLocaleString("el-GR")+" reviews · ":"")+details.hotel.webRating.confidence+" confidence"):"Researching external evidence…")}</span></div>
      <div><small>PERSONAL MATCH</small><b>{Math.round(active.match)}/100</b><span>{signalLabel}</span></div>
      <div><small>SEASON NOW</small><b>{Math.round(active.seasonalScore??60)}/100</b><span>{start} → {end}</span></div>
     </div>
@@ -343,7 +356,7 @@ export function MapIntelligenceV2(){
     </div>:null}
 
     <div className={styles.deepFoot}>
-     <div><b>There + nearby intelligence</b><span>Verified stay rating + Open-Meteo + Google Places / Foursquare / OpenStreetMap cascade. Κάθε venue rating εμφανίζεται μόνο όταν επιστρέφεται από provider.</span></div>
+     <div><b>360° evidence intelligence</b><span>Weather + configured place providers + keyless web research + page evidence extraction. Ratings εμφανίζονται μόνο όταν στηρίζονται σε συγκεκριμένη πηγή.</span></div>
      <button onClick={()=>{const slug=active.destinationSlug;if(slug)window.location.href=`/escape/${encodeURIComponent(slug)}/stay/${encodeURIComponent(active.productId)}?start=${start}&end=${end}&budget=${budget}&travelerType=${traveler}&dn=${encodeURIComponent(active.location)}`;}}>Δες τη διαμονή →</button>
     </div>
    </aside>:null}
@@ -360,7 +373,7 @@ export function MapIntelligenceV2(){
 
 function NearbySection({title,items,ratings,onPick}:{title:string;items:NearbyPlace[];ratings:Record<string,RatingPayload>;onPick:(p:NearbyPlace)=>void}){
  return <section className={styles.nearbySection}>
-  <div className={styles.deepSectionTitle}><span>{title}</span><b>{items.length?items.length+" επιλογές":"χωρίς live results"}</b></div>
+  <div className={styles.deepSectionTitle}><span>{title}</span><b>{items.length?items.length+" AI-selected picks":"web research retry"}</b></div>
   <div className={styles.placeList}>
    {items.length?items.slice(0,6).map(p=>{
     const vr=repLabel(ratings[p.id]);
@@ -368,9 +381,9 @@ function NearbySection({title,items,ratings,onPick}:{title:string;items:NearbyPl
     const shown=direct??vr;
     return <button key={p.id} onClick={()=>onPick(p)}>
      <span><b>{p.name}</b><small>{p.cuisine??p.subtype}{shown?.sub?` · ${shown.sub}`:p.openingHours?` · ${p.openingHours}`:""}</small></span>
-     <em>{shown?<>★ {shown.text} · {p.distanceKm.toFixed(1)} km</>:<>{p.distanceKm.toFixed(1)} km · {p.provider??"verified map"} ↗</>}</em>
+     <em>{shown?<>★ {shown.text}{p.distanceKm!=null?<> · {p.distanceKm.toFixed(1)} km</>:<> · web evidence</>}</>:<>{p.distanceKm!=null?p.distanceKm.toFixed(1)+" km":"web evidence"} · {p.provider??"verified source"} ↗</>}</em>
     </button>
-   }):<p>⚠️ Provider/data incident — το TravelAI δεν το ερμηνεύει ως «δεν υπάρχουν επιλογές».</p>}
+   }):<p>🔎 Το TravelAI επαναλαμβάνει web research από εναλλακτικές πηγές· κενό provider response δεν θεωρείται τελική απάντηση.</p>}
   </div>
  </section>
 }
