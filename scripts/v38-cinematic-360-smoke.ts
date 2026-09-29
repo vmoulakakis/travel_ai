@@ -6,7 +6,7 @@ const home=read("app/page.tsx"),homeEn=read("app/en/page.tsx");
 const v54=home.includes("V54FinalHome"),v50=home.includes("V50TravelIntelligenceHome"),v40=home.includes("V40DiscoveryExperience"),v50Family=v54||v50;
 const funnel=read(v54?"components/v54-final-home.tsx":v50?"components/v50-travel-intelligence-home.tsx":v40?"components/v40-discovery-experience.tsx":"components/v38-escape-funnel.tsx");
 const builder=read(v54?"components/v50-stay-funnel.tsx":(v50||v40)?"components/v40-stay-workspace.tsx":"components/v38-escape-builder-client.tsx");
-const parser=read("lib/data/destination-v8.ts"),local=read("lib/data/local-intelligence-v38.ts"),research=read("app/api/escape/research/route.ts"),guide=read("app/api/guide/route.ts"),email=read("app/api/guide/email/route.ts"),feedback=read("app/api/escape/feedback/route.ts"),skill=read("skills/web-design/SKILL.md"),priceMigration=read("supabase/migrations/20260915165500_v38_stay_price_truth_rpc.sql");
+const parser=read("lib/data/destination-v8.ts"),local=read("lib/data/local-intelligence-v38.ts"),research=read("app/api/escape/research/route.ts"),guide=read("app/api/guide/route.ts"),email=read("app/api/guide/email/route.ts"),feedback=read("app/api/escape/feedback/route.ts"),skill=read("skills/web-design/SKILL.md"),priceMigration=read("supabase/migrations/20260915165500_v38_stay_price_truth_rpc.sql"),guestSignalMigration=read("supabase/migrations/20260915163000_v38_guest_signal.sql");
 const agent=v50Family?read("app/api/v50/agent/route.ts"):"";
 const failures:string[]=[];const expect=(ok:boolean,message:string)=>{if(!ok)failures.push(message)};
 
@@ -49,7 +49,7 @@ expect(
   "affiliate handoff must stay behind successful email unlock"
 );
 expect(local.includes("Tripadvisor")&&local.includes("Google Places")&&local.includes("Foursquare")&&local.includes("OpenStreetMap"),"360 local intelligence needs multi-source providers plus open-data fallback");
-expect(local.includes("sampleSize")&&local.includes("aiScore")&&local.includes("INSUFFICIENT")&&local.includes("hidden until at least 3 responses exist"),"first-party AI Guest Signal must remain sample-gated");
+expect(local.includes("sampleSize")&&local.includes("aiScore")&&local.includes("INSUFFICIENT")&&local.includes("hidden until at least 3")&&guestSignalMigration.includes("case when n>=3 then"),"first-party AI Guest Signal must remain sample-gated");
 expect(research.includes("getLocalIntelligenceV38")&&research.includes('release:"V38"'),"destination research route must keep V38 local intelligence truth layer");
 expect(guide.includes("QRCode")&&guide.includes("addUriLink")&&guide.includes("offer.trackingUrl")&&guide.includes("360° DISCLOSURE"),"Escape Book PDF must contain QR, clickable exact tracking link and disclosure");
 expect(email.includes("loadV8StayOffers")&&email.includes("affiliate link")&&email.includes("escape-book-"),"email delivery must re-resolve the exact offer and disclose affiliate handoff");
