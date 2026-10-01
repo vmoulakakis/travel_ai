@@ -6,5 +6,6 @@ export const runtime="nodejs";export const dynamic="force-dynamic";export const 
 export async function GET(request:Request){
  const url=new URL(request.url),slug=(url.searchParams.get("slug")??"").trim();if(!slug||slug.length>180)return Response.json({error:"Invalid journey"},{status:400});
  const journey=await loadJourneyBySlugV70(slug).catch(()=>null);if(!journey||!requestOwnsProfileV70(request,journey.profile_key))return Response.json({error:"Journey not found"},{status:404});
- const bytes=await renderJourneyPdfV70(journey,url.origin),filename=journey.pdf_filename||"TravelAI_Journey.pdf";return new Response(bytes,{headers:{"content-type":"application/pdf","content-disposition":`inline; filename*=UTF-8''${encodeURIComponent(filename)}`,"cache-control":"private, no-store","x-travel-guide":"v70-journey"}})
+ const bytes=await renderJourneyPdfV70(journey,url.origin),filename=journey.pdf_filename||"TravelAI_Journey.pdf",body=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength) as ArrayBuffer;
+ return new Response(body,{headers:{"content-type":"application/pdf","content-disposition":`inline; filename*=UTF-8''${encodeURIComponent(filename)}`,"cache-control":"private, no-store","x-travel-guide":"v70-journey"}})
 }
