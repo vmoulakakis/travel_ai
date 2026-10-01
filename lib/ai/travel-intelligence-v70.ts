@@ -9,7 +9,7 @@ export type CandidateNodeV70={
  property_count:number;offer_count:number;min_price:number|null;max_price:number|null;currency:string|null;demand_signal:number|null;
  semantic_text:string;match_readiness:number;content_status:string;verified_fact_count:number;evidence_count:number;avg_confidence:number;avg_evidence_strength:number;
 };
-export type DestinationBundleV70={destinations:JsonRecord[];entities:JsonRecord[];facts:JsonRecord[];stays:JsonRecord[]};
+export type DestinationBundleV70={destinations:JsonRecord[];entities:JsonRecord[];facts:JsonRecord[];edges:JsonRecord[];stays:JsonRecord[]};
 export type FunnelSessionV70={
  id:string;profile_key:string|null;auth_user_id:string|null;locale:V70Locale;status:string;current_context:JsonRecord;
  context_confidence:"low"|"medium"|"high";unresolved_questions:unknown[];candidate_keys:string[];top3:unknown[];
@@ -52,11 +52,11 @@ export async function loadCandidateUniverseV70(locale:V70Locale="el",limit=220):
 }
 
 export async function loadDestinationBundleV70(nodeKeys:string[],locale:V70Locale="el",stayLimit=6,entityLimit=80):Promise<DestinationBundleV70>{
- if(!nodeKeys.length)return{destinations:[],entities:[],facts:[],stays:[]};
+ if(!nodeKeys.length)return{destinations:[],entities:[],facts:[],edges:[],stays:[]};
  const value=await rpcV70<DestinationBundleV70>("get_agentic_destination_bundle_v70",{
   p_node_keys:[...new Set(nodeKeys)].slice(0,40),p_locale:locale,p_stay_limit:Math.max(1,Math.min(12,stayLimit)),p_entity_limit:Math.max(10,Math.min(120,entityLimit))
  },10000);
- return{destinations:Array.isArray(value?.destinations)?value.destinations:[],entities:Array.isArray(value?.entities)?value.entities:[],facts:Array.isArray(value?.facts)?value.facts:[],stays:Array.isArray(value?.stays)?value.stays:[]};
+ return{destinations:Array.isArray(value?.destinations)?value.destinations:[],entities:Array.isArray(value?.entities)?value.entities:[],facts:Array.isArray(value?.facts)?value.facts:[],edges:Array.isArray(value?.edges)?value.edges:[],stays:Array.isArray(value?.stays)?value.stays:[]};
 }
 
 export async function createFunnelSessionV70(input:{profileKey?:string|null;authUserId?:string|null;locale?:V70Locale;initialContext?:JsonRecord}):Promise<FunnelSessionV70>{
@@ -118,7 +118,6 @@ export async function loadGuestMemoryV70(profileKey:string|null):Promise<JsonRec
  try{
   const value=await rpcV70<JsonRecord>("get_traveler_context_v45",{p_profile_key:profileKey},3000);
   if(!value||!Object.keys(value).length)return null;
-  // V70 deliberately ignores legacy numeric preference weights. Only narrative/history/avoidance context may be supplied to agents as soft evidence.
   return{avoidances:value.avoidances??{},travelHistory:value.travelHistory??{},confidence:value.confidence??null,signalCount:value.signalCount??0};
  }catch{return null}
 }
