@@ -7,6 +7,7 @@ import {defaultDiscoveryWindowV70,loadWeatherContextsV70} from "@/lib/ai/weather
 
 export type DiscoveryPickV70={
  key:string;name:string;region:string;whyNow:string;experience:string;seasonalNote:string;weatherNote:string;
+ latitude:number|null;longitude:number|null;
  confidence:"low"|"medium"|"high";pinRole:"featured"|"exceptional"|"smart-alternative"|"unexpected";evidenceRefs:string[];
 };
 export type Discovery50V70={version:70;generatedAt:string;window:{startDate:string;endDate:string};picks:DiscoveryPickV70[];models:JsonRecord;evidenceState:JsonRecord};
@@ -18,7 +19,7 @@ function validateScout(v:JsonRecord):Scout|null{const keys=asStringArray(v.candi
 function validatePicks(v:JsonRecord):DiscoveryPickV70[]|null{
  const rows=asRecordArray(v.picks,50).map((x,index):DiscoveryPickV70=>({
   key:asString(x.key,180),name:asString(x.name,160),region:asString(x.region,160),whyNow:asString(x.whyNow,700),experience:asString(x.experience,600),
-  seasonalNote:asString(x.seasonalNote,500),weatherNote:asString(x.weatherNote,500),confidence:qualitativeConfidence(x.confidence),
+  seasonalNote:asString(x.seasonalNote,500),weatherNote:asString(x.weatherNote,500),latitude:null,longitude:null,confidence:qualitativeConfidence(x.confidence),
   pinRole:x.pinRole==="unexpected"?"unexpected":x.pinRole==="smart-alternative"?"smart-alternative":x.pinRole==="featured"?"featured":index<12?"exceptional":"smart-alternative",
   evidenceRefs:asStringArray(x.evidenceRefs,15)
  }));
@@ -41,7 +42,8 @@ export async function generateDiscovery50V70(locale:V70Locale="el"):Promise<Disc
  const weatherByKey=new Map(weather.map(w=>[w.key,w]));
  const finalPrompt=`CURRENT LOCAL TIME IN GREECE: ${athensNow()}\nDISCOVERY WINDOW: ${JSON.stringify(window)}\nSCOUT HYPOTHESES:\n${JSON.stringify(scoutRun.value.hypotheses)}\nCANDIDATE METADATA:\n${JSON.stringify(compact(nodes))}\nWEATHER EVIDENCE (facts/uncertainty only; absence means unknown):\n${JSON.stringify(weather)}\nSAMPLED KNOWLEDGE FACTS/GRAPH FOR THE DISCOVERY SET:\n${JSON.stringify({facts:bundle.facts.slice(0,100),edges:bundle.edges.slice(0,140),entities:bundle.entities.slice(0,80)})}\n\nChoose exactly 50 places for the default TravelAI map. This is an editorial/agentic discovery portfolio, not a mathematical leaderboard. Every choice must be defensible now from context/evidence; weather evidence should inform lived experience when present and remain explicitly unknown when absent. Keep Greece-wide geographic and experience diversity. Do not rotate for novelty alone. Return JSON object with picks[] exactly 50. Each pick: key,name,region,whyNow,experience,seasonalNote,weatherNote,confidence(low|medium|high),pinRole(featured|exceptional|smart-alternative|unexpected),evidenceRefs[]. No numeric ranking score.`;
  const finalRun=await runAgentJsonV70({profile:agent(profiles,"greece-explorer"),prompt:finalPrompt,validate:v=>{const picks=validatePicks(v);return picks?{picks}:null},maxOutputTokens:3600});
- const picks=finalRun.value.picks.filter(p=>allowed.has(p.key));
+ const nodeByKey=new Map(universe.map(node=>[node.node_key,node]));
+ const picks=finalRun.value.picks.filter(p=>allowed.has(p.key)).map(p=>{const node=nodeByKey.get(p.key);return{...p,latitude:node?.latitude??null,longitude:node?.longitude??null}});
  if(picks.length!==50)throw new Error("V70 discovery finalizer returned invalid keys");
  const evidenceState={candidateUniverse:universe.length,scoutCandidates:keys.length,weatherChecked:weather.length,knowledgeFacts:bundle.facts.length,graphEdges:bundle.edges.length,knowledgeEntities:bundle.entities.length,weatherCoverage:Object.fromEntries(keys.map(k=>[k,weatherByKey.has(k)?"checked":"unknown"]))};
  await saveDiscoverySnapshotV70({locale,context:{mode:"default-greece",window,localTime:athensNow()},picks,evidenceState,modelLabel:finalRun.modelLabel,ttlHours:18});
