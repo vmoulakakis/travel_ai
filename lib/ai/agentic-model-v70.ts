@@ -47,11 +47,12 @@ export async function runAgentJsonV70<T>(args:{
   const timeout=Math.max(route.timeoutMs,args.timeoutMs??0,12000);
   const timer=setTimeout(()=>controller.abort(),Math.min(timeout,30000));
   try{
+   const requestedOutput=Math.max(128,Math.min(args.maxOutputTokens??900,6400));
    const result=await generateText({
     model:route.model,
     system,
     prompt:args.prompt,
-    maxOutputTokens:Math.max(route.maxOutputTokens,Math.min(args.maxOutputTokens??900,1600)),
+    maxOutputTokens:Math.max(route.maxOutputTokens,requestedOutput),
     temperature:.15,
     maxRetries:0,
     abortSignal:controller.signal
