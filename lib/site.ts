@@ -1,6 +1,8 @@
+const PRODUCTION_SITE_URL = "https://travel-ai-lovat-psi.vercel.app";
+
 function normalizeSiteUrl(value: string) {
   const trimmed = value.trim().replace(/\/$/, "");
-  if (!trimmed) return "http://localhost:3000";
+  if (!trimmed) return PRODUCTION_SITE_URL;
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
@@ -9,7 +11,7 @@ export function getSiteUrl() {
     process.env.NEXT_PUBLIC_SITE_URL ??
     process.env.VERCEL_PROJECT_PRODUCTION_URL ??
     process.env.VERCEL_URL ??
-    "http://localhost:3000";
+    PRODUCTION_SITE_URL;
   return normalizeSiteUrl(raw);
 }
 
