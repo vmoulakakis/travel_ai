@@ -97,7 +97,7 @@ export async function runProgressiveFunnelV70(input:{session:FunnelSessionV70;me
  const models:JsonRecord={context:contextRun.modelLabel,explorer:explorerRun.modelLabel};
  if(contextRun.value.needsClarification){
   const question=contextRun.value.question;
-  await updateFunnelSessionV70(input.session.id,{status:"clarifying",current_context:context,context_confidence:contextRun.value.confidence,unresolved_questions:[{key:contextRun.value.questionKey,question}],candidate_keys:candidateKeys,top10:[],model_trace:{...input.session.model_trace,lastModels:models,lastContextSummary:contextRun.value.summary}});
+  await updateFunnelSessionV70(input.session.id,{status:"clarifying",current_context:context,context_confidence:contextRun.value.confidence,unresolved_questions:[{key:contextRun.value.questionKey,question}],candidate_keys:candidateKeys,top3:[],model_trace:{...input.session.model_trace,lastModels:models,lastContextSummary:contextRun.value.summary}});
   await appendFunnelTurnV70({sessionId:input.session.id,role:"assistant",content:question,stage:"clarifying",structuredExtract:{questionKey:contextRun.value.questionKey,contextConfidence:contextRun.value.confidence},evidenceRefs:candidateKeys});
   return{version:70,sessionId:input.session.id,stage:"clarify",assistantMessage:question,questionKey:contextRun.value.questionKey||null,context,contextConfidence:contextRun.value.confidence,candidateKeys,mapCandidates:candidateNodes.map(publicCandidate),top10:[],models};
  }
@@ -125,7 +125,7 @@ export async function runProgressiveFunnelV70(input:{session:FunnelSessionV70;me
   const question=synthRun.value.question;
   await updateFunnelSessionV70(input.session.id,{status:"clarifying",current_context:context,context_confidence:contextRun.value.confidence,unresolved_questions:[{key:synthRun.value.questionKey,question}],candidate_keys:survivors,top10:[],model_trace:{...input.session.model_trace,lastModels:models,critic:criticRun.value.summary}});
   await appendFunnelTurnV70({sessionId:input.session.id,role:"assistant",content:question,stage:"clarifying",structuredExtract:{questionKey:synthRun.value.questionKey},evidenceRefs:survivors});
-  return{version:70,sessionId:input.session.id,stage:"clarify",assistantMessage:question,questionKey:synthRun.value.questionKey||null,context,contextConfidence:contextRun.value.confidence,candidateKeys:survivors,mapCandidates:survivorNodes.map(publicCandidate),top3:[],models};
+  return{version:70,sessionId:input.session.id,stage:"clarify",assistantMessage:question,questionKey:synthRun.value.questionKey||null,context,contextConfidence:contextRun.value.confidence,candidateKeys:survivors,mapCandidates:survivorNodes.map(publicCandidate),top10:[],models};
  }
  const top10=synthRun.value.top10.filter(x=>allowed.has(x.key));
  if(top10.length!==10)throw new Error("V70 synthesizer returned fewer than ten valid destination keys");
