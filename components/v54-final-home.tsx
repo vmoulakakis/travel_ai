@@ -14,6 +14,8 @@ type Stay={productId:string;placeId:string;name:string;location:string;address:s
 type Hero={id:string;location:string;imageUrl:string;propertyCount:number;minPrice:number|null;currency:string;latitude:number|null;longitude:number|null};
 type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null;seasonalFit?:{score:number;band:string;reason:string}};liveOfferCount:number};
 type AgentResponse={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:{id:string;text:string;quickReplies:{label:string;value:string}[]};solutions?:Solution[];trip?:{startDate:string;endDate:string;travelerType:string;moods:string[];budget:number;origin:string};agentRuntime?:{today?:string;timezone?:string;dateRecovery?:{tier?:string;label?:string}|null}};
+type V70Pick={key:string;name:string;region:string|null;latitude:number;longitude:number;role:"best"|"alternative"|"wildcard";whyYou:string;whyNow:string;experience:string;tradeoff:string;confidence:"low"|"medium"|"high";uncertainty:string;nextAction:string};
+type V70Response={version:70;stage:"clarify"|"top10";assistantMessage:string;context:Record<string,unknown>;mapCandidates:Array<{key:string;name:string;region:string|null;latitude:number;longitude:number}>;top10?:V70Pick[];models?:Record<string,string>};
 type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;intelligence:number|null;seasonal:number|null;priceFit:number|null;demand:number|null;mapSignal:"ai"|"discovery"|"demand"|"seasonal"|"value"|"explore"|null;starTier:"gold"|"green"|"blue"|null};
 type RatingSignal={provider:"Google Places"|"Tripadvisor"|"Foursquare"|"AI Guest Signal";rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
 type QuickRating={status:"live"|"unavailable";primary:RatingSignal|null;ratings:RatingSignal[];photoUrl?:string|null;photoProvider?:string|null;matchedName?:string|null};
@@ -30,6 +32,7 @@ export function V54FinalHome(){
  const [inventory,setInventory]=useState<Stay[]>([]);
  const [heroMedia,setHeroMedia]=useState<Hero[]>([]);
  const [solutions,setSolutions]=useState<Solution[]>([]);
+ const [agentPicks,setAgentPicks]=useState<V70Pick[]>([]);
  const [active,setActive]=useState(0);
  const [origin]=useState("Αθήνα");
  const [destination,setDestination]=useState("");
@@ -264,11 +267,26 @@ export function V54FinalHome(){
   return()=>{dead=true};
  },[inventory,cards,solutions,destination,verifiedRatings]);
 
- async function runAgent(extra?:string){
+ async function runAgent(extra?:string,stayOnly=false){
   const destinationBrief=destination.trim()?destination.trim()+". ":"";
   const prompt=(extra??freeText).trim()||`${destinationBrief}${intent}, ${traveler==="couple"?"με σύντροφο":traveler}, ${start} έως ${end}. Θέλω τις καλύτερες πραγματικές επιλογές.`;
   setBusy(true);setAgentMessage("Αναλύω ημερομηνίες, profile, inventory και πραγματικές επιλογές…");
   try{
+   if(!stayOnly){
+    const v70Response=await fetch("/api/v70/funnel",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:prompt,locale:"el"}),cache:"no-store"});
+    const v70Payload=await v70Response.json().catch(()=>null) as V70Response|null;
+    if(!v70Response.ok||!v70Payload)throw new Error("V70 travel agent is not ready");
+    setQuestion(null);setSolutions([]);setSelectedMapStay(null);
+    if(v70Payload.stage==="clarify"){setAgentPicks([]);setAgentMessage(v70Payload.assistantMessage);return}
+    const byKey=new Map(v70Payload.mapCandidates.map(x=>[x.key,x]));
+    const picks=(v70Payload.top10??[]).map(x=>({...x,region:byKey.get(x.key)?.region??null,latitude:byKey.get(x.key)?.latitude??0,longitude:byKey.get(x.key)?.longitude??0}));
+    if(picks.length!==10)throw new Error("V70 agent did not return ten defensible destinations");
+    setAgentPicks(picks);setAgentMessage(v70Payload.assistantMessage);setAgentRuntime({today:todayIso(),timezone:"Europe/Athens"});
+    const first=byKey.get(picks[0].key);
+    if(first&&Number.isFinite(first.latitude)&&Number.isFinite(first.longitude))mapRef.current?.flyTo([first.latitude,first.longitude],7,{duration:1.2});
+    requestAnimationFrame(()=>document.getElementById("stays")?.scrollIntoView({behavior:"smooth",block:"start"}));
+    return;
+   }
    const body={
     userText:prompt,
     conversationContext:`USER PROFILE: origin=${origin}, destination=${destination||"open"}, dates=${start}..${end}, traveler=${traveler}, budget=${budget}, intent=${intent}. TODAY_LOCAL=${todayIso()} Europe/Athens. MAP_CENTER=${mapView.lat.toFixed(5)},${mapView.lon.toFixed(5)} zoom=${mapView.zoom}. CURRENT_STAY=${(selectedMapStay??hoveredStayRef.current)?.name??"none"}`,
@@ -291,7 +309,7 @@ export function V54FinalHome(){
      if(top)window.setTimeout(()=>mapRef.current?.flyTo([top.stay.latitude,top.stay.longitude],12,{duration:1.35,easeLinearity:.18}),180);
     });
    }
-  }catch{setAgentMessage("Το live reasoning δεν απάντησε έγκαιρα. Κρατάω το brief σου και εμφανίζω το ενεργό inventory χωρίς να εφεύρω δεδομένα.");}
+  }catch{setAgentMessage("Ο πλήρης TravelAI agent δεν είναι διαθέσιμος αυτή τη στιγμή. Οι 10 εποχικές και χωρικές προτάσεις δεν ολοκληρώθηκαν, οπότε δεν αντικαθιστώ την ανάλυση με τυχαία πόλη.");}
   finally{setBusy(false)}
  }
 
@@ -403,6 +421,7 @@ export function V54FinalHome(){
   <section id="stays" className={styles.discovery}>
    <div className={styles.stayColumn}>
     <div className={styles.sectionHead}><div><small>ΒΗΜΑ 3 · ΕΠΙΛΕΞΕ</small><h2>Διάλεξε κατάλυμα και συνέχισε στο ίδιο funnel</h2></div><button onClick={()=>void runAgent("Βελτιστοποίησε ξανά τις επιλογές με βάση το τρέχον brief.")}>Ανανέωση AI <Sparkle/></button></div>
+    {agentPicks.length? <div className={styles.stayColumn}><div className={styles.sectionHead}><div><small>AI AGENT · ΕΠΟΧΗ · ΧΩΡΟΣ · ΕΜΠΕΙΡΙΑ</small><h2>Οι 10 επιλογές του agent για τις ημερομηνίες σου</h2></div></div><div className={styles.cardGrid}>{agentPicks.map((p,i)=><article key={p.key} className={i===0?styles.cardActive:""}><div className={styles.cardBody}><div className={styles.cardEyebrow}><small>{p.region||"Ελλάδα"}</small><span>{i===0?"ΚΑΛΥΤΕΡΟ FIT":p.role==="wildcard"?"ΑΝΑΤΡΟΠΗ":`ΕΠΙΛΟΓΗ ${i+1}`}</span></div><h3>{p.name}</h3><p><b>Γιατί ταιριάζει:</b> {p.whyYou}</p><p><b>Γιατί αυτή την εποχή:</b> {p.whyNow}</p><p><b>Εμπειρία:</b> {p.experience}</p><p><b>Trade-off:</b> {p.tradeoff}</p>{p.uncertainty?<p><b>Τι μένει αβέβαιο:</b> {p.uncertainty}</p>:null}<div className={styles.cardFoot}><b>{p.confidence==="high"?"Ισχυρή τεκμηρίωση":p.confidence==="medium"?"Μέτρια τεκμηρίωση":"Περιορισμένα στοιχεία"}</b><button type="button" disabled={busy} onClick={()=>{setDestination(p.name);void runAgent(`Βρες πραγματική διαμονή στον προορισμό ${p.name} για ${start} έως ${end}, ${traveler}, budget ${budget} ευρώ. Εξήγησε διαθεσιμότητα και εποχική καταλληλότητα.`,true)}}>Δες διαμονές <ArrowRight/></button></div></div></article>)}</div></div>:null}
     <div className={styles.cardGrid}>{cards.slice(0,3).map((s,i)=><article key={s.id}
       onMouseEnter={()=>{hoveredStayRef.current=s}}
       onMouseLeave={()=>{if(hoveredStayRef.current?.id===s.id)hoveredStayRef.current=null}}
