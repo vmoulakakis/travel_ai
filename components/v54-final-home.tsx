@@ -34,7 +34,7 @@ export function V54FinalHome(){
  const [solutions,setSolutions]=useState<Solution[]>([]);
  const [agentPicks,setAgentPicks]=useState<V70Pick[]>([]);
  const [active,setActive]=useState(0);
- const [origin]=useState("Αθήνα");
+ const [origin]=useState("Δεν έχει οριστεί");
  const [destination,setDestination]=useState("");
  const [plannerTab,setPlannerTab]=useState<"trip"|"inspire"|"ask">("trip");
  const [start,setStart]=useState(()=>addDays(todayIso(),14));
@@ -273,7 +273,7 @@ export function V54FinalHome(){
   setBusy(true);setAgentMessage("Αναλύω ημερομηνίες, profile, inventory και πραγματικές επιλογές…");
   try{
    if(!stayOnly){
-    const v70Response=await fetch("/api/v70/funnel",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:prompt,locale:"el"}),cache:"no-store"});
+    const v70Response=await fetch("/api/v70/funnel",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:`${prompt}\n\nΔΟΜΗΜΕΝΟ ΠΛΑΙΣΙΟ ΤΑΞΙΔΙΟΥ: ημερομηνίες ${start} έως ${end}, ταξιδιώτες ${traveler}, budget έως περίπου ${budget} EUR, διάθεση ${intent}, προορισμός ${destination.trim()||"ανοιχτός — όλη η Ελλάδα"}. Αφετηρία: δεν έχει οριστεί, μην υποθέσεις Αθήνα ή Θεσσαλονίκη. Εφάρμοσε εποχική καταλληλότητα για τις συγκεκριμένες ημερομηνίες. Χρησιμοποίησε χωρικά δεδομένα μόνο όπου υπάρχουν· μην επινοήσεις χρόνους διαδρομών ή ακτοπλοϊκά/αεροπορικά δρομολόγια.`,locale:"el"}),cache:"no-store"});
     const v70Payload=await v70Response.json().catch(()=>null) as V70Response|null;
     if(!v70Response.ok||!v70Payload)throw new Error("V70 travel agent is not ready");
     setQuestion(null);setSolutions([]);setSelectedMapStay(null);
