@@ -31,7 +31,7 @@ assert.ok(orchestrator.includes("top10.length!==10")&&orchestrator.includes('sta
 assert.ok(orchestrator.includes('profile(profiles,"time-weather")')&&orchestrator.includes('profile(profiles,"spatial-reasoner")')&&orchestrator.includes('profile(profiles,"skeptical-critic")'),"Top 10 must include season, spatial and critic agents");
 assert.ok(home.includes('fetch("/api/v70/funnel"')&&home.includes("agentPicks.map"),"the homepage planner must display V70 Top 10 results");
 assert.ok(home.includes('useState("Δεν έχει οριστεί")'),"the homepage must not assume Athens as the trip origin");
-assert.ok(stay.includes("commission intentionally withheld from reasoning")&&stay.includes("Curate exactly three stays"),"stay curation must be contextual and affiliate-neutral");
+assert.ok(stay.includes("commission intentionally withheld from reasoning")&&stay.includes("Curate exactly ${expected} distinct physical stays"),"stay curation must be contextual, affiliate-neutral, and bounded by actual inventory");
 assert.ok(journey.includes("affiliate URL deliberately withheld from reasoning")&&journey.includes("final 360-degree journey"),"journey synthesis must be grounded and affiliate-neutral");
 assert.ok(tracking.includes('target.hostname==="linkwi.se"')&&tracking.includes('target.hostname.endsWith(".linkwi.se")'),"tracking redirect must be provider-host allowlisted");
 assert.ok(health.includes('release:"V70"')&&health.includes("serviceRoleExposedToVercel:false"),"V70 health must expose backend readiness and service-role isolation");
