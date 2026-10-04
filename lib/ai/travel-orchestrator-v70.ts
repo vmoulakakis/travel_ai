@@ -39,7 +39,7 @@ function validateContext(value:JsonRecord):ContextDecision|null{
 }
 function validateExplorer(value:JsonRecord):ExplorerDecision|null{
  const candidateKeys=asStringArray(value.candidateKeys,45),hypotheses=asRecordArray(value.hypotheses,45);
- if(candidateKeys.length<3)return null;
+ if(candidateKeys.length<10)return null;
  return{candidateKeys,hypotheses,portfolioNarrative:asString(value.portfolioNarrative,900)};
 }
 function validateFinding(value:JsonRecord):Finding|null{
@@ -69,8 +69,8 @@ async function interpretContext(input:{session:FunnelSessionV70;message:string;t
 }
 
 async function exploreGreece(input:{context:JsonRecord;needsClarification:boolean;question:string;universe:CandidateNodeV70[];agent:AgentProfileV70;locale:V70Locale}){
- const target=input.needsClarification?"Return 18-40 provisional candidate keys so the map can progressively narrow while we wait for the answer.":"Return 10-18 serious candidate keys for deep multi-agent comparison.";
- const prompt=`LOCAL TIME: ${athensNow()}\nTRAVELLER CONTEXT:\n${JSON.stringify(input.context)}\nPENDING CLARIFICATION: ${input.needsClarification?input.question:"none"}\n\nGREECE CANDIDATE UNIVERSE (retrieval catalogue, NOT a ranking):\n${JSON.stringify(compactCatalog(input.universe))}\n\nExplore Greece contextually. ${target}\nConsider the complete experience, time/season, traveller psychology, companions, geography, supply/evidence and meaningful variety. Demand/popularity fields are context signals only, never automatic rank. Include surprising/micro-region choices when defensible. Return JSON: candidateKeys[], hypotheses[] where each has key,experienceHypothesis,whyPlausible,whatNeedsVerification, and portfolioNarrative. Never output numeric fit scores.`;
+ const target=input.needsClarification?"Return 25-40 provisional candidate keys so the map can progressively narrow while we wait for the answer.":"Return 25-40 serious candidate keys for deep multi-agent comparison.";
+ const prompt=`LOCAL TIME: ${athensNow()}\nTRAVELLER CONTEXT:\n${JSON.stringify(input.context)}\nPENDING CLARIFICATION: ${input.needsClarification?input.question:"none"}\n\nGREECE CANDIDATE UNIVERSE (retrieval catalogue, NOT a ranking):\n${JSON.stringify(compactCatalog(input.universe))}\n\nExplore Greece contextually. ${target}\nConsider the complete experience, time/season, traveller psychology, companions, geography, supply/evidence and meaningful variety. Demand/popularity fields are context signals only, never automatic rank. Include surprising/micro-region choices when defensible. Return JSON: candidateKeys[] (25-40 distinct keys), hypotheses[] where each has key,experienceHypothesis,whyPlausible,whatNeedsVerification, and portfolioNarrative. Seek enough defensible breadth for a nationwide Top 10, not just the most popular places. Never output numeric fit scores.`;
  return runAgentJsonV70({profile:input.agent,prompt,validate:validateExplorer,maxOutputTokens:1100});
 }
 
@@ -84,7 +84,7 @@ export async function runProgressiveFunnelV70(input:{session:FunnelSessionV70;me
  const contextRun=await interpretContext({session:input.session,message,turns:[...oldTurns,{id:0,session_id:input.session.id,role:"user",content:message,stage:input.session.status,structured_extract:{},evidence_refs:[],created_at:new Date().toISOString()}],memory,locale,agent:profile(profiles,"context-interpreter")});
  const context=mergeContext(input.session.current_context,contextRun.value.context),universe=await loadCandidateUniverseV70(locale,574),allowed=new Set(universe.map(n=>n.node_key));
  const explorerRun=await exploreGreece({context,needsClarification:contextRun.value.needsClarification,question:contextRun.value.question,universe,agent:profile(profiles,"greece-explorer"),locale});
- const candidateKeys=safeKeys(explorerRun.value.candidateKeys,allowed,contextRun.value.needsClarification?40:18),candidateNodes=candidateKeys.map(k=>universe.find(n=>n.node_key===k)).filter((n):n is CandidateNodeV70=>Boolean(n));
+ const candidateKeys=safeKeys(explorerRun.value.candidateKeys,allowed,contextRun.value.needsClarification?40:40),candidateNodes=candidateKeys.map(k=>universe.find(n=>n.node_key===k)).filter((n):n is CandidateNodeV70=>Boolean(n));
  if(candidateKeys.length<3)throw new Error("V70 explorer did not return enough valid Greece candidates");
  const models:JsonRecord={context:contextRun.modelLabel,explorer:explorerRun.modelLabel};
  if(contextRun.value.needsClarification){
@@ -96,7 +96,7 @@ export async function runProgressiveFunnelV70(input:{session:FunnelSessionV70;me
 
  const bundle=await loadDestinationBundleV70(candidateKeys,locale,5,110);
  const startDate=context.startDate,endDate=context.endDate;
- const weather=validIsoDate(startDate)&&validIsoDate(endDate)?await loadWeatherContextsV70(candidateNodes,{startDate,endDate,locale,limit:18}):[];
+ const weather=validIsoDate(startDate)&&validIsoDate(endDate)?await loadWeatherContextsV70(candidateNodes,{startDate,endDate,locale,limit:40}):[];
  const evidenceFrame={context,hypotheses:explorerRun.value.hypotheses,destinations:bundle.destinations,entities:bundle.entities,facts:bundle.facts,edges:bundle.edges,stays:bundle.stays,weather};
  const [timeRun,spatialRun,experienceRun]=await Promise.all([
   runFinding(profile(profiles,"time-weather"),`TRAVELLER CONTEXT:\n${JSON.stringify(context)}\nCANDIDATE HYPOTHESES:\n${JSON.stringify(explorerRun.value.hypotheses)}\nWEATHER/TIME EVIDENCE:\n${JSON.stringify(weather)}\nVERIFIED FACTS:\n${JSON.stringify(bundle.facts.slice(0,120))}\nReturn JSON: summary, observations[] (candidateKey, conclusion, evidenceRefs, uncertainty), uncertainties[], candidateKeys[]. Interpret conditions as lived experience; do not score candidates.`),
@@ -115,7 +115,7 @@ export async function runProgressiveFunnelV70(input:{session:FunnelSessionV70;me
  models.synthesizer=synthRun.modelLabel;
  if(!synthRun.value.ready){
   const question=synthRun.value.question;
-  await updateFunnelSessionV70(input.session.id,{status:"clarifying",current_context:context,context_confidence:contextRun.value.confidence,unresolved_questions:[{key:synthRun.value.questionKey,question}],candidate_keys:survivors,top3:[],model_trace:{...input.session.model_trace,lastModels:models,critic:criticRun.value.summary}});
+  await updateFunnelSessionV70(input.session.id,{status:"clarifying",current_context:context,context_confidence:contextRun.value.confidence,unresolved_questions:[{key:synthRun.value.questionKey,question}],candidate_keys:survivors,top10:[],model_trace:{...input.session.model_trace,lastModels:models,critic:criticRun.value.summary}});
   await appendFunnelTurnV70({sessionId:input.session.id,role:"assistant",content:question,stage:"clarifying",structuredExtract:{questionKey:synthRun.value.questionKey},evidenceRefs:survivors});
   return{version:70,sessionId:input.session.id,stage:"clarify",assistantMessage:question,questionKey:synthRun.value.questionKey||null,context,contextConfidence:contextRun.value.confidence,candidateKeys:survivors,mapCandidates:survivorNodes.map(publicCandidate),top3:[],models};
  }
