@@ -29,6 +29,7 @@ assert.ok(model.includes("Math.min(args.maxOutputTokens??900,6400)"),"V70 struct
 assert.ok(discovery.includes("picks[] exactly 50")&&discovery.includes("rows.length!==50"),"default discovery must enforce exactly 50 AI choices");
 assert.ok(orchestrator.includes("top10.length!==10")&&orchestrator.includes('stage:"top10"'),"the full V70 agent funnel must return exactly ten grounded choices");
 assert.ok(orchestrator.includes('profile(profiles,"time-weather")')&&orchestrator.includes('profile(profiles,"spatial-reasoner")')&&orchestrator.includes('profile(profiles,"skeptical-critic")'),"Top 10 must include season, spatial and critic agents");
+assert.ok(orchestrator.includes("spatialProximity(candidateNodes)")&&orchestrator.includes("straightLineKm"),"spatial reasoning must receive coordinate-derived proximity evidence without inventing routes");
 assert.ok(home.includes('fetch("/api/v70/funnel"')&&home.includes("agentPicks.map"),"the homepage planner must display V70 Top 10 results");
 assert.ok(home.includes('useState("Δεν έχει οριστεί")'),"the homepage must not assume Athens as the trip origin");
 assert.ok(stay.includes("commission intentionally withheld from reasoning")&&stay.includes("Curate exactly ${expected} distinct physical stays"),"stay curation must be contextual, affiliate-neutral, and bounded by actual inventory");
