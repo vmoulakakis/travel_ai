@@ -263,9 +263,18 @@ export function V54FinalHome(){
     });
     marker.addTo(g);
    }
+   const agentCoordinates=agentPicks.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&(p.latitude!==0||p.longitude!==0));
+   for(const [index,p] of agentCoordinates.entries()){
+    const rank=index+1,size=38;
+    const marker=L.marker([p.latitude,p.longitude],{icon:L.divIcon({className:"v65StarAi",html:`<span style="--pin-size:${size}px">★<small>#${rank}</small></span>`,iconSize:[size,size],iconAnchor:[19,19]}),zIndexOffset:2100-rank});
+    marker.bindTooltip(`<div class="v56MapTip"><span class="v65AiBadge">AI TOP 10 · #${rank}</span><b class="v56MapTipName">${html(p.name)}</b><span class="v56MapTipLoc">${html(p.region??"Ελλάδα")}</span><p>${html(p.whyNow)}</p><small>${html(p.confidence)} confidence · ${html(p.uncertainty||"")}</small></div>`,{direction:"top",offset:[0,-12],opacity:1,className:"v56Tooltip"});
+    marker.on("click",()=>{setDestination(p.name);document.getElementById("planner")?.scrollIntoView({behavior:"smooth",block:"center"})});
+    marker.addTo(g);
+   }
+   if(agentCoordinates.length>1)mapRef.current?.fitBounds(L.latLngBounds(agentCoordinates.map(p=>[p.latitude,p.longitude] as [number,number])),{padding:[55,55],maxZoom:7});
   });
   return()=>{dead=true};
- },[inventory,cards,solutions,destination,verifiedRatings]);
+ },[inventory,cards,solutions,destination,verifiedRatings,agentPicks]);
 
  async function runAgent(extra?:string,stayOnly=false){
   const destinationBrief=destination.trim()?destination.trim()+". ":"";
