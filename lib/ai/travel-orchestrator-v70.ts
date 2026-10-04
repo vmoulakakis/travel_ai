@@ -11,22 +11,30 @@ export type TopChoiceV70={
  confidence:"low"|"medium"|"high";uncertainty:string;evidenceRefs:string[];nextAction:string;
 };
 export type FunnelResultV70={
- version:70;sessionId:string;stage:"clarify"|"top3";assistantMessage:string;questionKey?:string|null;
+ version:70;sessionId:string;stage:"clarify"|"top10";assistantMessage:string;questionKey?:string|null;
  context:JsonRecord;contextConfidence:"low"|"medium"|"high";candidateKeys:string[];mapCandidates:Array<ReturnType<typeof publicCandidate>>;
- top3:TopChoiceV70[];models:JsonRecord;
+ top10:TopChoiceV70[];models:JsonRecord;
 };
 
 type ContextDecision={context:JsonRecord;confidence:"low"|"medium"|"high";needsClarification:boolean;question:string;questionKey:string;knownFacts:string[];uncertainties:string[];summary:string};
 type ExplorerDecision={candidateKeys:string[];hypotheses:JsonRecord[];portfolioNarrative:string};
 type Finding={summary:string;observations:JsonRecord[];uncertainties:string[];candidateKeys:string[]};
 type CriticDecision={survivors:string[];objections:JsonRecord[];missingEvidence:string[];summary:string};
-type SynthDecision={ready:boolean;question:string;questionKey:string;message:string;top3:TopChoiceV70[]};
+type SynthDecision={ready:boolean;question:string;questionKey:string;message:string;top10:TopChoiceV70[]};
 
 function profile(profiles:Map<string,AgentProfileV70>,id:string){const value=profiles.get(id);if(!value)throw new Error(`Missing V70 agent profile: ${id}`);return value}
 function athensNow(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Athens",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date())}
 function validIsoDate(value:unknown):value is string{return typeof value==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(`${value}T00:00:00Z`))}
 function publicCandidate(node:CandidateNodeV70){return{key:node.node_key,slug:node.canonical_slug,name:node.display_name,region:node.region_label,latitude:node.latitude,longitude:node.longitude,propertyCount:node.property_count,offerCount:node.offer_count,priceMin:node.min_price,priceMax:node.max_price,currency:node.currency}}
 function compactCatalog(nodes:CandidateNodeV70[]){return nodes.map(n=>{const c=compactCandidateForPromptV70(n);return{key:c.key,name:c.name,region:c.region,lat:c.lat,lng:c.lng,stays:c.stays,offers:c.offers,priceMin:c.priceMin,priceMax:c.priceMax,currency:c.currency,demandSignal:c.demandSignal,summary:String(c.summary??"").slice(0,190),evidence:c.evidence,contentStatus:c.contentStatus}})}
+function haversineKm(a:CandidateNodeV70,b:CandidateNodeV70){
+ const rad=(degrees:number)=>degrees*Math.PI/180,dLat=rad(b.latitude-a.latitude),dLon=rad(b.longitude-a.longitude);
+ const q=Math.sin(dLat/2)**2+Math.cos(rad(a.latitude))*Math.cos(rad(b.latitude))*Math.sin(dLon/2)**2;
+ return 6371*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));
+}
+function spatialProximity(nodes:CandidateNodeV70[]){
+ return nodes.map(node=>({key:node.node_key,name:node.display_name,region:node.region_label,nearest:nodes.filter(other=>other.node_key!==node.node_key).map(other=>({key:other.node_key,name:other.display_name,region:other.region_label,straightLineKm:Math.round(haversineKm(node,other))})).sort((a,b)=>a.straightLineKm-b.straightLineKm).slice(0,3)}));
+}
 function conversationText(turns:Awaited<ReturnType<typeof loadFunnelTurnsV70>>){return turns.slice(-18).map(t=>`${t.role.toUpperCase()}: ${t.content}`).join("\n")}
 function mergeContext(previous:JsonRecord,next:JsonRecord){return{...previous,...Object.fromEntries(Object.entries(next).filter(([,v])=>v!==null&&v!==""&&v!==undefined))}}
 function safeKeys(keys:string[],allowed:Set<string>,limit:number){return [...new Set(keys.filter(k=>allowed.has(k)))].slice(0,limit)}
@@ -39,7 +47,7 @@ function validateContext(value:JsonRecord):ContextDecision|null{
 }
 function validateExplorer(value:JsonRecord):ExplorerDecision|null{
  const candidateKeys=asStringArray(value.candidateKeys,45),hypotheses=asRecordArray(value.hypotheses,45);
- if(candidateKeys.length<3)return null;
+ if(candidateKeys.length<10)return null;
  return{candidateKeys,hypotheses,portfolioNarrative:asString(value.portfolioNarrative,900)};
 }
 function validateFinding(value:JsonRecord):Finding|null{
@@ -53,14 +61,14 @@ function validateCritic(value:JsonRecord):CriticDecision|null{
  return{survivors,objections:asRecordArray(value.objections,60),missingEvidence:asStringArray(value.missingEvidence,40),summary};
 }
 function validateSynth(value:JsonRecord):SynthDecision|null{
- const ready=value.ready===true,question=asString(value.question,500),message=asString(value.message,1200),raw=asRecordArray(value.top3,3),top3:TopChoiceV70[]=raw.map((x,index)=>({
+ const ready=value.ready===true,question=asString(value.question,500),message=asString(value.message,1200),raw=asRecordArray(value.top10,10),top10:TopChoiceV70[]=raw.map((x,index)=>({
   key:asString(x.key,180),name:asString(x.name,160),role:x.role==="wildcard"?"wildcard":x.role==="alternative"?"alternative":index===0?"best":"alternative",
   whyYou:asString(x.whyYou,700),whyNow:asString(x.whyNow,700),experience:asString(x.experience,700),tradeoff:asString(x.tradeoff,500),
   confidence:qualitativeConfidence(x.confidence),uncertainty:asString(x.uncertainty,500),evidenceRefs:asStringArray(x.evidenceRefs,20),nextAction:asString(x.nextAction,240)
  }));
- if(ready){if(top3.length!==3||new Set(top3.map(x=>x.key)).size!==3||top3.some(x=>!x.key||!x.name||!x.whyYou))return null}
+ if(ready){if(top10.length!==10||new Set(top10.map(x=>x.key)).size!==10||top10.some(x=>!x.key||!x.name||!x.whyYou))return null}
  else if(!question)return null;
- return{ready,question,questionKey:asString(value.questionKey,80),message,top3};
+ return{ready,question,questionKey:asString(value.questionKey,80),message,top10};
 }
 
 async function interpretContext(input:{session:FunnelSessionV70;message:string;turns:Awaited<ReturnType<typeof loadFunnelTurnsV70>>;memory:JsonRecord|null;locale:V70Locale;agent:AgentProfileV70}){
@@ -69,8 +77,8 @@ async function interpretContext(input:{session:FunnelSessionV70;message:string;t
 }
 
 async function exploreGreece(input:{context:JsonRecord;needsClarification:boolean;question:string;universe:CandidateNodeV70[];agent:AgentProfileV70;locale:V70Locale}){
- const target=input.needsClarification?"Return 18-40 provisional candidate keys so the map can progressively narrow while we wait for the answer.":"Return 10-18 serious candidate keys for deep multi-agent comparison.";
- const prompt=`LOCAL TIME: ${athensNow()}\nTRAVELLER CONTEXT:\n${JSON.stringify(input.context)}\nPENDING CLARIFICATION: ${input.needsClarification?input.question:"none"}\n\nGREECE CANDIDATE UNIVERSE (retrieval catalogue, NOT a ranking):\n${JSON.stringify(compactCatalog(input.universe))}\n\nExplore Greece contextually. ${target}\nConsider the complete experience, time/season, traveller psychology, companions, geography, supply/evidence and meaningful variety. Demand/popularity fields are context signals only, never automatic rank. Include surprising/micro-region choices when defensible. Return JSON: candidateKeys[], hypotheses[] where each has key,experienceHypothesis,whyPlausible,whatNeedsVerification, and portfolioNarrative. Never output numeric fit scores.`;
+ const target=input.needsClarification?"Return 25-40 provisional candidate keys so the map can progressively narrow while we wait for the answer.":"Return 25-40 serious candidate keys for deep multi-agent comparison.";
+ const prompt=`LOCAL TIME: ${athensNow()}\nTRAVELLER CONTEXT:\n${JSON.stringify(input.context)}\nPENDING CLARIFICATION: ${input.needsClarification?input.question:"none"}\n\nGREECE CANDIDATE UNIVERSE (retrieval catalogue, NOT a ranking):\n${JSON.stringify(compactCatalog(input.universe))}\n\nExplore Greece contextually. ${target}\nConsider the complete experience, time/season, traveller psychology, companions, geography, supply/evidence and meaningful variety. Demand/popularity fields are context signals only, never automatic rank. Include surprising/micro-region choices when defensible. Return JSON: candidateKeys[] (25-40 distinct keys), hypotheses[] where each has key,experienceHypothesis,whyPlausible,whatNeedsVerification, and portfolioNarrative. Seek enough defensible breadth for a nationwide Top 10, not just the most popular places. Never output numeric fit scores.`;
  return runAgentJsonV70({profile:input.agent,prompt,validate:validateExplorer,maxOutputTokens:1100});
 }
 
@@ -84,23 +92,23 @@ export async function runProgressiveFunnelV70(input:{session:FunnelSessionV70;me
  const contextRun=await interpretContext({session:input.session,message,turns:[...oldTurns,{id:0,session_id:input.session.id,role:"user",content:message,stage:input.session.status,structured_extract:{},evidence_refs:[],created_at:new Date().toISOString()}],memory,locale,agent:profile(profiles,"context-interpreter")});
  const context=mergeContext(input.session.current_context,contextRun.value.context),universe=await loadCandidateUniverseV70(locale,574),allowed=new Set(universe.map(n=>n.node_key));
  const explorerRun=await exploreGreece({context,needsClarification:contextRun.value.needsClarification,question:contextRun.value.question,universe,agent:profile(profiles,"greece-explorer"),locale});
- const candidateKeys=safeKeys(explorerRun.value.candidateKeys,allowed,contextRun.value.needsClarification?40:18),candidateNodes=candidateKeys.map(k=>universe.find(n=>n.node_key===k)).filter((n):n is CandidateNodeV70=>Boolean(n));
+ const candidateKeys=safeKeys(explorerRun.value.candidateKeys,allowed,contextRun.value.needsClarification?40:40),candidateNodes=candidateKeys.map(k=>universe.find(n=>n.node_key===k)).filter((n):n is CandidateNodeV70=>Boolean(n));
  if(candidateKeys.length<3)throw new Error("V70 explorer did not return enough valid Greece candidates");
  const models:JsonRecord={context:contextRun.modelLabel,explorer:explorerRun.modelLabel};
  if(contextRun.value.needsClarification){
   const question=contextRun.value.question;
   await updateFunnelSessionV70(input.session.id,{status:"clarifying",current_context:context,context_confidence:contextRun.value.confidence,unresolved_questions:[{key:contextRun.value.questionKey,question}],candidate_keys:candidateKeys,top3:[],model_trace:{...input.session.model_trace,lastModels:models,lastContextSummary:contextRun.value.summary}});
   await appendFunnelTurnV70({sessionId:input.session.id,role:"assistant",content:question,stage:"clarifying",structuredExtract:{questionKey:contextRun.value.questionKey,contextConfidence:contextRun.value.confidence},evidenceRefs:candidateKeys});
-  return{version:70,sessionId:input.session.id,stage:"clarify",assistantMessage:question,questionKey:contextRun.value.questionKey||null,context,contextConfidence:contextRun.value.confidence,candidateKeys,mapCandidates:candidateNodes.map(publicCandidate),top3:[],models};
+  return{version:70,sessionId:input.session.id,stage:"clarify",assistantMessage:question,questionKey:contextRun.value.questionKey||null,context,contextConfidence:contextRun.value.confidence,candidateKeys,mapCandidates:candidateNodes.map(publicCandidate),top10:[],models};
  }
 
  const bundle=await loadDestinationBundleV70(candidateKeys,locale,5,110);
  const startDate=context.startDate,endDate=context.endDate;
- const weather=validIsoDate(startDate)&&validIsoDate(endDate)?await loadWeatherContextsV70(candidateNodes,{startDate,endDate,locale,limit:18}):[];
+ const weather=validIsoDate(startDate)&&validIsoDate(endDate)?await loadWeatherContextsV70(candidateNodes,{startDate,endDate,locale,limit:40}):[];
  const evidenceFrame={context,hypotheses:explorerRun.value.hypotheses,destinations:bundle.destinations,entities:bundle.entities,facts:bundle.facts,edges:bundle.edges,stays:bundle.stays,weather};
  const [timeRun,spatialRun,experienceRun]=await Promise.all([
   runFinding(profile(profiles,"time-weather"),`TRAVELLER CONTEXT:\n${JSON.stringify(context)}\nCANDIDATE HYPOTHESES:\n${JSON.stringify(explorerRun.value.hypotheses)}\nWEATHER/TIME EVIDENCE:\n${JSON.stringify(weather)}\nVERIFIED FACTS:\n${JSON.stringify(bundle.facts.slice(0,120))}\nReturn JSON: summary, observations[] (candidateKey, conclusion, evidenceRefs, uncertainty), uncertainties[], candidateKeys[]. Interpret conditions as lived experience; do not score candidates.`),
-  runFinding(profile(profiles,"spatial-reasoner"),`TRAVELLER CONTEXT:\n${JSON.stringify(context)}\nDESTINATIONS:\n${JSON.stringify(bundle.destinations)}\nGRAPH EDGES:\n${JSON.stringify(bundle.edges.slice(0,220))}\nCANDIDATE HYPOTHESES:\n${JSON.stringify(explorerRun.value.hypotheses)}\nReturn JSON: summary, observations[] (candidateKey, spatialConclusion, friction, evidenceRefs, uncertainty), uncertainties[], candidateKeys[]. Reject only factual impossibilities; otherwise reason about practical travel coherence without a distance score.`),
+  runFinding(profile(profiles,"spatial-reasoner"),`TRAVELLER CONTEXT:\n${JSON.stringify(context)}\nDESTINATIONS:\n${JSON.stringify(bundle.destinations)}\nGRAPH EDGES:\n${JSON.stringify(bundle.edges.slice(0,220))}\nCANDIDATE HYPOTHESES:\n${JSON.stringify(explorerRun.value.hypotheses)}\nSTRAIGHT-LINE PROXIMITY EVIDENCE (km; not road/ferry/flight time or route availability):\n${JSON.stringify(spatialProximity(candidateNodes))}\nReturn JSON: summary, observations[] (candidateKey, spatialConclusion, friction, evidenceRefs, uncertainty), uncertainties[], candidateKeys[]. Use supplied coordinates and region labels to reason about geographic clustering and diversity. If a start location is not explicitly supplied, do not assume Athens or Thessaloniki; compare Greece-wide options without inventing route times, ferry/flight schedules or transfer facts. State logistics uncertainty plainly. Reject only factual impossibilities; otherwise reason about practical travel coherence without a distance score.`),
   runFinding(profile(profiles,"experience-composer"),`TRAVELLER CONTEXT:\n${JSON.stringify(context)}\nDESTINATION BUNDLE:\n${JSON.stringify({destinations:bundle.destinations,entities:bundle.entities.slice(0,100),facts:bundle.facts.slice(0,160),edges:bundle.edges.slice(0,220),stays:bundle.stays.slice(0,80)})}\nCANDIDATE HYPOTHESES:\n${JSON.stringify(explorerRun.value.hypotheses)}\nReturn JSON: summary, observations[] (candidateKey, experienceShape, microPlaces, foodCultureNature, stayLogic, evidenceRefs, uncertainty), uncertainties[], candidateKeys[]. Compose coherent experiences rather than checklists; do not score.`)
  ]);
  Object.assign(models,{timeWeather:timeRun.modelLabel,spatial:spatialRun.modelLabel,experience:experienceRun.modelLabel});
@@ -110,20 +118,20 @@ export async function runProgressiveFunnelV70(input:{session:FunnelSessionV70;me
  const survivors=safeKeys(criticRun.value.survivors,new Set(candidateKeys),12);
  if(survivors.length<3)throw new Error("V70 critic found fewer than three defensible candidates; clarification/recovery workflow required");
  const survivorNodes=survivors.map(k=>universe.find(n=>n.node_key===k)).filter((n):n is CandidateNodeV70=>Boolean(n));
- const synthPrompt=`TRAVELLER CONTEXT:\n${JSON.stringify(context)}\nEXPLORER:\n${JSON.stringify(explorerRun.value)}\nTIME/WEATHER:\n${JSON.stringify(timeRun.value)}\nSPATIAL:\n${JSON.stringify(spatialRun.value)}\nEXPERIENCE:\n${JSON.stringify(experienceRun.value)}\nCRITIC:\n${JSON.stringify(criticRun.value)}\nSURVIVING DESTINATIONS:\n${JSON.stringify(survivorNodes.map(publicCandidate))}\n\nDecide whether the evidence and traveller context are sufficient for a defensible Top 3. If not, ask exactly one high-information clarification. If ready, return exactly three distinct choices with roles best, alternative, wildcard. Confidence must be qualitative and based on evidence consistency/uncertainty, never a numeric score. Return JSON: ready, question, questionKey, message, top3[]. Each top3 item: key,name,role,whyYou,whyNow,experience,tradeoff,confidence,uncertainty,evidenceRefs[],nextAction.`;
- const synthRun=await runAgentJsonV70({profile:profile(profiles,"journey-synthesizer"),prompt:synthPrompt,validate:validateSynth,maxOutputTokens:1500});
+ const synthPrompt=`TRAVELLER CONTEXT:\n${JSON.stringify(context)}\nEXPLORER:\n${JSON.stringify(explorerRun.value)}\nTIME/WEATHER:\n${JSON.stringify(timeRun.value)}\nSPATIAL:\n${JSON.stringify(spatialRun.value)}\nEXPERIENCE:\n${JSON.stringify(experienceRun.value)}\nCRITIC:\n${JSON.stringify(criticRun.value)}\nSURVIVING DESTINATIONS:\n${JSON.stringify(survivorNodes.map(publicCandidate))}\n\nDecide whether the evidence and traveller context are sufficient for a defensible Top 10. If not, ask exactly one high-information clarification. If ready, return exactly ten distinct Greece destinations; do not default to Athens or Thessaloniki, and preserve island/mainland/mountain/coastal/micro-region variety when supported by the date and evidence. Never add an unsupported candidate just to reach ten: ask one clarification if fewer than ten survive. Use roles best, alternative, wildcard; confidence is qualitative and based on evidence consistency/uncertainty, never a numeric score. Return JSON: ready, question, questionKey, message, top10[]. Each top10 item: key,name,role,whyYou,whyNow,experience,tradeoff,confidence,uncertainty,evidenceRefs[],nextAction.`;
+ const synthRun=await runAgentJsonV70({profile:profile(profiles,"journey-synthesizer"),prompt:synthPrompt,validate:validateSynth,maxOutputTokens:5200});
  models.synthesizer=synthRun.modelLabel;
  if(!synthRun.value.ready){
   const question=synthRun.value.question;
-  await updateFunnelSessionV70(input.session.id,{status:"clarifying",current_context:context,context_confidence:contextRun.value.confidence,unresolved_questions:[{key:synthRun.value.questionKey,question}],candidate_keys:survivors,top3:[],model_trace:{...input.session.model_trace,lastModels:models,critic:criticRun.value.summary}});
+  await updateFunnelSessionV70(input.session.id,{status:"clarifying",current_context:context,context_confidence:contextRun.value.confidence,unresolved_questions:[{key:synthRun.value.questionKey,question}],candidate_keys:survivors,top10:[],model_trace:{...input.session.model_trace,lastModels:models,critic:criticRun.value.summary}});
   await appendFunnelTurnV70({sessionId:input.session.id,role:"assistant",content:question,stage:"clarifying",structuredExtract:{questionKey:synthRun.value.questionKey},evidenceRefs:survivors});
-  return{version:70,sessionId:input.session.id,stage:"clarify",assistantMessage:question,questionKey:synthRun.value.questionKey||null,context,contextConfidence:contextRun.value.confidence,candidateKeys:survivors,mapCandidates:survivorNodes.map(publicCandidate),top3:[],models};
+  return{version:70,sessionId:input.session.id,stage:"clarify",assistantMessage:question,questionKey:synthRun.value.questionKey||null,context,contextConfidence:contextRun.value.confidence,candidateKeys:survivors,mapCandidates:survivorNodes.map(publicCandidate),top10:[],models};
  }
- const top3=synthRun.value.top3.filter(x=>allowed.has(x.key));
- if(top3.length!==3)throw new Error("V70 synthesizer returned invalid destination keys");
- const topKeys=top3.map(x=>x.key),topNodes=topKeys.map(k=>universe.find(n=>n.node_key===k)).filter((n):n is CandidateNodeV70=>Boolean(n));
- const assistantMessage=synthRun.value.message||(locale==="en"?"These are the three experiences I can defend best for your context.":"Αυτές είναι οι τρεις εμπειρίες που μπορώ να υποστηρίξω καλύτερα για το δικό σου context.");
- await updateFunnelSessionV70(input.session.id,{status:"ready_top3",current_context:context,context_confidence:contextRun.value.confidence,unresolved_questions:[],candidate_keys:topKeys,top3,model_trace:{...input.session.model_trace,lastModels:models,critic:criticRun.value.summary,evidence:{facts:bundle.facts.length,edges:bundle.edges.length,stays:bundle.stays.length,weather:weather.length}}});
- await appendFunnelTurnV70({sessionId:input.session.id,role:"assistant",content:assistantMessage,stage:"ready_top3",structuredExtract:{top3},evidenceRefs:top3.flatMap(x=>x.evidenceRefs)});
- return{version:70,sessionId:input.session.id,stage:"top3",assistantMessage,context,contextConfidence:contextRun.value.confidence,candidateKeys:topKeys,mapCandidates:topNodes.map(publicCandidate),top3,models};
+ const top10=synthRun.value.top10.filter(x=>allowed.has(x.key));
+ if(top10.length!==10)throw new Error("V70 synthesizer returned fewer than ten valid destination keys");
+ const topKeys=top10.map(x=>x.key),topNodes=topKeys.map(k=>universe.find(n=>n.node_key===k)).filter((n):n is CandidateNodeV70=>Boolean(n));
+ const assistantMessage=synthRun.value.message||(locale==="en"?"These are ten Greece experiences I can defend for your dates and context.":"Αυτές είναι 10 εμπειρίες στην Ελλάδα που τεκμηριώνονται καλύτερα για τις ημερομηνίες και το context σου.");
+ await updateFunnelSessionV70(input.session.id,{status:"ready_top10",current_context:context,context_confidence:contextRun.value.confidence,unresolved_questions:[],candidate_keys:topKeys,top3:top10,model_trace:{...input.session.model_trace,lastModels:models,critic:criticRun.value.summary,evidence:{facts:bundle.facts.length,edges:bundle.edges.length,stays:bundle.stays.length,weather:weather.length}}});
+ await appendFunnelTurnV70({sessionId:input.session.id,role:"assistant",content:assistantMessage,stage:"ready_top10",structuredExtract:{top10},evidenceRefs:top10.flatMap(x=>x.evidenceRefs)});
+ return{version:70,sessionId:input.session.id,stage:"top10",assistantMessage,context,contextConfidence:contextRun.value.confidence,candidateKeys:topKeys,mapCandidates:topNodes.map(publicCandidate),top10,models};
 }
