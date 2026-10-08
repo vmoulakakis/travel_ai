@@ -50,7 +50,7 @@ type Product={
 const base=()=>process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co";
 const key=()=>process.env.SUPABASE_SERVICE_ROLE_KEY??"";
 const txt=(v:unknown)=>typeof v==="string"?v.trim():"";
-const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
+const num=(v:unknown)=>v==null||String(v).trim()===""?null:Number.isFinite(Number(v))?Number(v):null;
 const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
 const rad=(n:number)=>n*Math.PI/180;
 function kmBetween(aLat:number,aLon:number,bLat:number,bLon:number){const dLat=rad(bLat-aLat),dLon=rad(bLon-aLon),h=Math.sin(dLat/2)**2+Math.cos(rad(aLat))*Math.cos(rad(bLat))*Math.sin(dLon/2)**2;return 6371*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h))}
@@ -158,7 +158,8 @@ export async function GET(request:Request){
  try{
   const requestUrl=new URL(request.url),quick=requestUrl.searchParams.get("mode")==="quick";
   const startRaw=requestUrl.searchParams.get("start")??"";
-  const parsedMonth=/^\d{4}-(\d{2})-\d{2}$/.exec(startRaw)?.[1];
+  const validStart=/^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(startRaw)&&!Number.isNaN(Date.parse(startRaw+"T00:00:00Z"));
+  const parsedMonth=validStart?startRaw.slice(5,7):null;
   const targetMonth=parsedMonth?Math.max(1,Math.min(12,Number(parsedMonth))):new Date().getUTCMonth()+1;
   const requested=Number(requestUrl.searchParams.get("limit")??(quick?24:1800));
   const limit=quick?Math.max(12,Math.min(60,Number.isFinite(requested)?Math.round(requested):24)):Math.max(100,Math.min(2000,Number.isFinite(requested)?Math.round(requested):1800));
@@ -189,12 +190,18 @@ export async function GET(request:Request){
   for(let offset=0;offset<offsetCeiling&&rows.length<rowCeiling;offset+=1000){
    const batch=await page(offset,1000);rows.push(...batch);if(batch.length<1000)break;
   }
-  const seen=new Set<string>(),today=new Date().toISOString().slice(0,10),products:Product[]=[];
+  const seen=new Set<string>(),today=new Date().toISOString().slice(0,10),travelDate=validStart&&startRaw>today?startRaw:today,products:Product[]=[];
+  const coverage={rawOffers:rows.length,rejectedExpired:0,rejectedMissingOrInvalidLink:0,rejectedStockFalse:0,rejectedMissingCoordinates:0,rejectedDuplicatePlace:0,withKnowledge:0,unknownAvailability:0};
   for(const row of rows){
    const place=row.stay_places,lat=num(place?.latitude),lon=num(place?.longitude),placeId=txt(row.place_id||place?.id),trackingUrl=txt(row.tracking_url),validTo=txt(row.valid_to);
-   if(row.in_stock===false||(validTo&&validTo<today)||!placeId||seen.has(placeId)||lat==null||lon==null||!trackingUrl)continue;
-   if(lat<34||lat>42.5||lon<19||lon>30)continue;
+   if(row.in_stock===false){coverage.rejectedStockFalse++;continue;}
+   if(validTo&&validTo.slice(0,10)<travelDate){coverage.rejectedExpired++;continue;}
+   if(!/^https:\/\/go\.linkwi\.se\/.*\/CD104\//i.test(trackingUrl)){coverage.rejectedMissingOrInvalidLink++;continue;}
+   if(!placeId||!txt(row.source_product_id)||seen.has(placeId)){coverage.rejectedDuplicatePlace++;continue;}
+   if(lat==null||lon==null||lat<34||lat>42.5||lon<19||lon>30){coverage.rejectedMissingCoordinates++;continue;}
    seen.add(placeId);
+   if(evidenceByPlace.has(placeId))coverage.withKnowledge++;
+   if(row.in_stock!==true)coverage.unknownAvailability++;
    const locationText=norm([txt(row.location_label),txt(place?.location_label),txt(place?.city_raw),txt(place?.address)].filter(Boolean).join(" "));
    const destinationSlug=resolveDestination(locationText,lat,lon);
    products.push({
@@ -220,7 +227,9 @@ export async function GET(request:Request){
    locationCount:new Set(intelligence.products.map(x=>x.location).filter(Boolean)).size,
    mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade,targetMonth:intelligence.targetMonth,demandIsDiscriminating:intelligence.demandIsDiscriminating},
    demandLayer:{forecastStatus:"disabled",observedDemandStatus:intelligence.demandIsDiscriminating?"live-proxy":"non-discriminating",reason:intelligence.demandIsDiscriminating?"Map ranking uses observed inventory demand_proxy where it varies. This is not presented as demand forecasting.":"Observed demand_proxy is non-discriminating for this sample, so it is excluded from ranking rather than fabricated."},
-   products:intelligence.products
+   products:intelligence.products,
+   coverage:{...coverage,eligiblePlaces:products.length,returnedPlaces:intelligence.products.length,knowledgeCoveragePct:products.length?Math.round(100*coverage.withKnowledge/products.length):0},
+   availabilityPolicy:"unknown-until-provider-confirms"
   },{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence"}});
  }catch(error){
   return NextResponse.json({version:50,source:"temporarily-unavailable",generatedAt:new Date().toISOString(),count:0,locationCount:0,products:[],degraded:true,detail:process.env.NODE_ENV==="development"&&error instanceof Error?error.message:undefined},{status:200,headers:{"cache-control":"public, max-age=30","x-travel-map":"degraded"}});
