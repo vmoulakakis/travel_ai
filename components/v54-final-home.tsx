@@ -7,7 +7,7 @@ import {
   PaperPlaneTilt,ShieldCheck,Sparkle,Star,Users,Wallet,MagnifyingGlass,UserCircle,PlayCircle,Globe,AirplaneTilt,Images
 } from "@phosphor-icons/react";
 import styles from "./v54-final-home.module.css";
-import {selectTop50AiPoints} from "@/lib/decision/top50-ai-map";
+import {selectTop100AiPoints} from "@/lib/decision/top100-ai-map";
 
 type FilterKey="calm"|"food"|"nature"|"discovery"|"nightlife"|"value";
 type Filters=Record<FilterKey,number>;
@@ -31,7 +31,7 @@ export function V54FinalHome(){
  const [inventory,setInventory]=useState<Stay[]>([]);
  const [heroMedia,setHeroMedia]=useState<Hero[]>([]);
  const [showAllMapPoints,setShowAllMapPoints]=useState(false);
- const top50Points=useMemo(()=>selectTop50AiPoints(inventory),[inventory]);
+ const top100Points=useMemo(()=>selectTop100AiPoints(inventory),[inventory]);
  const [solutions,setSolutions]=useState<Solution[]>([]);
  const [active,setActive]=useState(0);
  const [origin]=useState("Αθήνα");
@@ -238,7 +238,7 @@ export function V54FinalHome(){
     const f=mapIntelligence.focus;
     L.marker([f.latitude,f.longitude],{interactive:false,icon:L.divIcon({className:"v65FocusHalo",html:"<span></span><i></i>",iconSize:[120,120],iconAnchor:[60,60]}),zIndexOffset:50}).addTo(g);
    }
-   for(const p of (showAllMapPoints?inventory:top50Points)){
+   for(const p of (showAllMapPoints?inventory:top100Points)){
     if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))continue;
     const rank=aiRanks.get(p.productId)??null;
     const score=Math.max(0,Math.min(100,p.intelligenceScore??50));
@@ -267,7 +267,7 @@ export function V54FinalHome(){
    }
   });
   return()=>{dead=true};
- },[inventory,top50Points,showAllMapPoints,cards,solutions,destination,verifiedRatings]);
+ },[inventory,top100Points,showAllMapPoints,cards,solutions,destination,verifiedRatings]);
 
  async function runAgent(extra?:string){
   const destinationBrief=destination.trim()?destination.trim()+". ":"";
@@ -339,10 +339,10 @@ export function V54FinalHome(){
    <div className={styles.mapFirstTop}>
     <div>
      <small>AI MAP · DEFAULT INTELLIGENCE VIEW</small>
-     <h1>Η AI ξεκινά από την <em>καλύτερη περιοχή τώρα.</em></h1>
-     <p>Ξεκίνα με 50 επιλεγμένα, γεωγραφικά κατανεμημένα AI σημεία από το πραγματικό inventory. Μπορείς να εμφανίσεις όλες τις διαμονές οποιαδήποτε στιγμή. Οι προτάσεις εμπειριών εμπλουτίζονται ξεχωριστά από την ταξιδιωτική γνώση.</p>
+     <h1>Εξερεύνησε <em>100 επιλεγμένα σημεία σε όλη την Ελλάδα.</em></h1>
+     <p>Ξεκίνα με 100 επιλεγμένα, γεωγραφικά κατανεμημένα AI σημεία από το πραγματικό inventory. Μπορείς να εμφανίσεις όλες τις διαμονές οποιαδήποτε στιγμή. Οι προτάσεις εμπειριών εμπλουτίζονται ξεχωριστά από την ταξιδιωτική γνώση.</p>
     </div>
-    <div className={styles.top50Controls}><span>✦ {showAllMapPoints?`${inventory.length} καταλύματα`:`${top50Points.length} κορυφαία AI σημεία`} · {showAllMapPoints?"Πλήρης εξερεύνηση":"Προεπιλεγμένη επιλογή"}</span><button type="button" aria-pressed={showAllMapPoints} onClick={()=>setShowAllMapPoints(v=>!v)}>{showAllMapPoints?"Εμφάνιση Top 50":"Δες όλα τα σημεία"} ↗</button></div>
+    <div className={styles.top50Controls}><span>✦ {showAllMapPoints?`${inventory.length} καταλύματα`:`${top100Points.length} υποψήφια AI σημεία`} · {showAllMapPoints?"Πλήρης εξερεύνηση":"Προεπιλεγμένη επιλογή"}</span><button type="button" aria-pressed={showAllMapPoints} onClick={()=>setShowAllMapPoints(v=>!v)}>{showAllMapPoints?"Εμφάνιση Top 100":"Δες όλα τα σημεία"} ↗</button></div>
     <div className={styles.mapAiFlow}>
      <span>{mapIntelligence?.focus?.label??"AI scanning"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
     </div>
@@ -363,7 +363,7 @@ export function V54FinalHome(){
    </div>
   </section>
 
-  <div className={styles.cinematicIntro} role="region" aria-label="Cinematic exploration of Greece">{process.env.NEXT_PUBLIC_TRAVELAI_DRONE_HERO_URL?<video className={styles.cinematicVideo} autoPlay muted loop playsInline preload="metadata" poster="https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1600&q=80"><source src={process.env.NEXT_PUBLIC_TRAVELAI_DRONE_HERO_URL} type="video/mp4"/></video>:null}<span>TRAVELAI · GREECE IN MOTION</span><strong>Η Ελλάδα, όπως δεν την έχεις ζήσει.</strong><p>50 επιλεγμένα AI σημεία στον χάρτη. Αληθινές διαμονές, μοναδικοί τόποι, μία εμπειρία φτιαγμένη γύρω σου.</p><a href="#map">ΕΞΕΡΕΥΝΗΣΕ ΤΟΝ ΧΑΡΤΗ ↘</a></div>
+  <div className={styles.cinematicIntro} role="region" aria-label="Cinematic exploration of Greece">{process.env.NEXT_PUBLIC_TRAVELAI_DRONE_HERO_URL?<video className={styles.cinematicVideo} autoPlay muted loop playsInline preload="metadata" poster="https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1600&q=80"><source src={process.env.NEXT_PUBLIC_TRAVELAI_DRONE_HERO_URL} type="video/mp4"/></video>:null}<span>TRAVELAI · GREECE IN MOTION</span><strong>Η Ελλάδα, όπως δεν την έχεις ζήσει.</strong><p>100 επιλεγμένα AI σημεία στον χάρτη. Αληθινές διαμονές, μοναδικοί τόποι, μία εμπειρία φτιαγμένη γύρω σου.</p><a href="#map">ΕΞΕΡΕΥΝΗΣΕ ΤΟΝ ΧΑΡΤΗ ↘</a></div>
   <section className={`${styles.hero} ${mobilePlannerOpen?styles.mobilePlannerOpen:""}`}>
    <aside id="planner" className={styles.planner}>
     <div className={styles.plannerTitle}><Brain weight="fill"/><div><b>AI Travel Planner</b><span>Σήμερα {new Intl.DateTimeFormat("el-GR",{timeZone:"Europe/Athens",day:"numeric",month:"short"}).format(new Date())} · βλέπω και τον χάρτη που εξερευνάς.</span></div><i className={busy?styles.busy:styles.ready}/><button className={styles.mobileSheetClose} onClick={()=>setMobilePlannerOpen(false)}>×</button></div>
