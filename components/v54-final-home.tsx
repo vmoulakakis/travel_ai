@@ -361,7 +361,7 @@ export function V54FinalHome(){
    </div>
   </section>
 
-  <div className={styles.cinematicIntro} role="region" aria-label="Cinematic exploration of Greece"><span>TRAVELAI · GREECE IN MOTION</span><strong>Η Ελλάδα, όπως δεν την έχεις ζήσει.</strong><p>50 επιλεγμένα AI σημεία στον χάρτη. Αληθινές διαμονές, μοναδικοί τόποι, μία εμπειρία φτιαγμένη γύρω σου.</p><a href="#map">ΕΞΕΡΕΥΝΗΣΕ ΤΟΝ ΧΑΡΤΗ ↘</a></div>
+  <div className={styles.cinematicIntro} role="region" aria-label="Cinematic exploration of Greece">{process.env.NEXT_PUBLIC_TRAVELAI_DRONE_HERO_URL?<video className={styles.cinematicVideo} autoPlay muted loop playsInline preload="metadata" poster="https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1600&q=80"><source src={process.env.NEXT_PUBLIC_TRAVELAI_DRONE_HERO_URL} type="video/mp4"/></video>:null}<span>TRAVELAI · GREECE IN MOTION</span><strong>Η Ελλάδα, όπως δεν την έχεις ζήσει.</strong><p>50 επιλεγμένα AI σημεία στον χάρτη. Αληθινές διαμονές, μοναδικοί τόποι, μία εμπειρία φτιαγμένη γύρω σου.</p><a href="#map">ΕΞΕΡΕΥΝΗΣΕ ΤΟΝ ΧΑΡΤΗ ↘</a></div>
   <section className={`${styles.hero} ${mobilePlannerOpen?styles.mobilePlannerOpen:""}`}>
    <aside id="planner" className={styles.planner}>
     <div className={styles.plannerTitle}><Brain weight="fill"/><div><b>AI Travel Planner</b><span>Σήμερα {new Intl.DateTimeFormat("el-GR",{timeZone:"Europe/Athens",day:"numeric",month:"short"}).format(new Date())} · βλέπω και τον χάρτη που εξερευνάς.</span></div><i className={busy?styles.busy:styles.ready}/><button className={styles.mobileSheetClose} onClick={()=>setMobilePlannerOpen(false)}>×</button></div>
