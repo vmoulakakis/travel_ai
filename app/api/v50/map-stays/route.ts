@@ -44,7 +44,7 @@ type Product={
  productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;
  category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;
  onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null;
- intelligenceScore:number;seasonalScore:number;priceScore:number;demandSignal:number;mapSignal:"ai"|"demand"|"seasonal"|"value"|"explore";starTier:"gold"|"green"|"blue";
+ intelligenceScore:number;seasonalScore:number;priceScore:number;evidenceScore:number|null;demandSignal:number;mapSignal:"ai"|"demand"|"seasonal"|"value"|"explore";starTier:"gold"|"green"|"blue";
 };
 
 const base=()=>process.env.NEXT_PUBLIC_SUPABASE_URL??process.env.SUPABASE_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co";
@@ -54,7 +54,7 @@ const num=(v:unknown)=>Number.isFinite(Number(v))?Number(v):null;
 const norm=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]+/gi," ").trim();
 const rad=(n:number)=>n*Math.PI/180;
 function kmBetween(aLat:number,aLon:number,bLat:number,bLon:number){const dLat=rad(bLat-aLat),dLon=rad(bLon-aLon),h=Math.sin(dLat/2)**2+Math.cos(rad(aLat))*Math.cos(rad(bLat))*Math.sin(dLon/2)**2;return 6371*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h))}
-function enrichIntelligence(products:Product[],targetMonth:number,catalogBySlug:Map<string,{seasonProfile:string;tags:readonly string[]}>){
+function enrichIntelligence(products:Product[],targetMonth:number,catalogBySlug:Map<string,{seasonProfile:string;tags:readonly string[]}>,evidenceByPlace:Map<string,number>=new Map()) {
  const cleanProducts=products.map(p=>({
   ...p,
   price:p.price!=null&&p.price>=5?p.price:null,
@@ -87,12 +87,15 @@ function enrichIntelligence(products:Product[],targetMonth:number,catalogBySlug:
   const baseValue=median==null||p.price==null?52:Math.max(12,Math.min(100,Math.round((median/Math.max(1,p.price))*68)));
   const price=Math.max(10,Math.min(100,baseValue+(p.onSale?7:0)+(p.discount!=null&&p.discount>0?Math.min(10,Math.round(p.discount/5)):0)));
   const demand=normalizeDemand(p.demandScore);
-  const rawScore=Math.round(demand*weights.demand+seasonal*weights.seasonality+price*weights.priceValue);
+  const verifiedEvidence=evidenceByPlace.get(p.placeId)??null;
+  // Knowledge quality can refine close choices, never rescue poor seasonal fit.
+  const evidenceLift=verifiedEvidence==null?0:Math.max(-3,Math.min(3,(verifiedEvidence-50)*.06));
+  const rawScore=Math.round(demand*weights.demand+seasonal*weights.seasonality+price*weights.priceValue+evidenceLift);
   // A summer-biased stay must never win an autumn default merely through demand or discount.
   const score=seasonal<55?Math.min(rawScore,59):seasonal<68?Math.min(rawScore,72):rawScore;
   const mapSignal:Product["mapSignal"]=score>=84?"ai":demand>=78&&demand>=seasonal&&demand>=price?"demand":seasonal>=76&&seasonal>=price?"seasonal":price>=76?"value":"explore";
   const tier:Product["starTier"]=score>=84?"gold":score>=66?"green":"blue";
-  return{...p,intelligenceScore:score,seasonalScore:seasonal,priceScore:price,demandSignal:demand,mapSignal,starTier:tier};
+  return{...p,intelligenceScore:score,seasonalScore:seasonal,priceScore:price,evidenceScore:verifiedEvidence,demandSignal:demand,mapSignal,starTier:tier};
  });
  const ranked=[...groups.entries()].map(([key,rows0])=>{
   const rows=rows0.map(r=>enriched.find(x=>x.productId===r.productId)??r as Product);
@@ -118,6 +121,26 @@ function enrichIntelligence(products:Product[],targetMonth:number,catalogBySlug:
  return{products:enriched.sort((a,b)=>b.intelligenceScore-a.intelligenceScore||b.seasonalScore-a.seasonalScore),focus,weights,ratingUpgrade:"Verified external ratings may refine trust display; map intelligence never invents ratings.",demandIsDiscriminating,targetMonth};
 }
 
+// Optional first-party knowledge signal; never represent missing evidence as a verified rating.
+async function loadPlaceEvidence():Promise<Map<string,number>>{
+ const serviceKey=key(),out=new Map<string,number>();
+ if(!serviceKey)return out;
+ try{
+  for(let offset=0;offset<3000;offset+=1000){
+   const url=new URL("/rest/v1/stay_product_knowledge_v43",base());
+   url.searchParams.set("select","place_id,evidence_score");
+   url.searchParams.set("limit","1000");
+   url.searchParams.set("offset",String(offset));
+   const res=await fetch(url,{headers:{apikey:serviceKey,Authorization:`Bearer ${serviceKey}`,accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(3500)});
+   if(!res.ok)break;
+   const rows=await res.json() as Array<{place_id:string;evidence_score:number|null}>;
+   for(const row of rows)if(row.place_id&&typeof row.evidence_score==="number"&&Number.isFinite(row.evidence_score))out.set(row.place_id,Math.max(0,Math.min(100,row.evidence_score<=1?row.evidence_score*100:row.evidence_score)));
+   if(rows.length<1000)break;
+  }
+ }catch{return out}
+ return out;
+}
+
 async function page(offset:number,limit:number){
  const serviceKey=key();if(!serviceKey)throw new Error("service_role_missing");
  const url=new URL("/rest/v1/stay_offers",base());
@@ -139,14 +162,15 @@ export async function GET(request:Request){
   const targetMonth=parsedMonth?Math.max(1,Math.min(12,Number(parsedMonth))):new Date().getUTCMonth()+1;
   const requested=Number(requestUrl.searchParams.get("limit")??(quick?24:1800));
   const limit=quick?Math.max(12,Math.min(60,Number.isFinite(requested)?Math.round(requested):24)):Math.max(100,Math.min(2000,Number.isFinite(requested)?Math.round(requested):1800));
-  const catalog=await loadV8DestinationCatalog().catch(()=>[]),catalogBySlug=new Map(catalog.map(d=>[d.slug,{seasonProfile:d.seasonProfile,tags:d.tags as readonly string[]} ]));
+  const [catalog,evidenceByPlace]=await Promise.all([loadV8DestinationCatalog().catch(()=>[]),loadPlaceEvidence()]);
+  const catalogBySlug=new Map(catalog.map(d=>[d.slug,{seasonProfile:d.seasonProfile,tags:d.tags as readonly string[]} ]));
   if(!key()){
    const fallbackUrl=new URL(process.env.SUPABASE_STAY_PRODUCT_MAP_V32_URL??"https://bgvgstpoypqbjnemqcqp.supabase.co/functions/v1/stay-product-map-v32");
    fallbackUrl.searchParams.set("limit",quick?String(limit):"300");
    const fallback=await fetch(fallbackUrl,{headers:{accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(8000)});
    if(!fallback.ok)throw new Error("fallback_map_unavailable");
    const payload=await fallback.json() as Record<string,unknown>,rawProducts=Array.isArray(payload.products)?payload.products as Product[]:[];
-   const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,demandSignal:0,mapSignal:"explore",starTier:"blue" as const})),targetMonth,catalogBySlug);
+   const intelligence=enrichIntelligence(rawProducts.map(p=>({...p,intelligenceScore:0,seasonalScore:0,priceScore:0,evidenceScore:null,demandSignal:0,mapSignal:"explore",starTier:"blue" as const})),targetMonth,catalogBySlug,evidenceByPlace);
    return NextResponse.json({...payload,products:intelligence.products,mapIntelligence:{focus:intelligence.focus,weights:intelligence.weights,ratingUpgrade:intelligence.ratingUpgrade,targetMonth:intelligence.targetMonth,demandIsDiscriminating:intelligence.demandIsDiscriminating},version:50,fullUniverse:false,demandLayer:{forecastStatus:"disabled",observedDemandStatus:intelligence.demandIsDiscriminating?"live-proxy":"non-discriminating",reason:intelligence.demandIsDiscriminating?"Map ranking uses observed inventory demand_proxy where it varies. This is not presented as demand forecasting.":"Observed demand_proxy is non-discriminating for this sample, so it is excluded from ranking rather than fabricated."}},{headers:{"cache-control":"private, max-age=0","x-content-type-options":"nosniff","x-travel-map":"v50-intelligence-fallback"}});
   }
   const destinationKeys=catalog.flatMap(d=>[d.nameEl,d.nameEn,...d.aliases].map(name=>({name:norm(name),slug:d.slug}))).filter(x=>x.name.length>=3).sort((a,b)=>b.name.length-a.name.length);
@@ -186,7 +210,7 @@ export async function GET(request:Request){
    });
    // Score the full eligible sample before truncation; DB order is not AI rank.
   }
-  const intelligence=enrichIntelligence(products,targetMonth,catalogBySlug);
+  const intelligence=enrichIntelligence(products,targetMonth,catalogBySlug,evidenceByPlace);
   intelligence.products=intelligence.products.slice(0,limit);
   return NextResponse.json({
    version:50,
