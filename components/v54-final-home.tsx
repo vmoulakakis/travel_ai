@@ -128,7 +128,7 @@ export function V54FinalHome(){
    price:s.stay.price,currency:s.stay.currency,lat:s.stay.latitude,lon:s.stay.longitude,
    slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,availability:s.stay.availability,intelligence:Math.round(s.score),seasonal:s.stay.seasonalFit?.score??null,priceFit:null,demand:null,mapSignal:"ai",starTier:s.rank<=3?"gold":"green"
   }));
-  return [...inventory].sort((a,b)=>(b.intelligenceScore??0)-(a.intelligenceScore??0)).slice(0,12).map((p,i)=>({
+  return [...inventory].sort((a,b)=>(b.intelligenceScore??0)-(a.intelligenceScore??0)).slice(0,100).map((p,i)=>({
    id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:verifiedPhotos[p.productId]??p.imageUrl,price:p.price,currency:p.currency,
    lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
    why:i===0?"Ισχυρό seasonal / price-value fit από το live inventory.":"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,intelligence:p.intelligenceScore??null,seasonal:p.seasonalScore??null,priceFit:p.priceScore??null,demand:p.demandSignal??null,mapSignal:p.mapSignal??"explore",starTier:p.starTier??null
@@ -335,7 +335,7 @@ export function V54FinalHome(){
     <div>
      <small>AI MAP · DEFAULT INTELLIGENCE VIEW</small>
      <h1>Η AI ξεκινά από την <em>καλύτερη περιοχή τώρα.</em></h1>
-     <p>Το πρώτο focus παράγεται από live demand signal, seasonality και local best value. Τα μεγάλα ⭐ Discovery αναδεικνύουν μέρη με υψηλή εμπειρία, καλό seasonal fit και value — χωρίς να κρύβουν κανένα από τα 1.700+ stays.</p>
+     <p>Το πρώτο focus παράγεται από live demand signal, seasonality και local best value. Τα μεγάλα ⭐ Discovery αναδεικνύουν μέρη με υψηλή εμπειρία, καλό seasonal fit και value — χωρίς να κρύβουν τα καταλύματα της τρέχουσας βάσης.</p>
     </div>
     <div className={styles.mapAiFlow}>
      <span>{mapIntelligence?.focus?.label??"AI scanning"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
@@ -398,6 +398,24 @@ export function V54FinalHome(){
       setDestination(d.location);
       if(d.latitude!=null&&d.longitude!=null){mapRef.current?.flyTo([d.latitude,d.longitude],10,{duration:.8});document.getElementById("map")?.scrollIntoView({behavior:"smooth",block:"center"})}
     }} onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.click()}}><div/><b>{d.location}</b><span>{d.propertyCount?d.propertyCount+" stays":"Live supply"}</span></article>)}</div>
+  </section>
+
+  <section id="top-100-stays" aria-label="Top 100 seasonal stays" style={{padding:"36px clamp(16px,4vw,72px)",background:"#f7f9f6"}}>
+   <div style={{maxWidth:1280,margin:"0 auto"}}>
+    <small style={{letterSpacing:".12em",color:"#326a52"}}>TRAVELAI DATABASE · SEASONAL DECISION INTELLIGENCE</small>
+    <h2 style={{fontSize:"clamp(24px,3vw,38px)",margin:"12px 0"}}>{solutions.length?"Επιλογές του προσωπικού σου AI Agent":"Top 100 καταλύματα για την εποχή"}</h2>
+    <p style={{maxWidth:850,lineHeight:1.6}}>Αξιολόγηση από το ενεργό inventory βάσει εποχικότητας, ενδείξεων ζήτησης και σχετικής τιμής στην περιοχή. Η σειρά είναι εκτίμηση καταλληλότητας — όχι μετρημένη πιθανότητα κράτησης. Διαθεσιμότητα για συγκεκριμένες ημερομηνίες επιβεβαιώνεται στον πάροχο.</p>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:12,marginTop:24}}>
+     {cards.slice(0,solutions.length?Math.min(12,cards.length):100).map((s,i)=><button key={s.id} type="button" onClick={()=>openStay(s)} style={{textAlign:"left",background:"white",border:"1px solid #dce6df",borderRadius:14,padding:15,display:"flex",gap:12,cursor:"pointer",color:"#1f3430"}}>
+      <strong style={{fontSize:20,minWidth:42}}>#{i+1}</strong>
+      <span style={{display:"flex",flexDirection:"column",gap:5,minWidth:0}}>
+       <b>{s.name}</b><small>{s.location}</small>
+       <small>AI fit {s.intelligence??"—"}/100 · Εποχή {s.seasonal??"—"}/100 · Value {s.priceFit??"—"}/100</small>
+       <small>{money(s.price,s.currency)} · Έλεγχος διαθεσιμότητας στον πάροχο</small>
+      </span>
+     </button>)}
+    </div>
+   </div>
   </section>
 
   <section id="stays" className={styles.discovery}>
