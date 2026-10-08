@@ -81,4 +81,4 @@ Do not call a V45 change complete until:
 - current deterministic hard constraints still win over memory/model/retrieval.
 
 ## TravelAI 360 / open embedding models
-For neural/semantic retrieval, temporal and geospatial accommodation matching, full-catalog Top 100, conversion intelligence or related SEO, consult `skills/travel-360-hf-adapter/SKILL.md` and the MyAgenticTeam canonical TravelAI 360 skill. No new model or ranking activation without evidence-backed evaluation and release tests.
+For neural/semantic retrieval, temporal and geospatial accommodation matching, full-catalog Top 100, conversion intelligence or related SEO, consult `skills/travel-360-hf-adapter/SKILL.md` which owns the TravelAI-specific 360 rules, plus the generic MyAgenticTeam `skills/open-source-ai-dev-toolkit/SKILL.md` for reusable free/open model selection. No new model or ranking activation without evidence-backed evaluation and release tests.
