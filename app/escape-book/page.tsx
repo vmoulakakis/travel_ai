@@ -2,6 +2,7 @@
 
 import { useEffect,useMemo,useState } from "react";
 import Link from "next/link";
+import { sameOrigin } from "@/lib/decision/escape-origin-gate";
 import "./escape-book.css";
 
 type Stay={productId:string;name:string;location:string;imageUrl:string|null;price:number|null;currency:string;destinationSlug:string|null;intelligenceScore?:number;seasonalScore?:number;priceScore?:number;availability:string;trackingUrl:string};
@@ -11,17 +12,6 @@ const localDate=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Athens",ye
 const plusDays=(d:string,n:number)=>{const t=new Date(d+"T12:00:00Z");t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
 const currency=(price:number|null,c="EUR")=>price!=null&&price>=5?new Intl.NumberFormat("el-GR",{style:"currency",currency:c,maximumFractionDigits:0}).format(price):"Τιμή στον πάροχο";
 const escapeHref=(s:Stay)=>s.destinationSlug?`/escape/${encodeURIComponent(s.destinationSlug)}/stay/${encodeURIComponent(s.productId)}`:`/stay/${encodeURIComponent(s.productId)}`;
-const placeKey=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]/gi,"");
-const sameOrigin=(origin:string,destination:string,slug?:string|null)=>{
- const a=placeKey(origin),b=placeKey(destination),s=placeKey(slug??"");
- if(!a)return false;
- const athens=["αθηνα","αθηνας","athina","athens","athina"];
- const thess=["θεσσαλονικη","thessaloniki","salonika"];
- const aliases=[athens,thess];
- const group=aliases.find(xs=>xs.some(x=>a===x||a.startsWith(x)));
- if(group)return group.some(x=>b===x||s===x||b.startsWith(x));
- return a.length>=4&&(b===a||s===a);
-};
 const moods=[{id:"ηρεμία",title:"Απόλυτη αποφόρτιση",subtitle:"Φύση · ησυχία · αργοί ρυθμοί",glyph:"◌"},{id:"ανακάλυψη",title:"Μικρές ανακαλύψεις",subtitle:"Χωριά · μονοπάτια · τοπικές ιστορίες",glyph:"✧"},{id:"ρομαντισμός",title:"Μαζί, μακριά από όλα",subtitle:"Δύο άνθρωποι · ιδιαίτερες στιγμές",glyph:"♡"},{id:"γαστρονομία",title:"Γεύσεις & άνθρωποι",subtitle:"Μικρά τραπέζια · αυθεντικοί τόποι",glyph:"✺"}] as const;
 
 export default function EscapeBookPage(){
