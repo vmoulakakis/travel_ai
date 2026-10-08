@@ -338,8 +338,9 @@ export function V54FinalHome(){
     <div>
      <small>AI MAP · DEFAULT INTELLIGENCE VIEW</small>
      <h1>Η AI ξεκινά από την <em>καλύτερη περιοχή τώρα.</em></h1>
-     <p>Το πρώτο focus παράγεται από live demand signal, seasonality και local best value. Τα μεγάλα ⭐ Discovery αναδεικνύουν μέρη με υψηλή εμπειρία, καλό seasonal fit και value — χωρίς να κρύβουν κανένα από τα 1.700+ stays.</p>
+     <p>Ξεκίνα με 50 επιλεγμένα, γεωγραφικά κατανεμημένα AI σημεία από το πραγματικό inventory. Μπορείς να εμφανίσεις όλες τις διαμονές οποιαδήποτε στιγμή. Οι προτάσεις εμπειριών εμπλουτίζονται ξεχωριστά από την ταξιδιωτική γνώση.</p>
     </div>
+    <div className={styles.top50Controls}><span>✦ {showAllMapPoints?`${inventory.length} καταλύματα`:`${top50Points.length} κορυφαία AI σημεία`} · {showAllMapPoints?"Πλήρης εξερεύνηση":"Προεπιλεγμένη επιλογή"}</span><button type="button" aria-pressed={showAllMapPoints} onClick={()=>setShowAllMapPoints(v=>!v)}>{showAllMapPoints?"Εμφάνιση Top 50":"Δες όλα τα σημεία"} ↗</button></div>
     <div className={styles.mapAiFlow}>
      <span>{mapIntelligence?.focus?.label??"AI scanning"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
     </div>
