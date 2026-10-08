@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const home=readFileSync("components/v54-final-home.tsx","utf8");
+const page=readFileSync("app/escape-book/page.tsx","utf8");
+const css=readFileSync("app/escape-book/escape-book.css","utf8");
+const layout=readFileSync("app/escape-book/layout.tsx","utf8");
+assert.match(home,/href="\/escape-book"/);
+for(const s of ["/api/v50/map-stays","/api/v50/agent","escape-results","escape-book","localStorage.setItem","Δεν ψάχνεις απλώς"]) assert.ok(page.includes(s),s);
+assert.ok(!page.includes("Math.random()"),"no invented random matches");
+assert.match(page,/availability/,"availability state must be handled");
+assert.ok(css.includes("@media(max-width:680px)"),"responsive mobile experience");
+assert.ok(css.includes("prefers-reduced-motion"),"reduced motion support");
+assert.ok(layout.includes('canonical:"/escape-book"'),"canonical SEO metadata");
+console.log("ESCAPE_BOOK_PRODUCT_SMOKE_OK");

@@ -14,6 +14,7 @@ import {
 import { loadV8DestinationCatalog,loadV8StayOffers } from "@/lib/data/destination-v8";
 import { assessStayAvailabilityV20 } from "@/lib/decision/stay-availability-v20";
 import { seasonalStayFit } from "@/lib/decision/stay-seasonality-v66";
+import { sameOrigin } from "@/lib/decision/escape-origin-gate";
 import { createLLMRequestBudgetV16,generateJsonWithRoutingV16 } from "@/lib/ai/model-router-v9";
 import type { V8Recommendation,V8StayOffer } from "@/lib/decision/v8-types";
 
@@ -346,7 +347,8 @@ export async function POST(request:Request){
           return profile?.seasonProfile==="mountain"||mountainSlugs.has(item.slug);
         })
       : recommendation.recommendations;
-    const candidates=terrainFiltered.slice(0,12);
+    const originEligible=terrainFiltered.filter(item=>!sameOrigin(trip.origin,item.destination,item.slug));
+    const candidates=originEligible.slice(0,12);
     const stayRows=await Promise.all(candidates.map(async rec=>({rec,...await bestStay(rec,trip.budget,trip.startDate,trip.endDate,catalogBySlug.get(rec.slug)??{slug:rec.slug,tags:rec.tags})})));
     const solutions=stayRows
       .filter((row):row is typeof row & {best:NonNullable<typeof row.best>}=>Boolean(row.best))
@@ -428,6 +430,9 @@ export async function POST(request:Request){
     try{
       const trip=buildV50Trip(input,interpreted);
       const fallback=await fallbackViaV42(request,trip,interpreted);
+      if(fallback?.solutions?.length){
+        fallback.solutions=fallback.solutions.filter(item=>!sameOrigin(trip.origin,item.destination.name,item.destination.slug));
+      }
       if(fallback?.solutions?.length){
         return responseWithProfile({
           ok:true,state:"results",
