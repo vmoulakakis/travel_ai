@@ -57,3 +57,34 @@ M1 schema shadow + corpus validation + audit endpoint, no business-logic activat
 M2 384-d embeddings backfilled locally for genuine text corpus, >95% eligible coverage and validated Greek/English retrieval.
 M3 V45 shadow trip-ranking with golden scenarios and 0 eligibility violations; evidence-first full itinerary.
 M4 user-verified end-to-end Escape Book (mobile desktop map + saved itinerary + lawful booking handoff); production only after release gates.
+
+## Evidence-based multisource research expansion (required before full-360 training)
+**Verified structural audit 2026-10-08:** knowledge entity types: stay=1,769; locality=524; destination=50; region=13; country=1. The current entity table is overwhelmingly lodging+geographic nodes, not a complete experience/review/event graph. Do not use “360 trained” as a claim.
+
+### Distinct research corpora (each requires independent source and licensing provenance)
+1. **Geographic discovery:** Wikidata CC0 entity labels, multilingual aliases, coordinates, subclass/type and parent region; Wikipedia/Wikivoyage text must observe individual CC BY-SA obligations, not assume Wikidata CC0 covers prose. Use OSM/Overpass only under ODbL and usage restrictions; use bounded geographic extracts, no heavy anonymous global queries.
+2. **Culture/history:** official Greek Ministry of Culture and public museum/open-data feeds, individual monument opening hours and tickets with latest verified timestamp; editorial descriptions grounded in official sources and licensing.
+3. **Experiences:** trails/hikes, viewpoints, beaches, nature, local activities, family suitability, duration, season and accessibility; evaluate physical suitability from real maps/provider evidence, not language generation.
+4. **Food/drink:** restaurant/cafe/producer/market POIs, regional dishes, cuisines, opening hours, authenticity evidence and distance to itinerary stops. Never infer quality from cuisine tags.
+5. **Transport and weather:** routes, ferry schedules, live operational exceptions, station timetables, public transport, road closures, forecast with timestamps and uncertainty; do not describe routing as real-time unless queried successfully.
+6. **Temporal and cultural calendar:** public holidays, named Greek local festivals, religious observances where relevant, seasonal activities, events with confirmed year/date/source, school breaks; historical traditions separated from verified upcoming events.
+7. **Accommodation:** current 1,632 stay places and offers, actual booking-unit availability distinct from in-stock feed flags; connect location and activity reachability.
+8. **Reviews and reputation:** authorized first-party feedback, openly licensed datasets, partner-provided ratings with compatible terms and attribution. Keep review count, date, provider, scale, place-identity certainty and consent. No invented reviews or averaged ratings across incomparable providers. **Google Places generally restricts caching and requires author/Google attribution**, so do not bulk train/store Google/Tripadvisor/Booking reviews without specific contractual permission.
+9. **Community discovery:** human-curated microplaces and hidden places verified by multiple grounded sources; never scrape private community data or invent “secret” places.
+10. **Traveler outcomes:** opted-in explicit utility ratings, itinerary edits, real visited points, satisfaction and confirmed bookings; avoid equating clicks with success.
+
+### Agentic research factory
+`Source Scout -> Terms/License Gate -> Scheduled Authorized Harvester -> Entity Resolver (EL/EN names + coordinates + identifiers) -> Claim Extraction -> Dual Source Verification -> Freshness/Disagreement Tracker -> Graph Relation Builder -> Corpus Builder -> EL/EN Dense Embedding -> Hybrid Retrieval -> Expert Preference Labels -> Trip-Ranker Eval -> Skeptic and Traveler Advocate`.
+Every extracted field has `source_url,license,attribution,observed_at,valid_from/to,confidence,reviewer,status`. Missing an authoritative source is an unknown, never an optimistic negative/positive. Maintain *raw immutable claims* separate from inferred features. Revisions and challenged/disputed claims must not be silently overwritten.
+
+### Training priorities (experience-centered)
+- Pass 1: gold relevance labels for destination, attractions, microplaces, food, season and accessibility, independent of hotel feed.
+- Pass 2: multilingual E5 semantic retrieval for all permitted travel entity types; user Greek, English and Greeklish benchmark queries.
+- Pass 3: cross-entity graph neighborhood generation (place -> local experiences -> nearby stay -> feasible route -> calendar), with point-in-time joins; relevance ablations: lexical-only vs semantic vs graph vs hybrid.
+- Pass 4: itinerary-level ranking with hard gates on origin, driving limits, daylight, opening times, cost and accessibility; expert rating for coherence and surprise value.
+- Pass 5: outcome-based LightGBM/other LTR only when verified labels exist; quantify generalization for underrepresented islands/microplaces. No synthetic labels treated as human ground truth.
+
+### Anti-shortcut release conditions
+* Minimum thresholds are **evaluation goals**, not achievements: 95%+ verified coordinates and provenance on each active entity type; 90%+ EL and EN lexical alias coverage for priority POIs; all promoted event/availability claims time-valid; zero hard constraint violations across manually reviewed golden cases.
+* Coverage dashboard by geography, region, island/mainland, business type, accessible experience, season and update age; audit and target sparsity rather than chasing raw millions of datapoints.
+* User output requires a full **experience first** itinerary with grounded POIs, non-lodging evidence, practical transfers and optional truthful booking handoff.
