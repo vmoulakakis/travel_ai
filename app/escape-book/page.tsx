@@ -11,6 +11,17 @@ const localDate=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Athens",ye
 const plusDays=(d:string,n:number)=>{const t=new Date(d+"T12:00:00Z");t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
 const currency=(price:number|null,c="EUR")=>price!=null&&price>=5?new Intl.NumberFormat("el-GR",{style:"currency",currency:c,maximumFractionDigits:0}).format(price):"Τιμή στον πάροχο";
 const escapeHref=(s:Stay)=>s.destinationSlug?`/escape/${encodeURIComponent(s.destinationSlug)}/stay/${encodeURIComponent(s.productId)}`:`/stay/${encodeURIComponent(s.productId)}`;
+const placeKey=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zα-ω0-9]/gi,"");
+const sameOrigin=(origin:string,destination:string,slug?:string|null)=>{
+ const a=placeKey(origin),b=placeKey(destination),s=placeKey(slug??"");
+ if(!a)return false;
+ const athens=["αθηνα","αθηνας","athina","athens","athina"];
+ const thess=["θεσσαλονικη","thessaloniki","salonika"];
+ const aliases=[athens,thess];
+ const group=aliases.find(xs=>xs.some(x=>a===x||a.startsWith(x)));
+ if(group)return group.some(x=>b===x||s===x||b.startsWith(x));
+ return a.length>=4&&(b===a||s===a);
+};
 const moods=[{id:"ηρεμία",title:"Απόλυτη αποφόρτιση",subtitle:"Φύση · ησυχία · αργοί ρυθμοί",glyph:"◌"},{id:"ανακάλυψη",title:"Μικρές ανακαλύψεις",subtitle:"Χωριά · μονοπάτια · τοπικές ιστορίες",glyph:"✧"},{id:"ρομαντισμός",title:"Μαζί, μακριά από όλα",subtitle:"Δύο άνθρωποι · ιδιαίτερες στιγμές",glyph:"♡"},{id:"γαστρονομία",title:"Γεύσεις & άνθρωποι",subtitle:"Μικρά τραπέζια · αυθεντικοί τόποι",glyph:"✺"}] as const;
 
 export default function EscapeBookPage(){
@@ -37,8 +48,8 @@ export default function EscapeBookPage(){
    .finally(()=>setLoading(false));
   return()=>controller.abort();
  },[start]);
- const featured=useMemo(()=>[...inventory].filter(s=>s.productId&&s.name&&s.trackingUrl).sort((a,b)=>(b.intelligenceScore??0)-(a.intelligenceScore??0)).slice(0,9),[inventory]);
- const choices=agent?.state==="results"&&agent.solutions?.length?agent.solutions.slice(0,3).map((s,i)=>({id:s.stay.productId,name:s.stay.name,location:s.destination.name,image:s.stay.imageUrl,price:s.stay.price,currency:s.stay.currency,score:s.score,season:null as number|null,why:s.destination.why,seasonReason:s.destination.seasonNote,booking:s.stay.trackingUrl,slug:inventory.find(x=>x.productId===s.stay.productId)?.destinationSlug??null})):featured.slice(0,3).map(s=>({id:s.productId,name:s.name,location:s.location,image:s.imageUrl,price:s.price,currency:s.currency,score:s.intelligenceScore??null,season:s.seasonalScore??null,why:"Επιλογή της βάσης με εποχικά κριτήρια. Για προσωπικό itinerary ζήτησε ανάλυση από τον AI σύμβουλο.",seasonReason:"Η διαθεσιμότητα για τις ημερομηνίες σου δεν έχει επιβεβαιωθεί.",booking:s.trackingUrl,slug:s.destinationSlug}));
+ const featured=useMemo(()=>[...inventory].filter(s=>s.productId&&s.name&&s.trackingUrl&&!sameOrigin(origin,s.location,s.destinationSlug)).sort((a,b)=>(b.intelligenceScore??0)-(a.intelligenceScore??0)).slice(0,9),[inventory,origin]);
+ const choices=agent?.state==="results"&&agent.solutions?.length?agent.solutions.filter(s=>!sameOrigin(origin,s.destination.name,inventory.find(x=>x.productId===s.stay.productId)?.destinationSlug)).slice(0,3).map((s,i)=>({id:s.stay.productId,name:s.stay.name,location:s.destination.name,image:s.stay.imageUrl,price:s.stay.price,currency:s.stay.currency,score:s.score,season:null as number|null,why:s.destination.why,seasonReason:s.destination.seasonNote,booking:s.stay.trackingUrl,slug:inventory.find(x=>x.productId===s.stay.productId)?.destinationSlug??null})):featured.slice(0,3).map(s=>({id:s.productId,name:s.name,location:s.location,image:s.imageUrl,price:s.price,currency:s.currency,score:s.intelligenceScore??null,season:s.seasonalScore??null,why:"Επιλογή της βάσης με εποχικά κριτήρια. Για προσωπικό itinerary ζήτησε ανάλυση από τον AI σύμβουλο.",seasonReason:"Η διαθεσιμότητα για τις ημερομηνίες σου δεν έχει επιβεβαιωθεί.",booking:s.trackingUrl,slug:s.destinationSlug}));
  const active=choices.find(s=>s.id===selected)??choices[0]??null;
  async function buildJourney(text?:string){
   setRunning(true);setError("");setSelected(null);
@@ -46,6 +57,7 @@ export default function EscapeBookPage(){
    const response=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({userText:text||wish.trim()||`Θέλω ${mood} απόδραση στην Ελλάδα, ${start} έως ${end}, ${travelers==="couple"?"ζευγάρι":travelers==="family"?"οικογένεια":travelers==="friends"?"φίλοι":"μόνος/η"}, budget ${budget} EUR, αφετηρία ${origin}. Βρες 3 πραγματικά κατάλληλες εμπειρίες και διαμονές.`,origin,budget:Number(budget),filters:{calm:mood==="ηρεμία"?95:58,food:mood==="γαστρονομία"?95:65,nature:75,discovery:mood==="ανακάλυψη"?95:64,nightlife:22,value:75}})});
    const result=await response.json() as AgentResult;
    if(!response.ok||!result.ok)throw new Error("agent");
+   if(result.solutions)result.solutions=result.solutions.filter(s=>!sameOrigin(origin,s.destination.name,inventory.find(x=>x.productId===s.stay.productId)?.destinationSlug));
    setAgent(result);document.getElementById("escape-results")?.scrollIntoView({behavior:"smooth",block:"start"});
   }catch{setError("Ο AI σύμβουλος δεν απάντησε. Οι εποχικές επιλογές της βάσης παραμένουν διαθέσιμες.");}
   finally{setRunning(false);}
