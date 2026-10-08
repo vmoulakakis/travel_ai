@@ -111,7 +111,7 @@ export function seasonalStayFit(input:SeasonalStayInput):SeasonalStayFit{
     }else if(shoulder){
       if(a.includes("boutique")||a.includes("apartment")||a.includes("nature"))add(14,"shoulder-season flexibility");
       if(a.includes("beach"))add(8,"coastal access");
-      if(a.includes("resort")||a.includes("pool"))add(3,"season-dependent facilities");
+      if(a.includes("resort")||a.includes("pool"))sub(month===10||month===11?18:5);
     }else{
       if(a.includes("boutique")||a.includes("city")||a.includes("apartment"))add(10,"off-season practical base");
       if(a.includes("resort")||a.includes("pool")||a.includes("beach"))sub(16);
@@ -125,7 +125,7 @@ export function seasonalStayFit(input:SeasonalStayInput):SeasonalStayFit{
       if(a.includes("beach"))add(10,"coastal access");
     }else{
       if(a.includes("boutique")||a.includes("apartment"))add(10,"off-season practical base");
-      if(a.includes("resort")||a.includes("pool"))sub(12);
+      if(a.includes("resort")||a.includes("pool"))sub(18);
     }
   }else if(kind==="coast_city"||kind==="coast_nature"||kind==="coast"){
     if(summer){
@@ -137,7 +137,7 @@ export function seasonalStayFit(input:SeasonalStayInput):SeasonalStayFit{
       if(a.includes("spa"))add(6,"wellness fit");
     }else{
       if(a.includes("city")||a.includes("boutique")||a.includes("spa"))add(14,"winter-friendly base");
-      if(a.includes("resort")||a.includes("pool"))sub(8);
+      if(a.includes("resort")||a.includes("pool"))sub(15);
     }
   }else if(kind==="city"){
     if(a.includes("city")||a.includes("boutique"))add(16,"all-year city base");
