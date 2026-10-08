@@ -33,7 +33,7 @@ def main():
   label=row.get("itemLabel",{}).get("value","").strip()
   coord=row.get("coord",{}).get("value","")
   import re
-  match=re.fullmatch(r"Point\\((-?[\\d.]+) (-?[\\d.]+)\\)",coord)
+  match=re.fullmatch(r"Point\((-?[\d.]+) (-?[\d.]+)\)",coord)
   if not match or not label:continue
   lon,lat=map(float,match.groups())
   if not 34<=lat<=42.5 or not 19<=lon<=30:continue
