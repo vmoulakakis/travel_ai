@@ -7,6 +7,7 @@ import {
   PaperPlaneTilt,ShieldCheck,Sparkle,Star,Users,Wallet,MagnifyingGlass,UserCircle,PlayCircle,Globe,AirplaneTilt,Images
 } from "@phosphor-icons/react";
 import styles from "./v54-final-home.module.css";
+import {selectTop50AiPoints} from "@/lib/decision/top50-ai-map";
 
 type FilterKey="calm"|"food"|"nature"|"discovery"|"nightlife"|"value";
 type Filters=Record<FilterKey,number>;
@@ -29,6 +30,8 @@ const primaryVerifiedRating=(r:QuickRating|null|undefined)=>r?.ratings?.find(x=>
 export function V54FinalHome(){
  const [inventory,setInventory]=useState<Stay[]>([]);
  const [heroMedia,setHeroMedia]=useState<Hero[]>([]);
+ const [showAllMapPoints,setShowAllMapPoints]=useState(false);
+ const top50Points=useMemo(()=>selectTop50AiPoints(inventory),[inventory]);
  const [solutions,setSolutions]=useState<Solution[]>([]);
  const [active,setActive]=useState(0);
  const [origin]=useState("Αθήνα");
@@ -207,7 +210,8 @@ export function V54FinalHome(){
        <span><b>${Math.round(p.priceScore??0)}</b><small>Value</small></span>
       </div>
       ${ratingMarkup(rating)}
-      <small>Click to continue to the stay funnel</small>
+      <div class="v360TooltipMeta">${p.availability==="confirmed-active"?"Το feed αναφέρει ενεργό απόθεμα":"Διαθεσιμότητα: επιβεβαίωση στον πάροχο"} · ${p.validTo?"Ισχύς feed έως "+html(p.validTo):"Χωρίς επιβεβαιωμένη λήξη"}</div>
+      <small>Πάτησε για πλήρη περιγραφή και επιλογές κράτησης</small>
      </div>`;
    };
    const loadRating=async(p:Stay,marker:any,rank:number|null)=>{
@@ -234,18 +238,19 @@ export function V54FinalHome(){
     const f=mapIntelligence.focus;
     L.marker([f.latitude,f.longitude],{interactive:false,icon:L.divIcon({className:"v65FocusHalo",html:"<span></span><i></i>",iconSize:[120,120],iconAnchor:[60,60]}),zIndexOffset:50}).addTo(g);
    }
-   for(const p of inventory){
+   for(const p of (showAllMapPoints?inventory:top50Points)){
     if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))continue;
     const rank=aiRanks.get(p.productId)??null;
     const score=Math.max(0,Math.min(100,p.intelligenceScore??50));
     const isDiscovery=!rank&&score>=82&&(p.seasonalScore??0)>=70&&(p.priceScore??0)>=68;
     const signal=rank&&rank<=5?"ai":isDiscovery?"discovery":p.mapSignal??"explore";
+    const pinGlyph=signal==="ai"?"✦":signal==="discovery"?"◆":signal==="seasonal"?"❋":signal==="value"?"€":signal==="demand"?"▲":"•";
     const size=signal==="discovery"?58:score>=86?48:score>=76?41:score>=64?34:27;
     const className=signal==="ai"?"v65StarAi":signal==="discovery"?"v66StarDiscovery":signal==="demand"?"v65StarDemand":signal==="seasonal"?"v65StarSeasonal":signal==="value"?"v65StarValue":"v65StarExplore";
     const marker=L.marker([p.latitude,p.longitude],{
       icon:L.divIcon({
        className,
-       html:rank&&rank<=5?`<span style="--pin-size:${size}px">★<small>#${rank}</small></span>`:`<span style="--pin-size:${size}px">★</span>`,
+       html:rank&&rank<=5?`<span style="--pin-size:${size}px">${pinGlyph}<small>#${rank}</small></span>`:`<span style="--pin-size:${size}px">${pinGlyph}</span>`,
        iconSize:[size,size],iconAnchor:[Math.round(size/2),Math.round(size/2)]
       }),
       zIndexOffset:signal==="ai"?1900-(rank??20):signal==="discovery"?1650:signal==="demand"?1200:signal==="seasonal"?950:signal==="value"?800:300
@@ -262,7 +267,7 @@ export function V54FinalHome(){
    }
   });
   return()=>{dead=true};
- },[inventory,cards,solutions,destination,verifiedRatings]);
+ },[inventory,top50Points,showAllMapPoints,cards,solutions,destination,verifiedRatings]);
 
  async function runAgent(extra?:string){
   const destinationBrief=destination.trim()?destination.trim()+". ":"";
@@ -335,8 +340,9 @@ export function V54FinalHome(){
     <div>
      <small>AI MAP · DEFAULT INTELLIGENCE VIEW</small>
      <h1>Η AI ξεκινά από την <em>καλύτερη περιοχή τώρα.</em></h1>
-     <p>Το πρώτο focus παράγεται από live demand signal, seasonality και local best value. Τα μεγάλα ⭐ Discovery αναδεικνύουν μέρη με υψηλή εμπειρία, καλό seasonal fit και value — χωρίς να κρύβουν κανένα από τα 1.700+ stays.</p>
+     <p>Ξεκίνα με 50 επιλεγμένα, γεωγραφικά κατανεμημένα AI σημεία από το πραγματικό inventory. Μπορείς να εμφανίσεις όλες τις διαμονές οποιαδήποτε στιγμή. Οι προτάσεις εμπειριών εμπλουτίζονται ξεχωριστά από την ταξιδιωτική γνώση.</p>
     </div>
+    <div className={styles.top50Controls}><span>✦ {showAllMapPoints?`${inventory.length} καταλύματα`:`${top50Points.length} κορυφαία AI σημεία`} · {showAllMapPoints?"Πλήρης εξερεύνηση":"Προεπιλεγμένη επιλογή"}</span><button type="button" aria-pressed={showAllMapPoints} onClick={()=>setShowAllMapPoints(v=>!v)}>{showAllMapPoints?"Εμφάνιση Top 50":"Δες όλα τα σημεία"} ↗</button></div>
     <div className={styles.mapAiFlow}>
      <span>{mapIntelligence?.focus?.label??"AI scanning"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
     </div>
@@ -357,6 +363,7 @@ export function V54FinalHome(){
    </div>
   </section>
 
+  <div className={styles.cinematicIntro} role="region" aria-label="Cinematic exploration of Greece">{process.env.NEXT_PUBLIC_TRAVELAI_DRONE_HERO_URL?<video className={styles.cinematicVideo} autoPlay muted loop playsInline preload="metadata" poster="https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1600&q=80"><source src={process.env.NEXT_PUBLIC_TRAVELAI_DRONE_HERO_URL} type="video/mp4"/></video>:null}<span>TRAVELAI · GREECE IN MOTION</span><strong>Η Ελλάδα, όπως δεν την έχεις ζήσει.</strong><p>50 επιλεγμένα AI σημεία στον χάρτη. Αληθινές διαμονές, μοναδικοί τόποι, μία εμπειρία φτιαγμένη γύρω σου.</p><a href="#map">ΕΞΕΡΕΥΝΗΣΕ ΤΟΝ ΧΑΡΤΗ ↘</a></div>
   <section className={`${styles.hero} ${mobilePlannerOpen?styles.mobilePlannerOpen:""}`}>
    <aside id="planner" className={styles.planner}>
     <div className={styles.plannerTitle}><Brain weight="fill"/><div><b>AI Travel Planner</b><span>Σήμερα {new Intl.DateTimeFormat("el-GR",{timeZone:"Europe/Athens",day:"numeric",month:"short"}).format(new Date())} · βλέπω και τον χάρτη που εξερευνάς.</span></div><i className={busy?styles.busy:styles.ready}/><button className={styles.mobileSheetClose} onClick={()=>setMobilePlannerOpen(false)}>×</button></div>
