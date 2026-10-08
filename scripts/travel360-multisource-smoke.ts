@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+const blueprint=readFileSync("docs/TRAVELAI_360_KNOWLEDGE_FABRIC_LOCKED.md","utf8");
+const research=readFileSync("scripts/travel360_wikidata_research.py","utf8");
+const embargo=["Culture/history","Experiences:","Food/drink:","Transport and weather:","Temporal and cultural calendar:","Reviews and reputation:","Community discovery:","Traveler outcomes:"];
+for(const x of embargo)assert.ok(blueprint.includes(x),"Training domain missing: "+x);
+for(const rule of ["source_url","license","observed_at","valid_from/to","no invented","gold relevance labels","Greeklish"])assert.ok(blueprint.toLowerCase().includes(rule.toLowerCase()),"Missing provenance/model evaluation: "+rule);
+assert.ok(research.includes('if not a.execute:'),"Research fetch must be dry-run by default");
+assert.ok(research.includes('"unverified-candidate"'),"Third-party candidates are never instantly verified");
+assert.ok(research.includes('"license":"CC0"'),"Wikidata attribution missing");
+console.log("TRAVEL360_MULTISOURCE_RESEARCH_CONTRACT_OK");
