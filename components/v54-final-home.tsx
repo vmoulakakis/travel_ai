@@ -128,7 +128,7 @@ export function V54FinalHome(){
    price:s.stay.price,currency:s.stay.currency,lat:s.stay.latitude,lon:s.stay.longitude,
    slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,availability:s.stay.availability,intelligence:Math.round(s.score),seasonal:s.stay.seasonalFit?.score??null,priceFit:null,demand:null,mapSignal:"ai",starTier:s.rank<=3?"gold":"green"
   }));
-  return inventory.slice(0,12).map((p,i)=>({
+  return [...inventory].sort((a,b)=>(b.intelligenceScore??0)-(a.intelligenceScore??0)).slice(0,12).map((p,i)=>({
    id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:verifiedPhotos[p.productId]??p.imageUrl,price:p.price,currency:p.currency,
    lat:p.latitude,lon:p.longitude,slug:p.destinationSlug,tracking:p.trackingUrl,score:null,
    why:i===0?"Ισχυρό seasonal / price-value fit από το live inventory.":"Πραγματικό stay από το ενεργό inventory.",availability:p.availability,intelligence:p.intelligenceScore??null,seasonal:p.seasonalScore??null,priceFit:p.priceScore??null,demand:p.demandSignal??null,mapSignal:p.mapSignal??"explore",starTier:p.starTier??null
