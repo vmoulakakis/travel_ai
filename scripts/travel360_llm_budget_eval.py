@@ -22,9 +22,9 @@ def main():
  env,url,model=PROVIDERS[provider];key=os.environ.get(env)
  if not key:raise RuntimeError(f"Missing {env}. Store in protected runtime secrets, never in source.")
  total=0;results=[]
- for s in SCENARIOS:
+ for s in SCENARIOS[:1]:
   prompt="Κατάταξε ΜΟΝΟ τα δοθέντα πραγματικά χαρακτηριστικά περιοχών για το ερώτημα. Απάντησε μία γραμμή: περιοχή|σύντομη αιτία|τι λείπει από τα δεδομένα. ΜΗΝ εφευρίσκεις καιρό, διαθεσιμότητα, αξιολογήσεις ή πρόσβαση.\n"+json.dumps(s,ensure_ascii=False)
-  body={"model":model,"messages":[{"role":"system","content":"You are a provenance-focused Greek travel relevance evaluator. Do not invent facts."},{"role":"user","content":prompt}],"temperature":0,"max_tokens":120,"stream":False}
+  body={"model":model,"messages":[{"role":"system","content":"You are a provenance-focused Greek travel relevance evaluator. Do not invent facts."},{"role":"user","content":prompt}],"temperature":0,"max_tokens":100,"stream":False}
   req=urllib.request.Request(url,data=json.dumps(body).encode(),headers={"Authorization":"Bearer "+key,"Content-Type":"application/json"})
   with urllib.request.urlopen(req,timeout=35) as rsp:data=json.load(rsp)
   usage=data.get("usage") or {};used=int(usage.get("total_tokens") or 0);total+=used
