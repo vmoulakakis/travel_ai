@@ -7,6 +7,7 @@ import {
   PaperPlaneTilt,ShieldCheck,Sparkle,Star,Users,Wallet,MagnifyingGlass,UserCircle,PlayCircle,Globe,AirplaneTilt,Images
 } from "@phosphor-icons/react";
 import styles from "./v54-final-home.module.css";
+import {selectTop50AiPoints} from "@/lib/decision/top50-ai-map";
 
 type FilterKey="calm"|"food"|"nature"|"discovery"|"nightlife"|"value";
 type Filters=Record<FilterKey,number>;
@@ -29,6 +30,8 @@ const primaryVerifiedRating=(r:QuickRating|null|undefined)=>r?.ratings?.find(x=>
 export function V54FinalHome(){
  const [inventory,setInventory]=useState<Stay[]>([]);
  const [heroMedia,setHeroMedia]=useState<Hero[]>([]);
+ const [showAllMapPoints,setShowAllMapPoints]=useState(false);
+ const top50Points=useMemo(()=>selectTop50AiPoints(inventory),[inventory]);
  const [solutions,setSolutions]=useState<Solution[]>([]);
  const [active,setActive]=useState(0);
  const [origin]=useState("Αθήνα");
@@ -234,7 +237,7 @@ export function V54FinalHome(){
     const f=mapIntelligence.focus;
     L.marker([f.latitude,f.longitude],{interactive:false,icon:L.divIcon({className:"v65FocusHalo",html:"<span></span><i></i>",iconSize:[120,120],iconAnchor:[60,60]}),zIndexOffset:50}).addTo(g);
    }
-   for(const p of inventory){
+   for(const p of (showAllMapPoints?inventory:top50Points)){
     if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))continue;
     const rank=aiRanks.get(p.productId)??null;
     const score=Math.max(0,Math.min(100,p.intelligenceScore??50));
@@ -262,7 +265,7 @@ export function V54FinalHome(){
    }
   });
   return()=>{dead=true};
- },[inventory,cards,solutions,destination,verifiedRatings]);
+ },[inventory,top50Points,showAllMapPoints,cards,solutions,destination,verifiedRatings]);
 
  async function runAgent(extra?:string){
   const destinationBrief=destination.trim()?destination.trim()+". ":"";
@@ -357,6 +360,7 @@ export function V54FinalHome(){
    </div>
   </section>
 
+  <div className={styles.cinematicIntro} role="region" aria-label="Cinematic exploration of Greece"><span>TRAVELAI · GREECE IN MOTION</span><strong>Η Ελλάδα, όπως δεν την έχεις ζήσει.</strong><p>50 επιλεγμένα AI σημεία στον χάρτη. Αληθινές διαμονές, μοναδικοί τόποι, μία εμπειρία φτιαγμένη γύρω σου.</p><a href="#map">ΕΞΕΡΕΥΝΗΣΕ ΤΟΝ ΧΑΡΤΗ ↘</a></div>
   <section className={`${styles.hero} ${mobilePlannerOpen?styles.mobilePlannerOpen:""}`}>
    <aside id="planner" className={styles.planner}>
     <div className={styles.plannerTitle}><Brain weight="fill"/><div><b>AI Travel Planner</b><span>Σήμερα {new Intl.DateTimeFormat("el-GR",{timeZone:"Europe/Athens",day:"numeric",month:"short"}).format(new Date())} · βλέπω και τον χάρτη που εξερευνάς.</span></div><i className={busy?styles.busy:styles.ready}/><button className={styles.mobileSheetClose} onClick={()=>setMobilePlannerOpen(false)}>×</button></div>
