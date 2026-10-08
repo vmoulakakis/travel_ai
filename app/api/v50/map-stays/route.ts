@@ -185,9 +185,9 @@ export async function GET(request:Request){
    }
    return best?.slug??null;
   };
-  const rows:OfferRow[]=[],rowCeiling=quick?600:Math.max(limit*2,3000),offsetCeiling=quick?1000:3000;
+  const rows:OfferRow[]=[],rowCeiling=3000,offsetCeiling=3000;
   for(let offset=0;offset<offsetCeiling&&rows.length<rowCeiling;offset+=1000){
-   const batch=await page(offset,quick?600:1000);rows.push(...batch);if(batch.length<(quick?600:1000))break;
+   const batch=await page(offset,1000);rows.push(...batch);if(batch.length<1000)break;
   }
   const seen=new Set<string>(),today=new Date().toISOString().slice(0,10),products:Product[]=[];
   for(const row of rows){
