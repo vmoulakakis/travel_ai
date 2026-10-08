@@ -79,3 +79,6 @@ Do not call a V45 change complete until:
 - tool-contract health has zero unresolved bindings;
 - memory/retrieval smoke tests pass;
 - current deterministic hard constraints still win over memory/model/retrieval.
+
+## TravelAI 360 / open embedding models
+For neural/semantic retrieval, temporal and geospatial accommodation matching, full-catalog Top 100, conversion intelligence or related SEO, consult `skills/travel-360-hf-adapter/SKILL.md` and the MyAgenticTeam canonical TravelAI 360 skill. No new model or ranking activation without evidence-backed evaluation and release tests.
