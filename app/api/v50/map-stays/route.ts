@@ -73,7 +73,7 @@ function enrichIntelligence(products:Product[],targetMonth:number,catalogBySlug:
   if(v==null||!demandIsDiscriminating)return 50;
   return Math.max(10,Math.min(100,Math.round(10+90*((v-dLo!)/(dHi!-dLo!)))));
  };
- const weights=demandIsDiscriminating?{demand:.40,seasonality:.33,priceValue:.27}:{demand:0,seasonality:.55,priceValue:.45};
+ const weights=demandIsDiscriminating?{demand:.15,seasonality:.60,priceValue:.25}:{demand:0,seasonality:.70,priceValue:.30};
  const localMedian=new Map<string,number|null>();
  for(const [k,rows] of groups){
   const ps=rows.map(x=>x.price).filter((x):x is number=>typeof x==="number"&&x>0).sort((a,b)=>a-b);
@@ -87,7 +87,9 @@ function enrichIntelligence(products:Product[],targetMonth:number,catalogBySlug:
   const baseValue=median==null||p.price==null?52:Math.max(12,Math.min(100,Math.round((median/Math.max(1,p.price))*68)));
   const price=Math.max(10,Math.min(100,baseValue+(p.onSale?7:0)+(p.discount!=null&&p.discount>0?Math.min(10,Math.round(p.discount/5)):0)));
   const demand=normalizeDemand(p.demandScore);
-  const score=Math.round(demand*weights.demand+seasonal*weights.seasonality+price*weights.priceValue);
+  const rawScore=Math.round(demand*weights.demand+seasonal*weights.seasonality+price*weights.priceValue);
+  // A summer-biased stay must never win an autumn default merely through demand or discount.
+  const score=seasonal<55?Math.min(rawScore,59):seasonal<68?Math.min(rawScore,72):rawScore;
   const mapSignal:Product["mapSignal"]=score>=84?"ai":demand>=78&&demand>=seasonal&&demand>=price?"demand":seasonal>=76&&seasonal>=price?"seasonal":price>=76?"value":"explore";
   const tier:Product["starTier"]=score>=84?"gold":score>=66?"green":"blue";
   return{...p,intelligenceScore:score,seasonalScore:seasonal,priceScore:price,demandSignal:demand,mapSignal,starTier:tier};
@@ -101,7 +103,7 @@ function enrichIntelligence(products:Product[],targetMonth:number,catalogBySlug:
   const value=top.reduce((s,x)=>s+x.priceScore,0)/Math.max(1,top.length);
   return{key,rows,score,demand,seasonal,value};
  }).sort((a,b)=>b.score-a.score);
- const best=ranked[0];
+ const best=ranked.find(group=>group.seasonal>=68)??ranked[0];
  const focus=best?{
   latitude:best.rows.reduce((s,x)=>s+x.latitude,0)/best.rows.length,
   longitude:best.rows.reduce((s,x)=>s+x.longitude,0)/best.rows.length,
@@ -113,7 +115,7 @@ function enrichIntelligence(products:Product[],targetMonth:number,catalogBySlug:
   value:Math.round(best.value),
   reason:demandIsDiscriminating?"live demand + seasonality + local best value":"seasonality + local best value · demand signal not discriminating"
  }:null;
- return{products:enriched,focus,weights,ratingUpgrade:"Verified external ratings may refine trust display; map intelligence never invents ratings.",demandIsDiscriminating,targetMonth};
+ return{products:enriched.sort((a,b)=>b.intelligenceScore-a.intelligenceScore||b.seasonalScore-a.seasonalScore),focus,weights,ratingUpgrade:"Verified external ratings may refine trust display; map intelligence never invents ratings.",demandIsDiscriminating,targetMonth};
 }
 
 async function page(offset:number,limit:number){
@@ -121,7 +123,7 @@ async function page(offset:number,limit:number){
  const url=new URL("/rest/v1/stay_offers",base());
  url.searchParams.set("select","source_product_id,place_id,property_name,location_label,tracking_url,image_url,thumb_url,in_stock,availability,valid_to,on_sale,currency,price,full_price,discount,demand_proxy,stay_places!inner(id,property_name,location_label,address,city_raw,country_hint,latitude,longitude,category,hero_image_url,offer_count,min_price,currency,demand_score)");
  url.searchParams.set("tracking_url","not.is.null");
- url.searchParams.set("order","demand_proxy.desc.nullslast,price.asc.nullslast");
+ url.searchParams.set("order","source_product_id.asc");
  url.searchParams.set("limit",String(limit));
  url.searchParams.set("offset",String(offset));
  const response=await fetch(url,{headers:{apikey:serviceKey,Authorization:`Bearer ${serviceKey}`,accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(8500)});
@@ -159,7 +161,7 @@ export async function GET(request:Request){
    }
    return best?.slug??null;
   };
-  const rows:OfferRow[]=[],rowCeiling=quick?600:Math.max(limit*2,2000),offsetCeiling=quick?1000:3000;
+  const rows:OfferRow[]=[],rowCeiling=quick?600:Math.max(limit*2,3000),offsetCeiling=quick?1000:3000;
   for(let offset=0;offset<offsetCeiling&&rows.length<rowCeiling;offset+=1000){
    const batch=await page(offset,quick?600:1000);rows.push(...batch);if(batch.length<(quick?600:1000))break;
   }
@@ -182,9 +184,10 @@ export async function GET(request:Request){
     validTo:validTo||null,demandScore:num(row.demand_proxy)??num(place?.demand_score),trackingUrl,destinationSlug,
     intelligenceScore:0,seasonalScore:0,priceScore:0,demandSignal:0,mapSignal:"explore",starTier:"blue"
    });
-   if(products.length>=limit)break;
+   // Score the full eligible sample before truncation; DB order is not AI rank.
   }
   const intelligence=enrichIntelligence(products,targetMonth,catalogBySlug);
+  intelligence.products=intelligence.products.slice(0,limit);
   return NextResponse.json({
    version:50,
    source:"supabase-stay-offers",
