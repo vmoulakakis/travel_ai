@@ -172,8 +172,8 @@ export function V54FinalHome(){
   const f=mapIntelligence.focus,map=mapRef.current;
   setAiFocusLabel(`AI focus · ${f.label} · ${f.score}/100`);
   map.setView([38.35,23.45],6,{animate:false});
-  const timer=window.setTimeout(()=>map.flyTo([f.latitude,f.longitude],f.zoom,{duration:1.65,easeLinearity:.18}),260);
-  return()=>window.clearTimeout(timer);
+  // Keep the first view nationwide: never zoom into one area before the visitor chooses it.
+  return;
  },[mapIntelligence,mapReady]);
 
  useEffect(()=>{
