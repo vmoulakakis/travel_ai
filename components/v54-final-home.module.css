@@ -772,3 +772,19 @@
   :global(.v66StarDiscovery span){--pin-size:52px}
   :global(.v66StarDiscovery span::after){display:none}
 }
+
+
+/* TravelAI Cinematic Discovery v1 — progressive enhancement, no fake drone-source claim */
+.cinematicIntro{min-height:min(82svh,810px);position:relative;isolation:isolate;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;overflow:hidden;padding:clamp(42px,8vw,126px);gap:18px;background:#091d1a;color:#fff}
+.cinematicIntro:before{content:"";position:absolute;z-index:-2;inset:-3%;background:linear-gradient(0deg,rgba(2,20,17,.98) 0%,rgba(2,23,20,.23) 75%),linear-gradient(90deg,rgba(2,20,17,.7),transparent),url("https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=2000&q=85") center 48%/cover;animation:cinematicDrift 34s ease-in-out infinite alternate}
+.cinematicIntro:after{content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(120deg,rgba(5,35,31,.28),transparent 60%);pointer-events:none}
+.cinematicIntro>span{font-size:11px;letter-spacing:.24em;font-weight:700;color:#eecf95}
+.cinematicIntro>strong{font-family:Georgia,"Times New Roman",serif;font-size:clamp(45px,7.3vw,112px);font-weight:400;line-height:1.02;letter-spacing:-.055em;max-width:1000px;text-shadow:0 3px 30px #10251c}
+.cinematicIntro>p{font-size:clamp(15px,1.4vw,21px);line-height:1.6;max-width:660px;color:#edf3ef}
+.cinematicIntro>a{margin-top:12px;text-decoration:none;background:#efd19b;color:#122d25;padding:17px 25px;border-radius:2px;font-size:12px;font-weight:800;letter-spacing:.09em}
+.top50Controls{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin:15px 0;color:#e5d3af;font-size:12px;font-weight:700}
+.top50Controls button{background:rgba(239,209,155,.13);border:1px solid rgba(239,209,155,.48);color:#fff;border-radius:50px;padding:10px 15px;cursor:pointer;font-size:12px}
+.top50Controls button:hover,.top50Controls button:focus-visible{background:rgba(239,209,155,.25);outline:2px solid #efd19b;outline-offset:2px}
+@keyframes cinematicDrift{from{transform:scale(1.04) translate3d(-.5%,0,0)}to{transform:scale(1.17) translate3d(1.5%,-1%,0)}}
+@media (max-width:720px){.cinematicIntro{min-height:72svh;padding:60px 6vw 70px}.cinematicIntro>strong{font-size:clamp(44px,12.5vw,76px)}.cinematicIntro>span{font-size:9px}.cinematicIntro>p{font-size:15px}}
+@media (prefers-reduced-motion:reduce){.cinematicIntro:before{animation:none}}
