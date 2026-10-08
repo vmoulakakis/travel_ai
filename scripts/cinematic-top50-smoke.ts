@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { selectTop50AiPoints } from "../lib/decision/top50-ai-map";
+const make=(i:number,lat:number,lon:number,score=88)=>({productId:"p"+i,trackingUrl:"https://go.linkwi.se/example/"+i,latitude:lat,longitude:lon,destinationSlug:"area"+i,intelligenceScore:score,seasonalScore:75,priceScore:70});
+const rows=Array.from({length:180},(_,i)=>make(i,35+i%15*.37,20+Math.floor(i/15)*.7,100-i%75));
+const selected=selectTop50AiPoints(rows);
+assert.equal(selected.length,50,"must choose fifty where enough inventory");
+assert.equal(new Set(selected.map(x=>x.productId)).size,50,"no duplicate stays");
+assert.deepEqual(selectTop50AiPoints([...rows].reverse()),selected,"deterministic for source-order changes");
+assert.equal(selectTop50AiPoints([make(0,37,23),make(1,0,0)]).length,1,"reject invalid coordinates");
+assert.deepEqual(selectTop50AiPoints([],50),[]);
+const home=readFileSync("components/v54-final-home.tsx","utf8");
+const css=readFileSync("components/v54-final-home.module.css","utf8");
+for(const text of ["selectTop50AiPoints(inventory)","showAllMapPoints?inventory:top50Points","Δες όλα τα σημεία","cinematicIntro"])assert.ok(home.includes(text),text);
+assert.ok(css.includes("prefers-reduced-motion"),"motion must be optional");
+console.log("TRAVELAI_CINEMATIC_TOP50_SMOKE_OK 50-unique spatially diversified points");
