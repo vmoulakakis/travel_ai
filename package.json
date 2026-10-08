@@ -10,6 +10,7 @@
     "build": "node scripts/build-with-vercel-bootstrap.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test:cinematic:50": "node --import tsx scripts/cinematic-top50-smoke.ts",
     "test:v8": "node --import tsx scripts/v8-matcher-smoke.ts",
     "test:v9": "node --import tsx scripts/v9-continuity-smoke.ts",
     "test:v10": "node --import tsx scripts/v10-scenario-suite.ts",
