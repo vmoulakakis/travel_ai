@@ -44,7 +44,7 @@ export default function EscapeBookPage(){
  async function buildJourney(text?:string){
   setRunning(true);setError("");setSelected(null);
   try{
-   const response=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({userText:text||wish.trim()||`Θέλω ${mood} απόδραση στην Ελλάδα, ${start} έως ${end}, ${travelers==="couple"?"ζευγάρι":travelers==="family"?"οικογένεια":travelers==="friends"?"φίλοι":"μόνος/η"}, budget ${budget} EUR, αφετηρία ${origin}. Βρες 3 πραγματικά κατάλληλες εμπειρίες και διαμονές.`,origin,budget:Number(budget),filters:{calm:mood==="ηρεμία"?95:58,food:mood==="γαστρονομία"?95:65,nature:75,discovery:mood==="ανακάλυψη"?95:64,nightlife:22,value:75}})});
+   const response=await fetch("/api/v50/agent",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({userText:text||wish.trim()||`Θέλω ${mood} απόδραση στην Ελλάδα, ${start} έως ${end}, ${travelers==="couple"?"ζευγάρι":travelers==="family"?"οικογένεια":travelers==="friends"?"φίλοι":"μόνος/η"}, budget ${budget} EUR, αφετηρία ${origin}. Βρες 3 πραγματικά κατάλληλες εμπειρίες και διαμονές.`,origin,budget:Number(budget),answers:{dates:`${start} – ${end}`,companions:travelers,outcome:mood},filters:{calm:mood==="ηρεμία"?95:58,food:mood==="γαστρονομία"?95:65,nature:75,discovery:mood==="ανακάλυψη"?95:64,nightlife:22,value:75}})});
    const result=await response.json() as AgentResult;
    if(!response.ok||!result.ok)throw new Error("agent");
    if(result.solutions)result.solutions=result.solutions.filter(s=>!sameOrigin(origin,s.destination.name,inventory.find(x=>x.productId===s.stay.productId)?.destinationSlug));
