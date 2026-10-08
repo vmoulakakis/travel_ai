@@ -210,7 +210,8 @@ export function V54FinalHome(){
        <span><b>${Math.round(p.priceScore??0)}</b><small>Value</small></span>
       </div>
       ${ratingMarkup(rating)}
-      <small>Click to continue to the stay funnel</small>
+      <div class="v360TooltipMeta">${p.availability==="confirmed-active"?"Το feed αναφέρει ενεργό απόθεμα":"Διαθεσιμότητα: επιβεβαίωση στον πάροχο"} · ${p.validTo?"Ισχύς feed έως "+html(p.validTo):"Χωρίς επιβεβαιωμένη λήξη"}</div>
+      <small>Πάτησε για πλήρη περιγραφή και επιλογές κράτησης</small>
      </div>`;
    };
    const loadRating=async(p:Stay,marker:any,rank:number|null)=>{
@@ -243,12 +244,13 @@ export function V54FinalHome(){
     const score=Math.max(0,Math.min(100,p.intelligenceScore??50));
     const isDiscovery=!rank&&score>=82&&(p.seasonalScore??0)>=70&&(p.priceScore??0)>=68;
     const signal=rank&&rank<=5?"ai":isDiscovery?"discovery":p.mapSignal??"explore";
+    const pinGlyph=signal==="ai"?"✦":signal==="discovery"?"◆":signal==="seasonal"?"❋":signal==="value"?"€":signal==="demand"?"▲":"•";
     const size=signal==="discovery"?58:score>=86?48:score>=76?41:score>=64?34:27;
     const className=signal==="ai"?"v65StarAi":signal==="discovery"?"v66StarDiscovery":signal==="demand"?"v65StarDemand":signal==="seasonal"?"v65StarSeasonal":signal==="value"?"v65StarValue":"v65StarExplore";
     const marker=L.marker([p.latitude,p.longitude],{
       icon:L.divIcon({
        className,
-       html:rank&&rank<=5?`<span style="--pin-size:${size}px">★<small>#${rank}</small></span>`:`<span style="--pin-size:${size}px">★</span>`,
+       html:rank&&rank<=5?`<span style="--pin-size:${size}px">${pinGlyph}<small>#${rank}</small></span>`:`<span style="--pin-size:${size}px">${pinGlyph}</span>`,
        iconSize:[size,size],iconAnchor:[Math.round(size/2),Math.round(size/2)]
       }),
       zIndexOffset:signal==="ai"?1900-(rank??20):signal==="discovery"?1650:signal==="demand"?1200:signal==="seasonal"?950:signal==="value"?800:300
