@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";import{readFileSync}from"node:fs";
+const x=readFileSync("components/v54-final-home.tsx","utf8"),css=readFileSync("components/v54-final-home.module.css","utf8");
+assert.ok(x.includes('const pinGlyph="★"'),"pins must use star glyphs only");
+assert.ok(!x.includes('signal==="value"?"€"'),"no currency markers");
+assert.ok(x.includes("AI Travel 360 Explorer"),"contextual agent heading");
+assert.ok(x.includes("360° ταξιδιωτική νοημοσύνη"),"360 hero copy");
+assert.ok(!x.includes('window.location.href="https://travelaigreece.vercel.app"'),"Greece Unseen stays in contextual flow");
+assert.ok(!x.includes("Scanning verified ratings…"),"avoid sticky scanning text");
+assert.ok(css.includes("V68: semantic ranking stars"),"tier stylesheet exists");
+console.log("TRAVELAI_CINEMATIC_STARS_AGENT_SMOKE_OK");
