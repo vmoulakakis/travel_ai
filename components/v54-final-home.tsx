@@ -214,11 +214,12 @@ export function V54FinalHome(){
    };
    const loadRating=async(p:Stay,marker:any,rank:number|null)=>{
     if(ratingCache.current.has(p.productId)){marker.setTooltipContent(tooltipFor(p,rank,ratingCache.current.get(p.productId)));return}
-    if(ratingPending.current.has(p.productId)||!p.destinationSlug)return;
+    if(ratingPending.current.has(p.productId))return;
+     if(!p.destinationSlug){ratingCache.current.set(p.productId,null);marker.setTooltipContent(tooltipFor(p,rank,null));return;}
     ratingPending.current.add(p.productId);
     marker.setTooltipContent(tooltipFor(p,rank,undefined));
     const mediaBody={propertyName:p.name,sourceProductId:p.productId,destinationSlug:p.destinationSlug,destinationName:p.location||p.address||destination,latitude:p.latitude,longitude:p.longitude};
-    void fetch("/api/v50/stay-media",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(mediaBody)})
+    void fetch("/api/v50/stay-media",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(mediaBody),signal:AbortSignal.timeout(6500)})
      .then(r=>r.json()).then(j=>{const url=j?.ok?j?.result?.photoUrl:null;if(url)setVerifiedPhotos(v=>({...v,[p.productId]:url}))}).catch(()=>{});
     try{
      const r=await fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
