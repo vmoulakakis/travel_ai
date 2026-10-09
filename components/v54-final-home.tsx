@@ -69,30 +69,27 @@ export function V54FinalHome(){
 
  useEffect(()=>{
   let cancelled=false;
-  fetch(`/api/v50/map-stays?mode=quick&limit=24&start=${encodeURIComponent(start)}`,{cache:"no-store"}).then(r=>r.json()).then(m=>{
-   if(!cancelled&&Array.isArray(m.products)&&m.products.length){setInventory(m.products);if(m.mapIntelligence)setMapIntelligence(m.mapIntelligence)}
-  }).catch(()=>{});
   fetch("/api/v50/hero-media",{cache:"no-store"}).then(r=>r.json()).then(h=>{
    if(!cancelled)setHeroMedia(Array.isArray(h.items)?h.items:[]);
-  }).catch(()=>{});
-  fetch(`/api/v50/map-stays?limit=2000&start=${encodeURIComponent(start)}`,{cache:"no-store"}).then(r=>r.json()).then(m=>{
-   if(!cancelled&&Array.isArray(m.products)&&m.products.length){setInventory(m.products);if(m.mapIntelligence)setMapIntelligence(m.mapIntelligence)}
   }).catch(()=>{});
   return()=>{cancelled=true};
  },[]);
 
  useEffect(()=>{
   let cancelled=false;
-  fetch(`/api/v50/map-stays?mode=quick&limit=24&start=${encodeURIComponent(start)}`,{cache:"no-store"})
-   .then(r=>r.json()).then(m=>{
+  // The Top 100 must always be chosen from the full inventory, never the 24-row preview.
+  fetch(`/api/v50/map-stays?limit=2000&start=${encodeURIComponent(start)}`,{cache:"no-store"})
+   .then(r=>{if(!r.ok)throw new Error("map_catalog_unavailable");return r.json()})
+   .then(m=>{
     if(cancelled)return;
-    if(m.mapIntelligence){
-     initialAiFocusDone.current=false;
-     setMapIntelligence(m.mapIntelligence);
-     const f=m.mapIntelligence.focus;
-     if(f)setAiFocusLabel(`AI focus · ${f.label} · ${f.score}/100`);
+    if(Array.isArray(m.products)&&m.products.length>=100){
+     setInventory(m.products);
+     if(m.mapIntelligence)setMapIntelligence(m.mapIntelligence);
+    }else{
+     setInventory([]);
+     setAgentMessage("Δεν είναι διαθέσιμες 100 επιβεβαιωμένες εγγραφές καταλόγου. Δοκίμασε ξανά αργότερα.");
     }
-   }).catch(()=>{});
+   }).catch(()=>{if(!cancelled){setInventory([]);setAgentMessage("Προσωρινό πρόβλημα φόρτωσης της βάσης TravelAI. Δεν εμφανίζονται αυθαίρετες προτάσεις.");}});
   return()=>{cancelled=true};
  },[start]);
 
