@@ -16,6 +16,7 @@ import { assessStayAvailabilityV20 } from "@/lib/decision/stay-availability-v20"
 import { seasonalStayFit } from "@/lib/decision/stay-seasonality-v66";
 import { createLLMRequestBudgetV16,generateJsonWithRoutingV16 } from "@/lib/ai/model-router-v9";
 import type { V8Recommendation,V8StayOffer } from "@/lib/decision/v8-types";
+import { weekendFrictionChecksV71 } from "@/lib/ai/travel-weekend-friction-v71";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -224,6 +225,11 @@ async function fallbackViaV42(request:Request,trip:ReturnType<typeof buildV50Tri
             slug:item.destination.slug,
             name:item.destination.name,
             regionGroup:d?.regionGroup??"",
+            friction:weekendFrictionChecksV71(trip,{
+              slug:item.destination.slug,regionGroup:d?.regionGroup??"",
+              routeConfidence:d?.routeConfidence??0,
+              effortAthens:d?.effortAthens,effortThessaloniki:d?.effortThessaloniki
+            },2),
             latitude:d?.latitude??0,
             longitude:d?.longitude??0,
             explorationRole:"verified-failover",
@@ -371,6 +377,12 @@ export async function POST(request:Request){
             effortLabel:destination.effortLabel,
             budgetLabel:destination.budgetLabel,
             tags:destination.tags,
+            friction:weekendFrictionChecksV71(trip,{
+              slug:destination.slug,regionGroup:destination.regionGroup,
+              routeConfidence:destination.routeConfidence,
+              effortAthens:catalogBySlug.get(destination.slug)?.effortAthens,
+              effortThessaloniki:catalogBySlug.get(destination.slug)?.effortThessaloniki
+            },2),
             weather:destination.weather??null
           },
           stay:{
