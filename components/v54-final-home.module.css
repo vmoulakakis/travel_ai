@@ -808,3 +808,5 @@
 :global(.v360Insight b){font-size:9px;font-weight:850;margin-top:4px}
 :global(.v360Insight span){font-size:10px;line-height:1.45;overflow-wrap:anywhere}
 :global(.v360Insight small){font-size:8px;line-height:1.35;color:#6c8579;border-top:1px solid #dcebe5;padding-top:6px;margin-top:4px}
+
+:global(.v56Tooltip .leaflet-tooltip-content),:global(.v56MapTip){max-height:min(70dvh,520px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
