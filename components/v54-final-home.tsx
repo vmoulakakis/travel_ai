@@ -85,6 +85,7 @@ export function V54FinalHome(){
     if(Array.isArray(m.products)&&m.products.length>=100){
      setInventory(m.products);
      if(m.mapIntelligence)setMapIntelligence(m.mapIntelligence);
+     if(m.fullUniverse===false)setAgentMessage(`Το διαθέσιμο feed επέστρεψε ${m.products.length} καταλύματα, όχι ολόκληρη τη βάση. Εμφανίζονται 100 επιλεγμένα από αυτό το δείγμα.`);
     }else{
      setInventory([]);
      setAgentMessage("Δεν είναι διαθέσιμες 100 επιβεβαιωμένες εγγραφές καταλόγου. Δοκίμασε ξανά αργότερα.");
@@ -341,7 +342,7 @@ export function V54FinalHome(){
     </div>
     <div className={styles.top50Controls}><span>✦ {showAllMapPoints?`${inventory.length} καταλύματα`:`${top100Points.length} υποψήφια AI σημεία`} · {showAllMapPoints?"Πλήρης εξερεύνηση":"Προεπιλεγμένη επιλογή"}</span><button type="button" aria-pressed={showAllMapPoints} onClick={()=>setShowAllMapPoints(v=>!v)}>{showAllMapPoints?"Εμφάνιση Top 100":"Δες όλα τα σημεία"} ↗</button></div>
     <div className={styles.mapAiFlow}>
-     <span>{inventory.length?`Επιλογή από ${inventory.length.toLocaleString("el-GR")} διαθέσιμες εγγραφές`:"Φόρτωση καταλόγου"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
+     <span>{inventory.length?`Αξιολόγηση ${inventory.length.toLocaleString("el-GR")} καταχωρισμένων καταλυμάτων`:"Φόρτωση καταλόγου"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
     </div>
    </div>
    <div className={styles.mapStage}>
