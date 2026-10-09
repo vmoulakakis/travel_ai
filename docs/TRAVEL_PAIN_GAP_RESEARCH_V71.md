@@ -102,3 +102,35 @@ Priority 0–100 = 30% validated first-party demand + 25% severity + 20% coverag
 
 ## Implementation boundary
 This document and query matrix are committed on a dedicated GitHub branch for review. **No production Supabase tables, jobs, rows, model budgets, crawler connections or public SEO pages have been modified**. Next implementation step: create a reviewed V71 additive migration for permitted signal provenance + query clusters; pilot 10 weekend destinations; measure actual citations and correction rate before any auto-enrichment.
+
+## 9. V71 demand integrity audit — 2026-10-09
+
+**Do NOT equate any of these fields with measured traveler search demand.**
+- `travel_destination_nodes_v46.demand_score`: 574 rows, 569 equal to 100, 5 above 100 (max approx. 166.67); near-total saturation means the number cannot meaningfully rank travel interest.
+- `stay_places.demand_score`: 1,625 rows, 1,622 equal to 100; remaining 3 equal to 200. This proxy does not reliably distinguish traveler popularity.
+- `destination_supply_signals.demand_score`: 631 rows, 384 equal to 100, max 5,300. This is a supply/feed proxy aggregate, not Google query volume.
+- **Important distinction**: the current `app/api/v50/map-stays/route.ts` already tests within-sample 10th/90th percentiles and sets demand weight to 0 if there is no meaningful variation. Preserve that guard. The V71 homepage copy change now prints *n/a* instead of an implied demand value in that case and hides the Demand legend.
+- Do not rescale 100->higher number, invent a multiplier, or optimize affiliate feed volume as organic demand.
+
+### Source-backed demand roadmap
+Use at least two independent measurement families, with different names:
+1. `first_party_search_demand`: actual GSC impressions/clicks and query/page dimensions, with sampling and lag caveats.
+2. `product_interest_signals`: first-party searches, explicit selected destinations, confirmed conversions if available; normalized per exposure. An impression alone is not a conversion.
+3. `supplier_coverage`: count of inventory stays and eligible offers; never call this visitor demand.
+4. `seasonal_context`: public tourism statistics and relative Trends; label the period, geography, and measurement type.
+Keep raw signals with provenance and timestamps, audit for score saturation, use a minimum observation threshold, then rank product opportunity (not traveler destination fitness). If GSC is unavailable, declare search demand **unknown**.
+
+### Next six locality candidates to research (NOT approved/indexable)
+Existing `travel_destination_nodes_v46` locality rows are marked research-ready but `publication_gate=research-required`. These are chosen for a mixture of existing accommodation coverage and year-round weekend question potential, *not* because any demand metric proves traffic:
+- **Βόλος** — 13 stay places; pair with Pelion and no-car/route comparisons.
+- **Δελφοί** — 9 stay places; site opening-hour/date check.
+- **Ξυλόκαστρο** — 8 stay places; budget 1–2 night travel from Athens.
+- **Ερέτρια** — 7 stay places; car-free access and seasonal activities.
+- **Καλάβρυτα** — 7 stay places; train, mountain weather, family accessibility research.
+- **Μυστράς** — 6 stay places; archaeological-site stairs/opening-hour verification.
+Use the canonical node keys to resolve these as parent/microplaces before any publishing. Do not create duplicate canonical slugs or mass-generate thin search pages.
+
+### Recent policy references
+- Commercial AI/Reddit reuse restrictions: https://support.reddithelp.com/hc/en-us/articles/14945211791892-Developer-Platform-Accessing-Reddit-Data
+- Google scaled-content/doorway policies: https://developers.google.com/search/docs/essentials/spam-policies
+- Google Search Console API caveats: https://developers.google.com/webmaster-tools/v1/how-tos/all-your-data
