@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";import {readFileSync} from "node:fs";import {selectTop100AiPoints} from "../lib/decision/top100-ai-map";
+const home=readFileSync("components/v54-final-home.tsx","utf8");
+assert.ok(!home.includes("<div className={styles.mapFocusCard}>"),"no overlapping forced area card");
+assert.ok(home.includes("selectedMapStay??(solutions.length?"),"no hotel auto-selection");
+assert.ok(!home.includes("map-stays?mode=quick&limit=24"),"never rank top 100 from quick sample");
+assert.ok(home.includes("limit=2000"),"request full inventory");
+assert.ok(home.includes("fullUniverse===false"),"show incomplete feed status");
+const rows=Array.from({length:1630},(_,i)=>({productId:`stay-${i}`,destinationSlug:`city-${i%120}`,latitude:37+(i%100)*.00001,longitude:23+(i%100)*.00001,trackingUrl:`https://go.linkwi.se/stay-${i}`,intelligenceScore:80,seasonalScore:75,priceScore:70}));
+assert.equal(selectTop100AiPoints(rows).length,100,"fill exactly 100 from dense 1630-place source");
+console.log("TRAVELAI_TOP100_TRUST_UI_REGRESSION_OK");
