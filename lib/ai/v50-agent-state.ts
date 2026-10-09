@@ -36,6 +36,7 @@ export type V50ConversationInterpretation={
   terrainIntent:"mountain"|null;
   avoid:"long-travel"|"high-cost"|"crowds"|"none";
   distancePreference:"nearby"|"easy-hop"|"island"|"any";
+  transportMode?:TripRequest["transportMode"];
   moods:TripRequest["moods"];
   confidence:number;
   signals:string[];
@@ -43,6 +44,29 @@ export type V50ConversationInterpretation={
 
 const defaultFilters:V50Filters={calm:60,food:55,nature:55,discovery:55,nightlife:35,value:60};
 const norm=(s:string)=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+/**
+ * Parse only explicit transport commitments. In particular, car-free travel is
+ * a hard user constraint and must not be silently replaced with "any".
+ * Later mentions win, allowing conversation corrections.
+ */
+export function inferTransportModeV71(text:string):TripRequest["transportMode"]{
+ const s=norm(text);
+ const patterns:Array<[TripRequest["transportMode"],RegExp]>= [
+  ["no-car",/χωρις\s+(?:δικο\s+μου\s+)?(?:αυτοκινητ\w*|αμαξ\w*|ιχ)|δεν\s+(?:εχω|θελω)\s+(?:αυτοκινητ\w*|αμαξ\w*)|δεν\s+θελω\s+να\s+οδηγησω|χωρις\s+να\s+οδηγησω|(?:no\s+car|without\s+(?:a\s+)?car|without\s+driving|public\s+transport\s+only|not\s+driving)|(?:xoris|xwris|horis)\s+(?:autokinito|amaxi|amaksi)|με\s+κτελ|με\s+λεωφορειο/gi],
+  ["car",/με\s+(?:το\s+)?(?:δικο\s+μου\s+)?(?:αυτοκινητ\w*|αμαξ\w*)|θα\s+οδηγησω|οδικως|(?:with\s+(?:my\s+)?car|by\s+car|driving\s+there|rent\s+a\s+car)/gi],
+  ["electric-car",/ηλεκτρικ\w*\s+(?:αυτοκινητ\w*|αμαξ\w*)|με\s+ev|(?:electric\s+car|electric\s+vehicle|driving\s+ev|with\s+an?\s+ev)/gi]
+ ];
+ const found:Array<{mode:TripRequest["transportMode"];index:number}>=[];
+ for(const [mode,re] of patterns)for(const match of s.matchAll(re))
+  found.push({mode,index:match.index??0});
+ found.sort((a,b)=>a.index-b.index);
+ const selected=found.length?found[found.length-1].mode:"any";
+ // Double negation means the user does NOT agree to travel without a car.
+ if(selected==="no-car"&&/δεν\s+(?:θελω|μπορω)\s+(?:να\s+)?(?:παω|ταξιδεψω)?\s*χωρις\s+(?:αυτοκινητ\w*|αμαξ\w*)/.test(s))
+  return "car";
+ return selected;
+}
+
 const iso=(d:Date)=>d.toISOString().slice(0,10);
 const validDate=(d:Date)=>Number.isFinite(d.getTime());
 const weekendRe=/(^|[\s,.;:!?])σκ($|[\s,.;:!?])|σαββατοκυριακ|weekend/i;
@@ -225,6 +249,7 @@ export function interpretV50Conversation(input:V50ConversationInput,now=new Date
   const terrainIntent=/βουν|ορειν|mountain|chalet|σαλε/i.test(norm(compactText))?"mountain" as const:null;
   const avoid=inferAvoid(compactText,input.answers?.friction,filters);
   const distancePreference=inferDistance(input.answers?.friction,compactText);
+  const transportMode=inferTransportModeV71([input.answers?.friction??"",compactText].filter(Boolean).join(" · "));
   const moods=inferMoods(compactText,filters);
   const signals=[
     dates?"dates":"",
@@ -233,13 +258,14 @@ export function interpretV50Conversation(input:V50ConversationInput,now=new Date
     socialPreference!=="balanced"?"social":"",
     noveltyPreference==="surprise"?"novelty":"",
     mustHave!=="none"?"must-have":"",
-    avoid!=="none"||distancePreference!=="any"?"friction":""
+    avoid!=="none"||distancePreference!=="any"?"friction":"",
+    transportMode!=="any"?"transport":""
   ].filter(Boolean);
   const confidence=Math.min(.96,.48+signals.length*.075);
   return{
     compactText,startDate:dates?.startDate??null,endDate:dates?.endDate??null,nights:dates?.nights??null,
     weekend:dates?.weekend??false,flexibleDates:dates?.flexible??false,travelerType,desiredEnergy,socialPreference,
-    noveltyPreference,mustHave,terrainIntent,avoid,distancePreference,moods,confidence,signals
+    noveltyPreference,mustHave,terrainIntent,avoid,distancePreference,transportMode,moods,confidence,signals
   };
 }
 
@@ -271,7 +297,7 @@ export function buildV50Trip(input:V50ConversationInput,x:V50ConversationInterpr
     hotelStyle:filters.value>=82?"value":"any",avoid:x.avoid,entryMode:"idea",
     groupSize:x.travelerType==="solo"?1:x.travelerType==="couple"?2:4,desiredEnergy:x.desiredEnergy,
     socialPreference:x.socialPreference,noveltyPreference:x.noveltyPreference,mustHave:x.mustHave,
-    dateFlexibility:x.flexibleDates?"few-days":"fixed",transportMode:"any",
+    dateFlexibility:x.flexibleDates?"few-days":"fixed",transportMode:x.transportMode??"any",
     stayLocationPreference:x.socialPreference==="quiet"?"outside":"balanced",
     ...(hasDestination?{consideredDestination:destination}:{}),
     tripText:x.compactText.slice(0,320)
