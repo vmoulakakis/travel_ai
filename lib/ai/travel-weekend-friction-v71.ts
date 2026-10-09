@@ -9,7 +9,7 @@ import type { V8Recommendation } from "@/lib/decision/v8-types";
 export type FrictionKey =
   | "return-transport" | "last-mile" | "weekend-hours" | "seasonal-opening"
   | "whole-trip-budget" | "rain-plan" | "family-access" | "ev-charging"
-  | "ferry-check" | "airport-transfer";
+  | "ferry-check" | "airport-transfer" | "local-access";
 
 export type WeekendFrictionCheck = {
   key: FrictionKey;
@@ -20,6 +20,7 @@ export type WeekendFrictionCheck = {
   nextStepEl: string;
   nextStepEn: string;
   verificationSource: "operator" | "official-attraction" | "quoted-costs" | "weather" | "property";
+  contextSourceUrl?: string; // Links are contextual references, not confirmation of current availability.
 };
 
 export type WeekendFrictionSummary = {
@@ -43,9 +44,81 @@ function effortForOrigin(trip: Request, place: Place): string | null {
 }
 
 function entry(key:FrictionKey, priority:"high"|"medium", messageEl:string,messageEn:string,
-  nextStepEl:string,nextStepEn:string,verificationSource:WeekendFrictionCheck["verificationSource"]):WeekendFrictionCheck {
-  return {key,priority,status:"not-verified",messageEl,messageEn,nextStepEl,nextStepEn,verificationSource};
+  nextStepEl:string,nextStepEn:string,verificationSource:WeekendFrictionCheck["verificationSource"],contextSourceUrl?:string):WeekendFrictionCheck {
+  return {key,priority,status:"not-verified",messageEl,messageEn,nextStepEl,nextStepEn,verificationSource,
+    ...(contextSourceUrl?{contextSourceUrl}:{})};
 }
+
+/**
+ * Manually researched destination pain briefs. These sources establish geography
+ * or general site context only, NEVER live transport, hours or entry availability.
+ * Each line below is original editorial guidance, not scraped review content.
+ */
+const PILOT_RESEARCH:Record<string,{el:string;en:string;actionEl:string;actionEn:string;url:string}>={
+  "zagori":{
+    el:"Τα χωριά και τα γεφύρια απλώνονται σε διαφορετικές ορεινές διαδρομές.",
+    en:"Villages and stone bridges are spread across different mountain routes.",
+    actionEl:"Διάλεξε μία βάση και έλεγξε πραγματικές διαδρομές ανάμεσα στα σημεία.",
+    actionEn:"Choose a base village and verify real connections between stops.",
+    url:"https://whc.unesco.org/en/list/1695/"
+  },
+  "meteora":{
+    el:"Τα μοναστήρια δεν έχουν ένα κοινό ωράριο επίσκεψης.",
+    en:"The monasteries do not share one universal visiting schedule.",
+    actionEl:"Επιβεβαίωσε ξεχωριστά ώρες, κλειστές ημέρες και σκαλιά του μοναστηριού.",
+    actionEn:"Verify each monastery's visiting days, times and steps.",
+    url:"https://meteora.com/meteora-monasteries-opening-hours/"
+  },
+  "pelion":{
+    el:"Το Πήλιο συνδυάζει πολλά χωριά και εμπειρίες που απαιτούν επιλογή διαδρομής.",
+    en:"Pelion covers villages and experiences that require a realistic route choice.",
+    actionEl:"Επίλεξε 1–2 κοντινά χωριά την ημέρα αντί να προσπαθήσεις όλο το Πήλιο.",
+    actionEn:"Choose one or two nearby villages per day rather than the entire peninsula.",
+    url:"https://www.discovergreece.com/travel-ideas/article/autumn-holidays-greece"
+  },
+  "nafplio":{
+    el:"Το Παλαμήδι έχει επίπονη ανάβαση από τα σκαλιά, αλλά και οδική πρόσβαση.",
+    en:"Palamidi involves a steep staircase approach, while road access also exists.",
+    actionEl:"Επίλεξε τη σωστή πρόσβαση για την παρέα σου και έλεγξε το ωράριο.",
+    actionEn:"Choose the right access for your group and verify opening hours.",
+    url:"https://www.visitgreece.gr/en/experiences/culture/fortifications/palamidi"
+  },
+  "monemvasia":{
+    el:"Η Καστροπολιτεία έχει πύλη εισόδου και στενά πλακόστρωτα σοκάκια.",
+    en:"Monemvasia's castle town has a main gate and narrow cobbled lanes.",
+    actionEl:"Πριν κλείσεις, έλεγξε μεταφορά αποσκευών και προσβασιμότητα καταλύματος.",
+    actionEn:"Check luggage access and accommodation accessibility before booking.",
+    url:"https://www.visitgreece.gr/en/experiences/culture/archaeological-sites-monuments/the-castle-town-of-monemvasia"
+  },
+  "nafpaktos":{
+    el:"Το κάστρο βρίσκεται πάνω από το λιμάνι, άρα η ανάβαση επηρεάζει τον ρυθμό.",
+    en:"The castle rises above the port, so the uphill visit affects pacing.",
+    actionEl:"Σύγκρινε την πεζή ανάβαση με την πρόσβαση από τον δρόμο.",
+    actionEn:"Compare the uphill walk with road access.",
+    url:"https://www.visitgreece.gr/en/experiences/culture/archaeological-sites-monuments/the-venetian-port-and-castle-of-nafpaktos"
+  },
+  "syros":{
+    el:"Η Άνω Σύρος έχει ανηφορικά σοκάκια και σκαλοπάτια.",
+    en:"Ano Syros has uphill lanes and stairways.",
+    actionEl:"Υπολόγισε αν προτιμάς βάση Ερμούπολη και ποια σημεία είναι εύκολα με τα πόδια.",
+    actionEn:"Consider an Ermoupoli base and check walking effort for key sights.",
+    url:"https://www.visitgreece.gr/en/islands/aegean/syros"
+  },
+  "samothrace":{
+    el:"Η πρόσβαση στη Σαμοθράκη απαιτεί συνδυασμό μεταφορών μέσω Αλεξανδρούπολης.",
+    en:"Reaching Samothrace involves connecting transport via Alexandroupolis.",
+    actionEl:"Επιβεβαίωσε αεροπορική/οδική πρόσβαση, πλοίο και επιστροφή ως ενιαίο ταξίδι.",
+    actionEn:"Verify flight or road access, sailing and return as one trip.",
+    url:"https://www.visitgreece.gr/en/mainland/islands/samothrace"
+  },
+  "paxos":{
+    el:"Οι παραλίες και οι οικισμοί των Παξών χρειάζονται επιλογή τοπικής μετακίνησης.",
+    en:"Paxos beaches and villages need a thought-through local transport plan.",
+    actionEl:"Έλεγξε πρόσβαση σε διαμονή και σημεία ενδιαφέροντος χωρίς ακριβό ταξί.",
+    actionEn:"Check local access to stays and sights without relying on expensive taxis.",
+    url:"https://www.visitgreece.gr/en/experiences/culture/local-traditions/beaches-of-paxi"
+  }
+};
 
 export function weekendFrictionChecksV71(trip:Request, place:Place, limit=3):WeekendFrictionSummary {
   const checks:WeekendFrictionCheck[]=[];
@@ -55,6 +128,10 @@ export function weekendFrictionChecksV71(trip:Request, place:Place, limit=3):Wee
   const months=[Number(trip.startDate.slice(5,7)),Number(trip.endDate.slice(5,7))];
   const shoulderOrWinter=months.some(m=>m<=4||m>=10);
   const shortTrip=trip.nights<=2;
+
+  const pilot=PILOT_RESEARCH[place.slug];
+  if(pilot)add(entry("local-access","high",pilot.el,pilot.en,pilot.actionEl,pilot.actionEn,
+    "official-attraction",pilot.url));
 
   if(effort?.startsWith("ferry"))add(entry("ferry-check","high",
     "Η ακτοπλοϊκή σύνδεση χρειάζεται επιβεβαίωση για το συγκεκριμένο ΣΚ.",
