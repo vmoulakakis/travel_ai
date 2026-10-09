@@ -52,17 +52,17 @@ const norm=(s:string)=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]
 export function inferTransportModeV71(text:string):TripRequest["transportMode"]{
  const s=norm(text);
  const patterns:Array<[TripRequest["transportMode"],RegExp]>= [
-  ["no-car",/χωρις\\s+(?:δικο\\s+μου\\s+)?(?:αυτοκινητ\\w*|αμαξ\\w*|ιχ)|δεν\\s+(?:εχω|θελω)\\s+(?:αυτοκινητ\\w*|αμαξ\\w*)|δεν\\s+θελω\\s+να\\s+οδηγησω|χωρις\\s+να\\s+οδηγησω|(?:no\\s+car|without\\s+(?:a\\s+)?car|without\\s+driving|public\\s+transport\\s+only|not\\s+driving)|(?:xoris|xwris|horis)\\s+(?:autokinito|amaxi|amaksi)|με\\s+κτελ|με\\s+λεωφορειο/gi],
-  ["car",/με\\s+(?:το\\s+)?(?:δικο\\s+μου\\s+)?(?:αυτοκινητ\\w*|αμαξ\\w*)|θα\\s+οδηγησω|οδικως|(?:with\\s+(?:my\\s+)?car|by\\s+car|driving\\s+there|rent\\s+a\\s+car)/gi],
-  ["electric-car",/ηλεκτρικ\\w*\\s+(?:αυτοκινητ\\w*|αμαξ\\w*)|με\\s+ev|(?:electric\\s+car|electric\\s+vehicle|driving\\s+ev|with\\s+an?\\s+ev)/gi]
+  ["no-car",/χωρις\s+(?:δικο\s+μου\s+)?(?:αυτοκινητ\w*|αμαξ\w*|ιχ)|δεν\s+(?:εχω|θελω)\s+(?:αυτοκινητ\w*|αμαξ\w*)|δεν\s+θελω\s+να\s+οδηγησω|χωρις\s+να\s+οδηγησω|(?:no\s+car|without\s+(?:a\s+)?car|without\s+driving|public\s+transport\s+only|not\s+driving)|(?:xoris|xwris|horis)\s+(?:autokinito|amaxi|amaksi)|με\s+κτελ|με\s+λεωφορειο/gi],
+  ["car",/με\s+(?:το\s+)?(?:δικο\s+μου\s+)?(?:αυτοκινητ\w*|αμαξ\w*)|θα\s+οδηγησω|οδικως|(?:with\s+(?:my\s+)?car|by\s+car|driving\s+there|rent\s+a\s+car)/gi],
+  ["electric-car",/ηλεκτρικ\w*\s+(?:αυτοκινητ\w*|αμαξ\w*)|με\s+ev|(?:electric\s+car|electric\s+vehicle|driving\s+ev|with\s+an?\s+ev)/gi]
  ];
  const found:Array<{mode:TripRequest["transportMode"];index:number}>=[];
  for(const [mode,re] of patterns)for(const match of s.matchAll(re))
   found.push({mode,index:match.index??0});
  found.sort((a,b)=>a.index-b.index);
- const selected=found.at(-1)?.mode??"any";
+ const selected=found.length?found[found.length-1].mode:"any";
  // Double negation means the user does NOT agree to travel without a car.
- if(selected==="no-car"&&/δεν\\s+(?:θελω|μπορω)\\s+(?:να\\s+)?(?:παω|ταξιδεψω)?\\s*χωρις\\s+(?:αυτοκινητ\\w*|αμαξ\\w*)/.test(s))
+ if(selected==="no-car"&&/δεν\s+(?:θελω|μπορω)\s+(?:να\s+)?(?:παω|ταξιδεψω)?\s*χωρις\s+(?:αυτοκινητ\w*|αμαξ\w*)/.test(s))
   return "car";
  return selected;
 }
