@@ -57,4 +57,13 @@ const trip:TripRequest={
  assert(!out.checks.some(x=>x.key==="seasonal-opening"),"No generic winter notice in summer");
  assert.equal(out.evidenceStatus,"pre-booking-checks-not-live-verification");
 }
+{
+ const out=weekendFrictionChecksV71({...trip,transportMode:"car",moods:["culture"]},{
+  slug:"meteora",regionGroup:"thessaly",routeConfidence:.95,
+  effortAthens:"road-medium",effortThessaloniki:"road-medium"
+ });
+ assert.equal(out.checks[0]?.key,"local-access","Research-backed local pain brief should be prioritized");
+ assert(out.checks[0]?.contextSourceUrl?.startsWith("https://meteora.com/"));
+ assert(out.checks.every(x=>x.status==="not-verified"),"Context source cannot certify current hours");
+}
 console.log("v71-weekend-friction-smoke: ok");
