@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import {mapTravelInsight} from "../lib/decision/stay-map-insights";
+import {readFileSync} from "node:fs";
+const nevros=mapTravelInsight({name:"Nevros Hotel Resort & Spa",location:"Νεοχώρι Λίμνη Πλαστήρα",category:"hotel"},10);
+assert.match(nevros.bestSeason,/φθινόπωρο/);
+assert.match(nevros.experience,/Πλαστήρα/);
+assert.match(nevros.basis,/όχι πρόγνωση/);
+const unknown=mapTravelInsight({name:"Generic Stay",location:"Unknown"},10);
+assert.ok(!unknown.experience.includes("Πλαστήρα"));
+const home=readFileSync("components/v54-final-home.tsx","utf8");
+assert.ok(home.includes("mapTravelInsight(p,"),"insight called for map cards");
+assert.ok(home.includes("Καλύτερη περίοδος")&&home.includes("Τι αξίζει στην περιοχή"));
+console.log("TRAVELAI_360_MAP_INSIGHTS_SMOKE_OK");

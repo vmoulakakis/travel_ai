@@ -1,3 +1,4 @@
+import {mapTravelInsight} from "@/lib/decision/stay-map-insights";
 "use client";
 
 import { useEffect,useMemo,useRef,useState } from "react";
@@ -195,6 +196,7 @@ export function V54FinalHome(){
    const tooltipFor=(p:Stay,rank:number|null,rating:QuickRating|null|undefined)=>{
     const signal=rank?"AI SPOTLIGHT":p.mapSignal==="discovery"?"TRAVELAI DISCOVERY":p.mapSignal==="demand"?"HIGH DEMAND":p.mapSignal==="seasonal"?"SEASONAL FIT":p.mapSignal==="value"?"BEST VALUE":"EXPLORE";
     const propertyPhoto=p.imageUrl??rating?.photoUrl;
+     const insight=mapTravelInsight(p,new Date(start+"T00:00:00Z").getUTCMonth()+1);
     return `
      <div class="v56MapTip">
       ${propertyPhoto?`<img class="v56MapTipPhoto" src="${html(propertyPhoto)}" alt=""/>`:""}
@@ -208,6 +210,7 @@ export function V54FinalHome(){
        <span><b>${Math.round(p.priceScore??0)}</b><small>Value</small></span>
       </div>
       ${ratingMarkup(rating)}
+      <div class="v360Insight"><b>✦ Καλύτερη περίοδος</b><span>${html(insight.bestSeason)}</span><b>◈ Τι αξίζει στην περιοχή</b><span>${html(insight.experience)}</span><b>♡ Για ποιο ταξίδι</b><span>${html(insight.fit)}</span><small>${html(insight.basis)}</small></div>
       <div class="v360TooltipMeta">${p.availability==="confirmed-active"?"Το feed αναφέρει ενεργό απόθεμα":"Διαθεσιμότητα: επιβεβαίωση στον πάροχο"} · ${p.validTo?"Ισχύς feed έως "+html(p.validTo):"Χωρίς επιβεβαιωμένη λήξη"}</div>
       <small>Εσωτερικό AI score, όχι βαθμολογία επισκεπτών · επίλεξε για στοιχεία και επαλήθευση στον πάροχο</small>
      </div>`;
