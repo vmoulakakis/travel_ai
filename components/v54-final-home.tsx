@@ -329,7 +329,7 @@ export function V54FinalHome(){
     <span className={activeStay?styles.focusStepActive:""}>2 · Δες το funnel</span><i>→</i>
     <span>3 · Ξεκίνα το ταξίδι σου</span>
    </div>
-   <div className={styles.pinLegend}><span className={styles.discoveryLegend}><i className={styles.legendDiscovery}>★</i> Discovery</span><span><i className={styles.legendGold}>★</i> AI</span><span><i className={styles.legendDemand}>★</i> Demand</span><span><i className={styles.legendSeasonal}>★</i> Seasonal</span><span><i className={styles.legendGreen}>★</i> Value</span><span><i className={styles.legendBlue}>★</i> Explore</span></div>
+   <div className={styles.pinLegend}><span className={styles.discoveryLegend}><i className={styles.legendDiscovery}>★</i> Discovery</span><span><i className={styles.legendGold}>★</i> AI</span>{mapIntelligence?.demandIsDiscriminating?<span><i className={styles.legendDemand}>★</i> Demand</span>:null}<span><i className={styles.legendSeasonal}>★</i> Seasonal</span><span><i className={styles.legendGreen}>★</i> Value</span><span><i className={styles.legendBlue}>★</i> Explore</span></div>
   </div>
 
   <section id="map" className={styles.mapFirst}>
@@ -337,14 +337,14 @@ export function V54FinalHome(){
     <div>
      <small>AI MAP · DEFAULT INTELLIGENCE VIEW</small>
      <h1>Η AI ξεκινά από την <em>καλύτερη περιοχή τώρα.</em></h1>
-     <p>Το πρώτο focus παράγεται από live demand signal, seasonality και local best value. Τα μεγάλα ⭐ Discovery αναδεικνύουν μέρη με υψηλή εμπειρία, καλό seasonal fit και value — χωρίς να κρύβουν κανένα από τα 1.700+ stays.</p>
+     <p>Το πρώτο focus βασίζεται σε εποχική καταλληλότητα και price/value. Το demand λαμβάνεται υπόψη μόνο όταν τα δεδομένα έχουν πραγματική διακύμανση. Τα μεγάλα ⭐ Discovery αναδεικνύουν μέρη με υψηλή εμπειρία, καλό seasonal fit και value — χωρίς να κρύβουν κανένα από τα 1.700+ stays.</p>
     </div>
     <div className={styles.mapAiFlow}>
-     <span>{mapIntelligence?.focus?.label??"AI scanning"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
+     <span>{mapIntelligence?.focus?.label??"AI scanning"}</span><i>→</i><span>Demand {mapIntelligence?.demandIsDiscriminating===false?"χωρίς αξιόπιστη διάκριση":mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
     </div>
    </div>
    <div className={styles.mapStage}>
-    {mapIntelligence?.focus?<div className={styles.mapFocusCard}><span>AI AREA FOCUS</span><b>{mapIntelligence.focus.label}</b><div><i>Demand <strong>{mapIntelligence.focus.demand}</strong></i><i>Season <strong>{mapIntelligence.focus.seasonality}</strong></i><i>Value <strong>{mapIntelligence.focus.value}</strong></i></div><small>{mapIntelligence.focus.reason}</small></div>:null}
+    {mapIntelligence?.focus?<div className={styles.mapFocusCard}><span>AI AREA FOCUS</span><b>{mapIntelligence.focus.label}</b><div><i>Demand <strong>{mapIntelligence.demandIsDiscriminating===false?"n/a":mapIntelligence.focus.demand}</strong></i><i>Season <strong>{mapIntelligence.focus.seasonality}</strong></i><i>Value <strong>{mapIntelligence.focus.value}</strong></i></div><small>{mapIntelligence.focus.reason}</small></div>:null}
     <div className={styles.mapAiDock}>
      <div className={styles.mapAiDockHead}><Brain weight="fill"/><div><b>AI Stay Finder</b><span>{busy?"Σκανάρω inventory…":"Διάλεξε vibe — τα υπόλοιπα τα κάνει η AI"}</span></div></div>
      <div className={styles.mapFunChips}>
