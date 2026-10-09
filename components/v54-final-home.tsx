@@ -138,7 +138,7 @@ export function V54FinalHome(){
   }));
  },[solutions,inventory,verifiedPhotos]);
 
- const activeStay=selectedMapStay??cards[active]??cards[0]??null;
+ const activeStay=selectedMapStay??(solutions.length?cards[active]??null:null);
  const destinationHero=heroMedia.find(h=>destination.toLocaleLowerCase("el-GR").includes(h.location.toLocaleLowerCase("el-GR"))||h.location.toLocaleLowerCase("el-GR").includes(destination.split(",")[0].trim().toLocaleLowerCase("el-GR")))?.imageUrl??heroMedia[0]?.imageUrl??null;
  const hero=(solutions.length||selectedMapStay)?(activeStay?.image??destinationHero):(destinationHero??activeStay?.image??inventory.find(x=>x.imageUrl)?.imageUrl??null);
  const gallery=useMemo(()=>{
@@ -196,7 +196,7 @@ export function V54FinalHome(){
    };
    const tooltipFor=(p:Stay,rank:number|null,rating:QuickRating|null|undefined)=>{
     const signal=rank?"AI SPOTLIGHT":p.mapSignal==="discovery"?"TRAVELAI DISCOVERY":p.mapSignal==="demand"?"HIGH DEMAND":p.mapSignal==="seasonal"?"SEASONAL FIT":p.mapSignal==="value"?"BEST VALUE":"EXPLORE";
-    const propertyPhoto=rating?.photoUrl??p.imageUrl;
+    const propertyPhoto=p.imageUrl??rating?.photoUrl;
     return `
      <div class="v56MapTip">
       ${propertyPhoto?`<img class="v56MapTipPhoto" src="${html(propertyPhoto)}" alt=""/>`:""}
@@ -211,7 +211,7 @@ export function V54FinalHome(){
       </div>
       ${ratingMarkup(rating)}
       <div class="v360TooltipMeta">${p.availability==="confirmed-active"?"Το feed αναφέρει ενεργό απόθεμα":"Διαθεσιμότητα: επιβεβαίωση στον πάροχο"} · ${p.validTo?"Ισχύς feed έως "+html(p.validTo):"Χωρίς επιβεβαιωμένη λήξη"}</div>
-      <small>Πάτησε για πλήρη περιγραφή και επιλογές κράτησης</small>
+      <small>Εσωτερικό AI score, όχι βαθμολογία επισκεπτών · επίλεξε για στοιχεία και επαλήθευση στον πάροχο</small>
      </div>`;
    };
    const loadRating=async(p:Stay,marker:any,rank:number|null)=>{
@@ -344,11 +344,11 @@ export function V54FinalHome(){
     </div>
     <div className={styles.top50Controls}><span>✦ {showAllMapPoints?`${inventory.length} καταλύματα`:`${top100Points.length} υποψήφια AI σημεία`} · {showAllMapPoints?"Πλήρης εξερεύνηση":"Προεπιλεγμένη επιλογή"}</span><button type="button" aria-pressed={showAllMapPoints} onClick={()=>setShowAllMapPoints(v=>!v)}>{showAllMapPoints?"Εμφάνιση Top 100":"Δες όλα τα σημεία"} ↗</button></div>
     <div className={styles.mapAiFlow}>
-     <span>{mapIntelligence?.focus?.label??(inventory.length?"Ελλάδα · εξερεύνηση":"Φόρτωση περιοχών")}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
+     <span>{inventory.length?`Επιλογή από ${inventory.length.toLocaleString("el-GR")} διαθέσιμες εγγραφές`:"Φόρτωση καταλόγου"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
     </div>
    </div>
    <div className={styles.mapStage}>
-    {mapIntelligence?.focus?<div className={styles.mapFocusCard}><span>AI AREA FOCUS</span><b>{mapIntelligence.focus.label}</b><div><i>Demand <strong>{mapIntelligence.focus.demand}</strong></i><i>Season <strong>{mapIntelligence.focus.seasonality}</strong></i><i>Value <strong>{mapIntelligence.focus.value}</strong></i></div><small>{mapIntelligence.focus.reason}</small></div>:null}
+    
     <div className={styles.mapAiDock}>
      <div className={styles.mapAiDockHead}><Brain weight="fill"/><div><b>AI Travel 360 Explorer</b><span>{busy?"Αναλύω τις διαθέσιμες επιλογές…":"Πρώτα βρίσκουμε την κατάλληλη περιοχή, μετά τη διαμονή"}</span></div></div>
      <div className={styles.mapFunChips}>
