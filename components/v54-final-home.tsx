@@ -69,30 +69,28 @@ export function V54FinalHome(){
 
  useEffect(()=>{
   let cancelled=false;
-  fetch(`/api/v50/map-stays?mode=quick&limit=24&start=${encodeURIComponent(start)}`,{cache:"no-store"}).then(r=>r.json()).then(m=>{
-   if(!cancelled&&Array.isArray(m.products)&&m.products.length){setInventory(m.products);if(m.mapIntelligence)setMapIntelligence(m.mapIntelligence)}
-  }).catch(()=>{});
   fetch("/api/v50/hero-media",{cache:"no-store"}).then(r=>r.json()).then(h=>{
    if(!cancelled)setHeroMedia(Array.isArray(h.items)?h.items:[]);
-  }).catch(()=>{});
-  fetch(`/api/v50/map-stays?limit=2000&start=${encodeURIComponent(start)}`,{cache:"no-store"}).then(r=>r.json()).then(m=>{
-   if(!cancelled&&Array.isArray(m.products)&&m.products.length){setInventory(m.products);if(m.mapIntelligence)setMapIntelligence(m.mapIntelligence)}
   }).catch(()=>{});
   return()=>{cancelled=true};
  },[]);
 
  useEffect(()=>{
   let cancelled=false;
-  fetch(`/api/v50/map-stays?mode=quick&limit=24&start=${encodeURIComponent(start)}`,{cache:"no-store"})
-   .then(r=>r.json()).then(m=>{
+  // The Top 100 must always be chosen from the full inventory, never the 24-row preview.
+  fetch(`/api/v50/map-stays?limit=2000&start=${encodeURIComponent(start)}`,{cache:"no-store"})
+   .then(r=>{if(!r.ok)throw new Error("map_catalog_unavailable");return r.json()})
+   .then(m=>{
     if(cancelled)return;
-    if(m.mapIntelligence){
-     initialAiFocusDone.current=false;
-     setMapIntelligence(m.mapIntelligence);
-     const f=m.mapIntelligence.focus;
-     if(f)setAiFocusLabel(`AI focus · ${f.label} · ${f.score}/100`);
+    if(Array.isArray(m.products)&&m.products.length>=100){
+     setInventory(m.products);
+     if(m.mapIntelligence)setMapIntelligence(m.mapIntelligence);
+     if(m.fullUniverse===false)setAgentMessage(`Το διαθέσιμο feed επέστρεψε ${m.products.length} καταλύματα, όχι ολόκληρη τη βάση. Εμφανίζονται 100 επιλεγμένα από αυτό το δείγμα.`);
+    }else{
+     setInventory([]);
+     setAgentMessage("Δεν είναι διαθέσιμες 100 επιβεβαιωμένες εγγραφές καταλόγου. Δοκίμασε ξανά αργότερα.");
     }
-   }).catch(()=>{});
+   }).catch(()=>{if(!cancelled){setInventory([]);setAgentMessage("Προσωρινό πρόβλημα φόρτωσης της βάσης TravelAI. Δεν εμφανίζονται αυθαίρετες προτάσεις.");}});
   return()=>{cancelled=true};
  },[start]);
 
@@ -138,7 +136,7 @@ export function V54FinalHome(){
   }));
  },[solutions,inventory,verifiedPhotos]);
 
- const activeStay=selectedMapStay??cards[active]??cards[0]??null;
+ const activeStay=selectedMapStay??(solutions.length?cards[active]??null:null);
  const destinationHero=heroMedia.find(h=>destination.toLocaleLowerCase("el-GR").includes(h.location.toLocaleLowerCase("el-GR"))||h.location.toLocaleLowerCase("el-GR").includes(destination.split(",")[0].trim().toLocaleLowerCase("el-GR")))?.imageUrl??heroMedia[0]?.imageUrl??null;
  const hero=(solutions.length||selectedMapStay)?(activeStay?.image??destinationHero):(destinationHero??activeStay?.image??inventory.find(x=>x.imageUrl)?.imageUrl??null);
  const gallery=useMemo(()=>{
@@ -196,7 +194,7 @@ export function V54FinalHome(){
    };
    const tooltipFor=(p:Stay,rank:number|null,rating:QuickRating|null|undefined)=>{
     const signal=rank?"AI SPOTLIGHT":p.mapSignal==="discovery"?"TRAVELAI DISCOVERY":p.mapSignal==="demand"?"HIGH DEMAND":p.mapSignal==="seasonal"?"SEASONAL FIT":p.mapSignal==="value"?"BEST VALUE":"EXPLORE";
-    const propertyPhoto=rating?.photoUrl??p.imageUrl;
+    const propertyPhoto=p.imageUrl??rating?.photoUrl;
     return `
      <div class="v56MapTip">
       ${propertyPhoto?`<img class="v56MapTipPhoto" src="${html(propertyPhoto)}" alt=""/>`:""}
@@ -211,16 +209,17 @@ export function V54FinalHome(){
       </div>
       ${ratingMarkup(rating)}
       <div class="v360TooltipMeta">${p.availability==="confirmed-active"?"Το feed αναφέρει ενεργό απόθεμα":"Διαθεσιμότητα: επιβεβαίωση στον πάροχο"} · ${p.validTo?"Ισχύς feed έως "+html(p.validTo):"Χωρίς επιβεβαιωμένη λήξη"}</div>
-      <small>Πάτησε για πλήρη περιγραφή και επιλογές κράτησης</small>
+      <small>Εσωτερικό AI score, όχι βαθμολογία επισκεπτών · επίλεξε για στοιχεία και επαλήθευση στον πάροχο</small>
      </div>`;
    };
    const loadRating=async(p:Stay,marker:any,rank:number|null)=>{
     if(ratingCache.current.has(p.productId)){marker.setTooltipContent(tooltipFor(p,rank,ratingCache.current.get(p.productId)));return}
-    if(ratingPending.current.has(p.productId)||!p.destinationSlug)return;
+    if(ratingPending.current.has(p.productId))return;
+     if(!p.destinationSlug){ratingCache.current.set(p.productId,null);marker.setTooltipContent(tooltipFor(p,rank,null));return;}
     ratingPending.current.add(p.productId);
     marker.setTooltipContent(tooltipFor(p,rank,undefined));
     const mediaBody={propertyName:p.name,sourceProductId:p.productId,destinationSlug:p.destinationSlug,destinationName:p.location||p.address||destination,latitude:p.latitude,longitude:p.longitude};
-    void fetch("/api/v50/stay-media",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(mediaBody)})
+    void fetch("/api/v50/stay-media",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(mediaBody),signal:AbortSignal.timeout(6500)})
      .then(r=>r.json()).then(j=>{const url=j?.ok?j?.result?.photoUrl:null;if(url)setVerifiedPhotos(v=>({...v,[p.productId]:url}))}).catch(()=>{});
     try{
      const r=await fetch("/api/v50/stay-rating",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
@@ -344,11 +343,11 @@ export function V54FinalHome(){
     </div>
     <div className={styles.top50Controls}><span>✦ {showAllMapPoints?`${inventory.length} καταλύματα`:`${top100Points.length} υποψήφια AI σημεία`} · {showAllMapPoints?"Πλήρης εξερεύνηση":"Προεπιλεγμένη επιλογή"}</span><button type="button" aria-pressed={showAllMapPoints} onClick={()=>setShowAllMapPoints(v=>!v)}>{showAllMapPoints?"Εμφάνιση Top 100":"Δες όλα τα σημεία"} ↗</button></div>
     <div className={styles.mapAiFlow}>
-     <span>{mapIntelligence?.focus?.label??(inventory.length?"Ελλάδα · εξερεύνηση":"Φόρτωση περιοχών")}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
+     <span>{inventory.length?`Αξιολόγηση ${inventory.length.toLocaleString("el-GR")} καταχωρισμένων καταλυμάτων`:"Φόρτωση καταλόγου"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
     </div>
    </div>
    <div className={styles.mapStage}>
-    {mapIntelligence?.focus?<div className={styles.mapFocusCard}><span>AI AREA FOCUS</span><b>{mapIntelligence.focus.label}</b><div><i>Demand <strong>{mapIntelligence.focus.demand}</strong></i><i>Season <strong>{mapIntelligence.focus.seasonality}</strong></i><i>Value <strong>{mapIntelligence.focus.value}</strong></i></div><small>{mapIntelligence.focus.reason}</small></div>:null}
+    
     <div className={styles.mapAiDock}>
      <div className={styles.mapAiDockHead}><Brain weight="fill"/><div><b>AI Travel 360 Explorer</b><span>{busy?"Αναλύω τις διαθέσιμες επιλογές…":"Πρώτα βρίσκουμε την κατάλληλη περιοχή, μετά τη διαμονή"}</span></div></div>
      <div className={styles.mapFunChips}>

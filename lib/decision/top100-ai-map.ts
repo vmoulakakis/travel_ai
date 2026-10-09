@@ -21,13 +21,13 @@ export function selectTop100AiPoints<T extends TravelMapCandidate>(rows:T[],limi
   return{key,sorted,areaScore};
  }).sort((a,b)=>b.areaScore-a.areaScore||a.key.localeCompare(b.key));
  const result:T[]=[],used=new Set<string>();
- for(const perArea of [1,2,3,5,100]){
+ for(const perArea of [1,2,3,5,100,101]){
   for(const area of ranked){
    let count=result.filter(x=>(x.destinationSlug||`geo-${Math.round(x.latitude*2)/2}-${Math.round(x.longitude*2)/2}`)===area.key).length;
    for(const p of area.sorted){
     if(result.length>=limit)return result;
     if(count>=perArea)break;
-    if(used.has(p.productId)||result.some(x=>distanceKm(x,p)<(perArea===1?12:3)))continue;
+    if(used.has(p.productId)||result.some(x=>distanceKm(x,p)<(perArea===1?12:perArea===101?0:3)))continue;
     used.add(p.productId);result.push(p);count++;
    }
   }
