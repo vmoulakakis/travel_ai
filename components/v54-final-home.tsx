@@ -1,5 +1,7 @@
 "use client";
 
+import type { WeekendFrictionSummary } from "@/lib/ai/travel-weekend-friction-v71";
+
 import { useEffect,useMemo,useRef,useState } from "react";
 import type { LayerGroup,Map as LeafletMap,TileLayer } from "leaflet";
 import {
@@ -12,9 +14,9 @@ type FilterKey="calm"|"food"|"nature"|"discovery"|"nightlife"|"value";
 type Filters=Record<FilterKey,number>;
 type Stay={productId:string;placeId:string;name:string;location:string;address:string;latitude:number;longitude:number;category:string;imageUrl:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;onSale:boolean;availability:string;validTo:string|null;demandScore:number|null;trackingUrl:string;destinationSlug:string|null;intelligenceScore?:number;seasonalScore?:number;priceScore?:number;demandSignal?:number;mapSignal?:"ai"|"discovery"|"demand"|"seasonal"|"value"|"explore";starTier?:"gold"|"green"|"blue"};
 type Hero={id:string;location:string;imageUrl:string;propertyCount:number;minPrice:number|null;currency:string;latitude:number|null;longitude:number|null};
-type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[]};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null;seasonalFit?:{score:number;band:string;reason:string}};liveOfferCount:number};
+type Solution={rank:number;score:number;destination:{slug:string;name:string;regionGroup:string;latitude:number;longitude:number;explorationRole:string;explorationReason:string;why:string;seasonNote:string;effortLabel:string;budgetLabel:string;tags:string[];friction?:WeekendFrictionSummary};stay:{productId:string;name:string;description:string|null;price:number|null;fullPrice:number|null;discount:number|null;currency:string;latitude:number;longitude:number;imageUrl:string|null;trackingUrl:string;availability:string;availabilityConfidence:string;distanceKm:number|null;seasonalFit?:{score:number;band:string;reason:string}};liveOfferCount:number};
 type AgentResponse={ok:boolean;state:"clarify"|"results"|"challenge"|"error";agentMessage:string;question?:{id:string;text:string;quickReplies:{label:string;value:string}[]};solutions?:Solution[];trip?:{startDate:string;endDate:string;travelerType:string;moods:string[];budget:number;origin:string};agentRuntime?:{today?:string;timezone?:string;dateRecovery?:{tier?:string;label?:string}|null}};
-type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;availability:string;intelligence:number|null;seasonal:number|null;priceFit:number|null;demand:number|null;mapSignal:"ai"|"discovery"|"demand"|"seasonal"|"value"|"explore"|null;starTier:"gold"|"green"|"blue"|null};
+type DisplayStay={id:string;name:string;location:string;image:string|null;price:number|null;currency:string;lat:number;lon:number;slug:string|null;tracking:string;score:number|null;why:string;friction?:WeekendFrictionSummary;availability:string;intelligence:number|null;seasonal:number|null;priceFit:number|null;demand:number|null;mapSignal:"ai"|"discovery"|"demand"|"seasonal"|"value"|"explore"|null;starTier:"gold"|"green"|"blue"|null};
 type RatingSignal={provider:"Google Places"|"Tripadvisor"|"Foursquare"|"AI Guest Signal";rating:number;scale:number;reviewCount:number|null;confidence:"HIGH"|"MEDIUM"|"LOW"};
 type QuickRating={status:"live"|"unavailable";primary:RatingSignal|null;ratings:RatingSignal[];photoUrl?:string|null;photoProvider?:string|null;matchedName?:string|null};
 type MapIntelligence={focus:{latitude:number;longitude:number;zoom:number;label:string;score:number;demand:number;seasonality:number;value:number;reason:string}|null;weights:{demand:number;seasonality:number;priceValue:number};ratingUpgrade:string;targetMonth?:number;demandIsDiscriminating?:boolean};
@@ -126,7 +128,7 @@ export function V54FinalHome(){
   if(solutions.length)return solutions.map(s=>({
    id:s.stay.productId,name:s.stay.name,location:s.destination.name,image:verifiedPhotos[s.stay.productId]??s.stay.imageUrl,
    price:s.stay.price,currency:s.stay.currency,lat:s.stay.latitude,lon:s.stay.longitude,
-   slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,availability:s.stay.availability,intelligence:Math.round(s.score),seasonal:s.stay.seasonalFit?.score??null,priceFit:null,demand:null,mapSignal:"ai",starTier:s.rank<=3?"gold":"green"
+   slug:s.destination.slug,tracking:s.stay.trackingUrl,score:Math.round(s.score),why:s.destination.why,friction:s.destination.friction,availability:s.stay.availability,intelligence:Math.round(s.score),seasonal:s.stay.seasonalFit?.score??null,priceFit:null,demand:null,mapSignal:"ai",starTier:s.rank<=3?"gold":"green"
   }));
   return inventory.slice(0,12).map((p,i)=>({
    id:p.productId,name:p.name,location:p.location||p.address||"Ελλάδα",image:verifiedPhotos[p.productId]??p.imageUrl,price:p.price,currency:p.currency,
@@ -418,6 +420,11 @@ export function V54FinalHome(){
         {s.priceFit!=null?<span><Wallet weight="fill"/><b>{Math.round(s.priceFit)}</b><small>price / value</small></span>:null}
        </div>
        <p><b>Γιατί το προτείνει η AI:</b> {s.why}</p>
+       {s.friction?.checks.length?<div role="note" aria-label="Έλεγχοι πριν από την κράτηση" style={{border:"1px solid rgba(156,120,55,.35)",borderRadius:12,padding:"10px 12px",margin:"10px 0"}}>
+        <b style={{fontSize:12}}>🧭 Πριν το κλείσεις · χρειάζεται έλεγχος</b>
+        <ul style={{margin:"6px 0 0",paddingLeft:19}}>{s.friction.checks.map(check=><li key={check.key} style={{fontSize:12,lineHeight:1.45,marginBottom:5}}>{check.messageEl}<small style={{display:"block",opacity:.76}}>{check.nextStepEl}</small></li>)}</ul>
+        <small style={{display:"block",opacity:.72,fontSize:10}}>Checklist σχεδιασμού · δεν αποτελεί live επιβεβαίωση δρομολογίων ή διαθεσιμότητας.</small>
+       </div>:null}
        <div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><MapPin/> {s.location}</span></div>
        <div className={styles.cardFoot}><b>{money(s.price,s.currency)}<small>/ διαμονή</small></b><button onClick={e=>{e.stopPropagation();openStay(s)}}>Δες γιατί αξίζει <ArrowRight/></button></div>
       </div>
