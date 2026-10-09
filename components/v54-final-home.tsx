@@ -422,7 +422,7 @@ export function V54FinalHome(){
        <p><b>Γιατί το προτείνει η AI:</b> {s.why}</p>
        {s.friction?.checks.length?<div role="note" aria-label="Έλεγχοι πριν από την κράτηση" style={{border:"1px solid rgba(156,120,55,.35)",borderRadius:12,padding:"10px 12px",margin:"10px 0"}}>
         <b style={{fontSize:12}}>🧭 Πριν το κλείσεις · χρειάζεται έλεγχος</b>
-        <ul style={{margin:"6px 0 0",paddingLeft:19}}>{s.friction.checks.map(check=><li key={check.key} style={{fontSize:12,lineHeight:1.45,marginBottom:5}}>{check.messageEl}<small style={{display:"block",opacity:.76}}>{check.nextStepEl}</small></li>)}</ul>
+        <ul style={{margin:"6px 0 0",paddingLeft:19}}>{s.friction.checks.map(check=><li key={check.key} style={{fontSize:12,lineHeight:1.45,marginBottom:5}}>{check.messageEl}<small style={{display:"block",opacity:.76}}>{check.nextStepEl}</small>{check.contextSourceUrl?<a href={check.contextSourceUrl} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:11,textDecoration:"underline"}}>Πηγή πλαισίου ↗</a>:null}</li>)}</ul>
         <small style={{display:"block",opacity:.72,fontSize:10}}>Checklist σχεδιασμού · δεν αποτελεί live επιβεβαίωση δρομολογίων ή διαθεσιμότητας.</small>
        </div>:null}
        <div className={styles.tags}><span><CheckCircle/> {s.availability.includes("confirmed")?"Active":"Provider check"}</span><span><MapPin/> {s.location}</span></div>
