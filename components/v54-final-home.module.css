@@ -802,3 +802,9 @@
 :global(.v65StarExplore span){color:#bec5e8!important}
 :global(.v65StarAi span){color:#ffc64c!important}
 @media(prefers-reduced-motion:reduce){:global(.v65StarAi span){animation:none!important}}
+
+/* V69 travel insights: real context, never fabricated ratings */
+:global(.v360Insight){margin:10px 0 8px;padding:10px 11px;border:1px solid #dcebe5;background:#f6faf8;border-radius:12px;display:grid;gap:4px;color:#224d40;max-width:100%;white-space:normal}
+:global(.v360Insight b){font-size:9px;font-weight:850;margin-top:4px}
+:global(.v360Insight span){font-size:10px;line-height:1.45;overflow-wrap:anywhere}
+:global(.v360Insight small){font-size:8px;line-height:1.35;color:#6c8579;border-top:1px solid #dcebe5;padding-top:6px;margin-top:4px}
