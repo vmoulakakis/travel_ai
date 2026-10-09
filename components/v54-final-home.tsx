@@ -190,8 +190,8 @@ export function V54FinalHome(){
    });
    const aiRanks=new Map(solutions.map((s,i)=>[s.stay.productId,i+1]));
    const ratingMarkup=(rating:QuickRating|null|undefined)=>{
-    if(rating===undefined)return `<div class="v56RatingLoading">✦ Scanning verified ratings…</div>`;
-    if(!rating?.ratings?.length)return `<div class="v56RatingEmpty">Verified rating not returned yet · click opens full verification funnel</div>`;
+    if(rating===undefined)return `<div class="v56RatingLoading">✦ Έλεγχος αξιολογήσεων κατά το άνοιγμα…</div>`;
+    if(!rating?.ratings?.filter(x=>x.provider!=="AI Guest Signal").length)return `<div class="v56RatingEmpty">Δεν υπάρχουν διαθέσιμες επαληθευμένες αξιολογήσεις · Έλεγξε στον πάροχο</div>`;
     return `<div class="v56RatingRow">${rating.ratings.filter(x=>x.provider!=="AI Guest Signal").slice(0,3).map(x=>`<span><b>${html(x.provider)}</b> ${x.rating.toFixed(1)}/${x.scale}${x.reviewCount!=null?` · ${x.reviewCount.toLocaleString("el-GR")} reviews`:""}</span>`).join("")}</div>`;
    };
    const tooltipFor=(p:Stay,rank:number|null,rating:QuickRating|null|undefined)=>{
@@ -244,8 +244,8 @@ export function V54FinalHome(){
     const score=Math.max(0,Math.min(100,p.intelligenceScore??50));
     const isDiscovery=!rank&&score>=82&&(p.seasonalScore??0)>=70&&(p.priceScore??0)>=68;
     const signal=rank&&rank<=5?"ai":isDiscovery?"discovery":p.mapSignal??"explore";
-    const pinGlyph=signal==="ai"?"✦":signal==="discovery"?"◆":signal==="seasonal"?"❋":signal==="value"?"€":signal==="demand"?"▲":"•";
-    const size=signal==="discovery"?58:score>=86?48:score>=76?41:score>=64?34:27;
+    const pinGlyph="★";
+    const size=rank&&rank<=5?54:score>=86?46:score>=76?39:score>=64?33:26;
     const className=signal==="ai"?"v65StarAi":signal==="discovery"?"v66StarDiscovery":signal==="demand"?"v65StarDemand":signal==="seasonal"?"v65StarSeasonal":signal==="value"?"v65StarValue":"v65StarExplore";
     const marker=L.marker([p.latitude,p.longitude],{
       icon:L.divIcon({
@@ -338,23 +338,23 @@ export function V54FinalHome(){
   <section id="map" className={styles.mapFirst}>
    <div className={styles.mapFirstTop}>
     <div>
-     <small>AI MAP · DEFAULT INTELLIGENCE VIEW</small>
-     <h1>Εξερεύνησε <em>100 επιλεγμένα σημεία σε όλη την Ελλάδα.</em></h1>
-     <p>Ξεκίνα με 100 επιλεγμένα, γεωγραφικά κατανεμημένα AI σημεία από το πραγματικό inventory. Μπορείς να εμφανίσεις όλες τις διαμονές οποιαδήποτε στιγμή. Οι προτάσεις εμπειριών εμπλουτίζονται ξεχωριστά από την ταξιδιωτική γνώση.</p>
+     <small>TRAVELAI 360° · ΕΞΥΠΝΗ ΑΝΑΚΑΛΥΨΗ ΕΛΛΑΔΑΣ</small>
+     <h1>Ανακάλυψε την Ελλάδα <em>με 360° ταξιδιωτική νοημοσύνη.</em></h1>
+     <p>100 επιλεγμένα σημεία σε όλη την Ελλάδα. Ανακάλυψε περιοχές, εποχικότητα και διαμονές με εξηγήσιμες βαθμολογίες· έπειτα ζήτησε από τον AI Explorer να σχεδιάσει τη δική σου απόδραση. Οι πραγματικές κριτικές εμφανίζονται μόνο όπου επαληθεύονται.</p>
     </div>
     <div className={styles.top50Controls}><span>✦ {showAllMapPoints?`${inventory.length} καταλύματα`:`${top100Points.length} υποψήφια AI σημεία`} · {showAllMapPoints?"Πλήρης εξερεύνηση":"Προεπιλεγμένη επιλογή"}</span><button type="button" aria-pressed={showAllMapPoints} onClick={()=>setShowAllMapPoints(v=>!v)}>{showAllMapPoints?"Εμφάνιση Top 100":"Δες όλα τα σημεία"} ↗</button></div>
     <div className={styles.mapAiFlow}>
-     <span>{mapIntelligence?.focus?.label??"AI scanning"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
+     <span>{mapIntelligence?.focus?.label??(inventory.length?"Ελλάδα · εξερεύνηση":"Φόρτωση περιοχών")}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
     </div>
    </div>
    <div className={styles.mapStage}>
     {mapIntelligence?.focus?<div className={styles.mapFocusCard}><span>AI AREA FOCUS</span><b>{mapIntelligence.focus.label}</b><div><i>Demand <strong>{mapIntelligence.focus.demand}</strong></i><i>Season <strong>{mapIntelligence.focus.seasonality}</strong></i><i>Value <strong>{mapIntelligence.focus.value}</strong></i></div><small>{mapIntelligence.focus.reason}</small></div>:null}
     <div className={styles.mapAiDock}>
-     <div className={styles.mapAiDockHead}><Brain weight="fill"/><div><b>AI Stay Finder</b><span>{busy?"Σκανάρω inventory…":"Διάλεξε vibe — τα υπόλοιπα τα κάνει η AI"}</span></div></div>
+     <div className={styles.mapAiDockHead}><Brain weight="fill"/><div><b>AI Travel 360 Explorer</b><span>{busy?"Αναλύω τις διαθέσιμες επιλογές…":"Πρώτα βρίσκουμε την κατάλληλη περιοχή, μετά τη διαμονή"}</span></div></div>
      <div className={styles.mapFunChips}>
       {["Χαλάρωση","Ρομαντικό","Περιπέτεια","Γαστρονομία"].map(x=><button key={x} className={intent===x?styles.mapFunChipActive:""} onClick={()=>{setIntent(x);const where=destination.trim()?destination.trim()+". ":"";void runAgent(`${where}Θέλω ${x.toLowerCase()} ταξίδι. Διάλεξε τις καλύτερες πραγματικές επιλογές από όλο το inventory.`)}}>{x}</button>)}
      </div>
-     <button className={styles.discoveryTrigger} onClick={()=>{window.location.href="https://travelaigreece.vercel.app";}}>🧭 Θέλω αποκλειστικά άγνωστα μέρη · Greece Unseen</button>\n     <button className={styles.surpriseBtn} disabled={busy} onClick={()=>void runAgent("Surprise me. Διάλεξε εσύ την καλύτερη απόδραση από όλο το πραγματικό inventory με βάση ημερομηνίες, budget και profile.")}>🎲 {busy?"Η AI ψάχνει…":"Surprise me"}</button>
+     <button className={styles.discoveryTrigger} disabled={busy} onClick={()=>void runAgent("Θέλω άγνωστα αυθεντικά μέρη στην Ελλάδα. Σύγκρινε πρώτα περιοχές, εξήγησε γιατί ταιριάζουν, και μετά πρότεινε σχετικές διαμονές. Μην επινοείς κριτικές ή διαθεσιμότητα.")}>✦ Θέλω αποκλειστικά άγνωστα μέρη · Greece Unseen</button>\n     <button className={styles.surpriseBtn} disabled={busy} onClick={()=>void runAgent("Surprise me. Διάλεξε εσύ την καλύτερη απόδραση από όλο το πραγματικό inventory με βάση ημερομηνίες, budget και profile.")}>✦ {busy?"Η AI αναλύει…":"Surprise me"}</button>
      <p><Sparkle weight="fill"/> {agentMessage}</p>
     </div>
     <div className={styles.mapModesTop}><button className={!showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(false)}>Χάρτης</button><button className={showSatellite?styles.mapModeActive:""} onClick={()=>setShowSatellite(true)}>Δορυφόρος</button></div>

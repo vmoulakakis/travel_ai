@@ -792,3 +792,13 @@
 .cinematicVideo{position:absolute;z-index:-2;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;filter:saturate(1.12)}
 .cinematicIntro:has(.cinematicVideo):before{z-index:-1;background:linear-gradient(0deg,rgba(2,20,17,.97),rgba(2,23,20,.08) 75%),linear-gradient(90deg,rgba(2,20,17,.63),transparent);animation:none;transform:none}
 @media (prefers-reduced-motion:reduce){.cinematicVideo{display:none}.cinematicIntro:has(.cinematicVideo):before{background:linear-gradient(0deg,rgba(2,20,17,.95),rgba(2,23,20,.12)),url("https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1600&q=80") center/cover}}
+
+/* V68: semantic ranking stars — color denotes tier, size denotes rank. */
+:global(.v66StarDiscovery span){background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:#d773ff!important;font-size:calc(var(--pin-size) * .84)!important;text-shadow:0 2px 8px rgba(0,0,0,.7);filter:drop-shadow(0 0 10px rgba(198,55,255,.9));animation:none!important}
+:global(.v66StarDiscovery span::after){content:none!important;display:none!important}
+:global(.v65StarDemand span){color:#f8b334!important;filter:drop-shadow(0 0 8px rgba(248,179,52,.8))}
+:global(.v65StarSeasonal span){color:#29d5b0!important}
+:global(.v65StarValue span){color:#4caaff!important}
+:global(.v65StarExplore span){color:#bec5e8!important}
+:global(.v65StarAi span){color:#ffc64c!important}
+@media(prefers-reduced-motion:reduce){:global(.v65StarAi span){animation:none!important}}
