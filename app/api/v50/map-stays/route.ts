@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadV8DestinationCatalog } from "@/lib/data/destination-v8";
 import { seasonalStayFit } from "@/lib/decision/stay-seasonality-v66";
+import { rankCommercialAreas } from "@/lib/decision/commercial-360-ranking";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -188,6 +189,8 @@ export async function GET(request:Request){
   return NextResponse.json({
    version:50,
    source:"supabase-stay-offers",
+    rankingMethod:"area-first-commercial-v1-untrained",
+    areaRankings:commercialAreas,
    generatedAt:new Date().toISOString(),
    count:intelligence.products.length,
    locationCount:new Set(intelligence.products.map(x=>x.location).filter(Boolean)).size,
