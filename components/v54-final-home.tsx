@@ -1,5 +1,6 @@
-import {mapTravelInsight} from "@/lib/decision/stay-map-insights";
 "use client";
+import {mapTravelInsight} from "@/lib/decision/stay-map-insights";
+
 
 import { useEffect,useMemo,useRef,useState } from "react";
 import type { LayerGroup,Map as LeafletMap,TileLayer } from "leaflet";
