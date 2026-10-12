@@ -186,6 +186,7 @@ export async function GET(request:Request){
    if(products.length>=limit)break;
   }
   const intelligence=enrichIntelligence(products,targetMonth,catalogBySlug);
+   const commercialAreas=rankCommercialAreas(intelligence.products);
   return NextResponse.json({
    version:50,
    source:"supabase-stay-offers",
