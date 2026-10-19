@@ -177,14 +177,14 @@ export function rankAffiliateStays(
     // A deal explicitly advertised as N nights must not be relabelled for M nights.
     const packageNights=offerNights(o.property_name||"");
     if(opts.nights && packageNights!==null && opts.nights!==packageNights)continue;
-    const distance=kmStraightLine(place.latitude!,place.longitude!,s.latitude,s.longitude);
+    const distance=kmStraightLine(place.latitude!,place.longitude!,s.latitude!,s.longitude!);
     if(distance>maxKm)continue;
     // We have no independent guest rating or reliable road route.
     // Honest ranking rewards proximity and product metadata completeness only.
     const score=clamp(Math.round(90-1.1*distance+(s.address?7:0)+(o.image_url||o.thumb_url?3:0)),0,100);
     candidates.push({
       stayId:s.id,propertyName:name,address:s.address,latitude:s.latitude,
-      longitude:s.longitude,distanceKmStraightLine:Math.round(distance*10)/10,
+      longitude:s.longitude!,distanceKmStraightLine:Math.round(distance*10)/10,
       proximityLabel:distance<=25?"nearby-by-air":"regional-base-by-air",
       qualityStatus:"not-independently-verified",
       observedOfferPrice:finite(o.price)&&o.price>0?o.price:null,
