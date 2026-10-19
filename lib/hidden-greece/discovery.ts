@@ -161,14 +161,14 @@ function outsideExplicitPackageWindow(name:string,startDate?:string,endDate?:str
   if(!Number.isFinite(start)||!Number.isFinite(end)||start>=end)return true;
   const dates=name.match(/\d{1,2}\/\d{1,2}\/\d{4}/g)??[];
   if(dates.length>=2){
-    const low=parseGreekDate(dates[0]),high=parseGreekDate(dates[1]);
+    const low=parseGreekDate(dates[0]??""),high=parseGreekDate(dates[1]??"");
     // Date windows in the supplier title can constrain a deal, but
     // never prove actual date availability inside the given interval.
     return low!==null&&high!==null&&(start<low||end>high);
   }
   // Single 'έως DD/MM/YYYY' dates are a latest-travel boundary.
   if(dates.length===1&&/έως\s*\d{1,2}\/\d{1,2}\/\d{4}/iu.test(name)){
-    const last=parseGreekDate(dates[0]);
+    const last=parseGreekDate(dates[0]??"");
     return last!==null&&end>last;
   }
   return false;
