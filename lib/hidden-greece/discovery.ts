@@ -144,8 +144,34 @@ function validObservedOffer(offer:StayOfferRow, now:Date):boolean {
   return true;
 }
 function offerNights(name:string):number|null {
-  const match=name.match(/\(\s*(\d+)\s*Διανυκτερεύσ(?:εις|η)\s*\)/iu);
+  const match=name.match(/\(\s*(\d+)\s*Διανυκ(?:τερεύσεις|τέρευση)\s*\)/iu);
   return match ? Number(match[1]) : null;
+}
+function parseGreekDate(raw:string):number|null {
+  const match=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw);
+  if(!match)return null;
+  const day=Number(match[1]),month=Number(match[2]),year=Number(match[3]);
+  const d=new Date(Date.UTC(year,month-1,day));
+  return d.getUTCFullYear()===year&&d.getUTCMonth()===month-1&&d.getUTCDate()===day ? d.getTime() : null;
+}
+function outsideExplicitPackageWindow(name:string,startDate?:string,endDate?:string):boolean {
+  if(!startDate||!endDate)return false;
+  const start=new Date(startDate+"T00:00:00Z").getTime();
+  const end=new Date(endDate+"T00:00:00Z").getTime();
+  if(!Number.isFinite(start)||!Number.isFinite(end)||start>=end)return true;
+  const dates=name.match(/\d{1,2}\/\d{1,2}\/\d{4}/g)??[];
+  if(dates.length>=2){
+    const low=parseGreekDate(dates[0]),high=parseGreekDate(dates[1]);
+    // Date windows in the supplier title can constrain a deal, but
+    // never prove actual date availability inside the given interval.
+    return low!==null&&high!==null&&(start<low||end>high);
+  }
+  // Single 'έως DD/MM/YYYY' dates are a latest-travel boundary.
+  if(dates.length===1&&/έως\s*\d{1,2}\/\d{1,2}\/\d{4}/iu.test(name)){
+    const last=parseGreekDate(dates[0]);
+    return last!==null&&end>last;
+  }
+  return false;
 }
 function shortPropertyName(name:string) {
   // Remove deal copy & HTML markup from scraped product name, not the property identity.
@@ -160,7 +186,7 @@ export function rankAffiliateStays(
   place: Pick<HiddenPlaceRow,"latitude"|"longitude">,
   offers:readonly StayOfferRow[],
   governance:ApprovedCommerce,
-  opts:{nights?:number;maxKm?:number;now?:Date;limit?:number}={}
+  opts:{nights?:number;travelStartDate?:string;travelEndDate?:string;maxKm?:number;now?:Date;limit?:number}={}
 ):HiddenStay[] {
   if(!coords(place.latitude,place.longitude))return [];
   const now=opts.now ?? new Date();
@@ -177,6 +203,7 @@ export function rankAffiliateStays(
     // A deal explicitly advertised as N nights must not be relabelled for M nights.
     const packageNights=offerNights(o.property_name||"");
     if(opts.nights && packageNights!==null && opts.nights!==packageNights)continue;
+    if(outsideExplicitPackageWindow(o.property_name||"",opts.travelStartDate,opts.travelEndDate))continue;
     const distance=kmStraightLine(place.latitude!,place.longitude!,s.latitude!,s.longitude!);
     if(distance>maxKm)continue;
     // We have no independent guest rating or reliable road route.
