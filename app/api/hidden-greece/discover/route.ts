@@ -79,7 +79,7 @@ export async function GET(request:Request) {
         tracking_url:"not.is.null",
         limit:"700"
       });
-      const stays=rankAffiliateStays(place,offers,gate,{nights,maxKm:60,limit:3});
+      const stays=rankAffiliateStays(place,offers,gate,{nights,travelStartDate:start??undefined,travelEndDate:end??undefined,maxKm:60,limit:3});
       return {place,stays,reason:stays.length?"affiliate_candidates_not_live_availability":"no_approved_nearby_stays"};
     }));
     return NextResponse.json({
