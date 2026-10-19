@@ -63,7 +63,7 @@ export async function GET(request:Request) {
       verification_status:"eq.verified",
       limit:"100"
     });
-    const cases=rankHiddenPlaces(rows,{season,mood,nights,placeId,publishedOnly:true}).slice(0,limit);
+    const cases=rankHiddenPlaces(rows,{season,mood,nights,placeId:placeId??undefined,publishedOnly:true}).slice(0,limit);
     const gate=governance();
     const enriched=await Promise.all(cases.map(async place=>{
       // Stays are retrieved only *after* place ranking, preserving independence
