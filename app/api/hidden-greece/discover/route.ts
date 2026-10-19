@@ -22,11 +22,11 @@ function governance():ApprovedCommerce {
     approvedPrograms:new Set(approvedPrograms)
   };
 }
-async function rest<T>(path:string,params:Record<string,string>):Promise<T> {
+async function rest<T>(path:string,params:Record<string,string|string[]>):Promise<T> {
   const base=BASE(),key=KEY();
   if(!base||!key)throw new Error("missing_database_configuration");
   const url=new URL(`/rest/v1/${path}`,base);
-  for(const [k,v] of Object.entries(params))url.searchParams.set(k,v);
+  for(const [k,v] of Object.entries(params)) { for(const value of Array.isArray(v)?v:[v])url.searchParams.append(k,value); }
   const res=await fetch(url,{cache:"no-store",headers:{
     apikey:key,Authorization:`Bearer ${key}`,Accept:"application/json"
   },signal:AbortSignal.timeout(9000)});
@@ -74,7 +74,8 @@ export async function GET(request:Request) {
       const box=.85; // broad 90 km bbox; fine precision filtering uses haversine below
       const offers=await rest<StayOfferRow[]>("stay_offers",{
         select:"source_product_id,place_id,property_name,program_id,tracking_url,image_url,thumb_url,in_stock,availability,valid_from,valid_to,observed_at,price,currency,stay_places!inner(id,property_name,address,location_label,latitude,longitude,hero_image_url)",
-        and:`(stay_places.latitude.gte.${(lat-box).toFixed(5)},stay_places.latitude.lte.${(lat+box).toFixed(5)},stay_places.longitude.gte.${(lon-box).toFixed(5)},stay_places.longitude.lte.${(lon+box).toFixed(5)})`,
+        "stay_places.latitude":[`gte.${(lat-box).toFixed(5)}`,`lte.${(lat+box).toFixed(5)}`],
+        "stay_places.longitude":[`gte.${(lon-box).toFixed(5)}`,`lte.${(lon+box).toFixed(5)}`],
         tracking_url:"not.is.null",
         limit:"700"
       });
