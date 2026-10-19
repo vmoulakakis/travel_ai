@@ -1,0 +1,37 @@
+name: Hidden Greece — Discovery Safety
+on:
+  pull_request:
+    paths:
+      - "lib/hidden-greece/**"
+      - "app/api/hidden-greece/**"
+      - "scripts/hidden-greece-discovery-smoke.ts"
+      - "package.json"
+      - ".github/workflows/hidden-greece-discovery.yml"
+  push:
+    branches:
+      - "feature/hidden-greece-discovery-engine-20261019"
+    paths:
+      - "lib/hidden-greece/**"
+      - "app/api/hidden-greece/**"
+      - "scripts/hidden-greece-discovery-smoke.ts"
+      - "package.json"
+      - ".github/workflows/hidden-greece-discovery.yml"
+
+jobs:
+  hidden-discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install from lockfile
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript compile gate
+        run: npm run typecheck
+      - name: Hidden Greece trust and trip date smoke
+        run: npm run test:hidden-greece
