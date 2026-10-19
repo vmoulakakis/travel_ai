@@ -52,6 +52,14 @@ assert.equal(good[0].priceSemantics,"feed-observed-unknown-unit");
 assert(good[0].distanceKmStraightLine<3);
 assert.equal(good[0].affiliateUrl,url);
 assert.equal(rankAffiliateStays(place,[offer],GOV,{now:NOW,nights:1}).length,0,"mismatched fixed-night deal");
+const singleOffer={...offer,property_name:"Ξενώνας Βουνού ✦ 2 Ημέρες (1 Διανυκτέρευση) ✦ έως 31/12/2027"};
+assert.equal(rankAffiliateStays(place,[singleOffer],GOV,{now:NOW,nights:1}).length,1,"singular 1 night recognized");
+assert.equal(rankAffiliateStays(place,[singleOffer],GOV,{now:NOW,nights:2}).length,0,"singular 1 night must not appear as 2 nights");
+const nextYearDeal={...singleOffer,property_name:"Ξενώνας Βουνού ✦ 2 Ημέρες (1 Διανυκτέρευση) ✦ 15/04/2027 έως 16/10/2027"};
+assert.equal(rankAffiliateStays(place,[nextYearDeal],GOV,{now:NOW,nights:1,travelStartDate:"2026-10-26",travelEndDate:"2026-10-27"}).length,0,"future summer 2027 deal does not match 2026 trip");
+assert.equal(rankAffiliateStays(place,[nextYearDeal],GOV,{now:NOW,nights:1,travelStartDate:"2027-05-07",travelEndDate:"2027-05-08"}).length,1,"deal within explicit travel window may be listed with unconfirmed vacancy");
+assert.equal(rankAffiliateStays(place,[singleOffer],GOV,{now:NOW,nights:1,travelStartDate:"2028-01-05",travelEndDate:"2028-01-06"}).length,0,"single supplier latest travel boundary");
+
 assert.equal(rankAffiliateStays(place,[offer],{...GOV,enabled:false},{now:NOW}).length,0,"no unapproved link");
 assert.equal(rankAffiliateStays(place,[{...offer,valid_to:"2026-10-18T00:00:00Z"}],GOV,{now:NOW}).length,0,"expired");
 assert.equal(rankAffiliateStays(place,[{...offer,observed_at:"2026-09-01T00:00:00Z"}],GOV,{now:NOW}).length,0,"stale feed");
