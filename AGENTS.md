@@ -79,3 +79,6 @@ Do not call a V45 change complete until:
 - tool-contract health has zero unresolved bindings;
 - memory/retrieval smoke tests pass;
 - current deterministic hard constraints still win over memory/model/retrieval.
+
+## Universal Creation Orchestrator
+For any creation, build, UI improvement, audit or release read `.agents/skills/universal-creation-orchestrator/SKILL.md` and this project's specialist contracts. Do not change unrelated code or override ADLC/security. Require real tests/evidence.
