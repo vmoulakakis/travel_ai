@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {rankHiddenPlaces,rankAffiliateStays,type HiddenPlaceRow,type StayOfferRow,type ApprovedCommerce} from "../lib/hidden-greece/discovery";
 import {orthodoxEaster,upcomingGreekBreaks} from "../lib/hidden-greece/holidays";
+import {interpretHiddenNeedLocally} from "../lib/hidden-greece/intent";
 
 const canonical=(p:string)=>readFileSync(p,"utf8");
 const p=canonical("app/guides/hidden-greece/hidden-greece-explorer.tsx");
@@ -19,6 +20,12 @@ assert(detail.includes("generateMetadata")&&detail.includes('notFound()')&&detai
 assert(mapSitemap.includes("getPublishedMicroplaceSlugs"),"dynamic sitemap includes published microplaces");
 assert(api.includes("affiliate_approval_required")&&api.includes("candidateGate"),"candidates are independently discoverable but affiliate handoff gated");
 
+assert.equal(interpretHiddenNeedLocally("Θέλω ένα διήμερο για ησυχία").nights,2);
+assert.equal(interpretHiddenNeedLocally("Θέλω ένα διήμερο για ησυχία").mood,"quiet");
+assert.equal(interpretHiddenNeedLocally("Έχουμε 2 παιδιά και θέλουμε μια νύχτα").mood,"family");
+assert.equal(interpretHiddenNeedLocally("7 διανυκτερεύσεις στη φύση").nights,7);
+assert.equal(interpretHiddenNeedLocally("Looking for a romantic weekend").mood,"romantic");
+assert.equal(interpretHiddenNeedLocally("Χωρίς σαφή προτίμηση").confidence,"low");
 assert.equal(orthodoxEaster(2026).toISOString().slice(0,10),"2026-04-12");
 assert.equal(orthodoxEaster(2027).toISOString().slice(0,10),"2027-05-02");
 assert.equal(orthodoxEaster(2028).toISOString().slice(0,10),"2028-04-16");
