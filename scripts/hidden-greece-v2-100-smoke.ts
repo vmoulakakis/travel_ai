@@ -3,6 +3,7 @@ import {readFileSync} from "node:fs";
 import {rankHiddenPlaces,rankAffiliateStays,type HiddenPlaceRow,type StayOfferRow,type ApprovedCommerce} from "../lib/hidden-greece/discovery";
 import {orthodoxEaster,upcomingGreekBreaks} from "../lib/hidden-greece/holidays";
 import {interpretHiddenNeedLocally} from "../lib/hidden-greece/intent";
+import {buildHiddenTripPlan} from "../lib/hidden-greece/itinerary";
 
 const canonical=(p:string)=>readFileSync(p,"utf8");
 const p=canonical("app/guides/hidden-greece/hidden-greece-explorer.tsx");
@@ -64,4 +65,11 @@ for(const season of ["autumn","spring","summer","winter"]){
  }
 }
 assert.equal(scenarios,100);
+for(let nights=1;nights<=7;nights++){
+ const plan=buildHiddenTripPlan(place,nights);
+ assert.equal(plan.nights,nights);
+ assert.equal(plan.days.length,nights+1,"each nightly escape has arrival and departure days");
+ assert(plan.days.every(d=>d.steps.length>=2&&d.requiresVerification.length>=2),"each day actionable and honest");
+ assert(!JSON.stringify(plan).includes("100%")&&!JSON.stringify(plan).includes("διαθέσιμο δωμάτιο"),"no false availability");
+}
 console.log("HIDDEN_GREECE_V2_100_SCENARIOS_PASS 100-profiles / holiday-calendar / map+SEO contracts / affiliate+availability truth");
