@@ -107,6 +107,9 @@ export default function HiddenGreeceExplorer(){
   const [selected,setSelected]=useState<string|null>(null);
   const [loading,setLoading]=useState(true);
   const [message,setMessage]=useState("");
+  const [needText,setNeedText]=useState("");
+  const [intentLoading,setIntentLoading]=useState(false);
+  const [intentFeedback,setIntentFeedback]=useState("");
   const [mode,setMode]=useState<"explore"|"details">("explore");
   const [retry,setRetry]=useState(0);
   const [holidayChoices,setHolidayChoices]=useState<GreekBreak[]>([]);
@@ -132,6 +135,21 @@ export default function HiddenGreeceExplorer(){
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return()=>controller.abort();
   },[journey.mood,journey.nights,journey.season,journey.start,retry]);
+  const interpretNeed=async()=>{
+    if(needText.trim().length<8||intentLoading)return;
+    setIntentLoading(true);setIntentFeedback("");
+    try{
+      const response=await fetch("/api/hidden-greece/interpret",{
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:needText}),cache:"no-store"
+      });
+      const data=await response.json() as {ok:boolean;intent?:{mood:Mood|null;nights:number|null;mode:string};error?:string;needsClarification?:boolean};
+      if(!response.ok||!data.ok||!data.intent)throw new Error(data.error??"Δεν έγινε κατανόηση της ανάγκης.");
+      const choice=data.intent;
+      if(choice.mood||choice.nights)update({...choice.mood?{mood:choice.mood}:{},...choice.nights?{nights:choice.nights}:{}});
+      setIntentFeedback(data.needsClarification?"Δεν κατάλαβα με σιγουριά την προτεραιότητά σου. Επίλεξε μία ανάγκη παραπάνω.":"Προσάρμοσα τις προτάσεις στην ανάγκη σου. Τα αποτελέσματα βασίζονται στα πραγματικά στοιχεία της βάσης.");
+    }catch(e){setIntentFeedback(e instanceof Error?e.message:"Προσωρινό πρόβλημα. Χρησιμοποίησε τις έτοιμες επιλογές.");}
+    finally{setIntentLoading(false);}
+  };
   const selectCase=(id:string)=>{setSelected(id);setMode("details");};
   const seasonLabel=journey.season==="winter"?"Χειμώνας":journey.season==="spring"?"Άνοιξη":journey.season==="summer"?"Καλοκαίρι":"Φθινόπωρο";
   const selectedQuestion=questions.find(q=>q.id===journey.mood);
@@ -168,6 +186,14 @@ export default function HiddenGreeceExplorer(){
           aria-pressed={journey.mood===q.id}><span className={styles.needSelect}>{journey.mood===q.id?"✓":"↗"}</span>
           <strong>{q.label}</strong><small>{q.description}</small></button>)}
       </div>
+      <form className={styles.needForm} onSubmit={e=>{e.preventDefault();void interpretNeed();}}>
+        <label htmlFor="hg-your-need">Ή πες μας με δικά σου λόγια τι σου λείπει.</label>
+        <div className={styles.needInputGroup}><input id="hg-your-need" name="need" type="text" value={needText} minLength={8} maxLength={320} required
+          onChange={e=>setNeedText(e.target.value)} placeholder="Θέλω ένα διήμερο σε άγνωστο βουνό, με ησυχία και ωραίες διαδρομές…"/>
+          <button type="submit" disabled={intentLoading}>{intentLoading?"Κατανοούμε…":"Κατάλαβε την ανάγκη μου ↗"}</button></div>
+        <small>Η ερμηνεία υποστηρίζει κανόνες και προαιρετικό AI model. Μην καταχωρείς ευαίσθητα προσωπικά δεδομένα.</small>
+        {intentFeedback&&<p role="status">{intentFeedback}</p>}
+      </form>
       <div className={styles.tripBar}>
         <div className={styles.tripBarTitle}><span className={styles.microLabel}>02 — TRIP REALITY</span><strong>Πόσο χρόνο έχεις;</strong></div>
         <div className={styles.durationControl} role="group" aria-label="Διάρκεια ταξιδιού">
