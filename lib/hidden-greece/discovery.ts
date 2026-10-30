@@ -113,6 +113,7 @@ export function rankHiddenPlaces(places:readonly HiddenPlaceRow[], search:Hidden
   return places.filter(p=>
     coords(p.latitude,p.longitude) &&
     (search.publishedOnly === false || p.verification_status==="verified") &&
+    (!search.season || Boolean(p.seasons?.includes(search.season))) &&
     (!search.placeId || p.id===search.placeId)
   ).map(p=>{
     const hasSource = p.verification_status === "verified" && Boolean(p.source_url?.startsWith("https://"));
