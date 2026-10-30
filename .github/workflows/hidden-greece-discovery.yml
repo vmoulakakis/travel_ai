@@ -5,6 +5,9 @@ on:
       - "lib/hidden-greece/**"
       - "app/api/hidden-greece/**"
       - "scripts/hidden-greece-discovery-smoke.ts"
+      - "scripts/hidden-greece-v2-100-smoke.ts"
+      - "app/guides/hidden-greece/**"
+      - "app/sitemap.ts"
       - "package.json"
       - ".github/workflows/hidden-greece-discovery.yml"
   push:
@@ -35,3 +38,5 @@ jobs:
         run: npm run typecheck
       - name: Hidden Greece trust and trip date smoke
         run: npm run test:hidden-greece
+      - name: Hidden Greece 100 traveler, holidays and frontend contracts
+        run: npm run test:hidden-greece-v2
