@@ -201,6 +201,7 @@ export default function HiddenGreeceExplorer(){
               <div className={styles.realityCheck}><span className={styles.microLabel}>THE REALITY CHECK</span><p>{selectedCase.place.access_el??"Η τοπική πρόσβαση, ο καιρός και οι συνθήκες πρέπει να επιβεβαιωθούν πριν την αναχώρηση."}</p></div>
               <div className={styles.caseActions}>
                 <button type="button" onClick={()=>{setMode(mode==="details"?"explore":"details");document.getElementById("stay-area")?.scrollIntoView({behavior:"smooth",block:"start"});}} className={styles.primaryAction}>Σχεδίασε {durationLabel(journey.nights)} <span>↗</span></button>
+                <a href={`/guides/hidden-greece/${selectedCase.place.id}`}>Ο πλήρης οδηγός ↗</a>
                 {safeSource(selectedCase.place.source_url)&&<a href={safeSource(selectedCase.place.source_url)!} target="_blank" rel="noopener noreferrer">Δες την πηγή ↗</a>}
               </div>
             </>}
