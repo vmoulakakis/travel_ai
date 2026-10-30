@@ -8,7 +8,7 @@ const patterns:{mood:HiddenMood;words:string[]}[]=[
  {mood:"quiet",words:["ησυχ","ξεκουρα","αποφορτι","ηρεμ","χαλαρω","χωρις πολυκοσμ","μοναξ","quiet","silence","peace","digital detox"]},
  {mood:"nature",words:["φυσ","βουν","καταρρακ","νερα","δασ","λιμν","θαλασσ","μονοπατ","nature","forest","waterfall","landscape"]},
  {mood:"adventure",words:["περιπετ","πεζοπορ","ανακαλυψ","ανεξερευ","ορειβ","hiking","adventure","explor"]},
- {mood:"culture",words:["παραδοσ","ιστορι","χωρι","πολιτισ","μουσει","culture","village","heritage"]},
+ {mood:"culture",words:["παραδοσ","ιστορι","χωριο","χωρια","χωριου","πολιτισ","μουσει","culture","village","heritage"]},
  {mood:"romantic",words:["ρομαντ","ζευγαρ","ερωτευ","δυο μασ","romantic","couple"]},
 ];
 export function interpretHiddenNeedLocally(raw:string):InterpretedNeed{
