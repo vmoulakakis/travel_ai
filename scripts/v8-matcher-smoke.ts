@@ -89,6 +89,7 @@ assert(["arachova","karpenisi","zagori"].some(slug=>mountainSoft.slice(0,5).some
 const nearThessaly=rankGreece({...westernProfile,tripText:"Θέλω κάτι κοντά Λάρισα και Βόλο"});
 assert(nearThessaly.length>0,"Larissa/Volos proximity must retain nearby choices");
 assert(nearThessaly.every(item=>["larissa","volos","pelion","meteora"].includes(item.destination.slug)),`Larissa/Volos proximity leaked unrelated places: ${nearThessaly.map(item=>item.destination.slug)}`);
-const parsedElectric=parseTripRequest({...westernProfile,transportMode:"electric-car"});
+// Parse validation rejects past trip dates; keep this independent transport regression on a future fixture.
+const parsedElectric=parseTripRequest({...westernProfile,startDate:"2027-10-16",endDate:"2027-10-18",transportMode:"electric-car"});
 assert(parsedElectric.success&&parsedElectric.data.transportMode==="electric-car","Electric car must survive request validation");
 console.log("FREE_TEXT_HARD_CONSTRAINT_OK",JSON.stringify({query:westernProfile.tripText,results:western.map(item=>item.destination.slug),electricCar:parsedElectric.success}));
