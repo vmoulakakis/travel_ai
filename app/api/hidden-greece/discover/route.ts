@@ -68,8 +68,11 @@ export async function GET(request:Request) {
     const enriched=await Promise.all(cases.map(async place=>{
       // Stays are retrieved only *after* place ranking, preserving independence
       // from affiliate supply, price, feed popularity or merchant commissions.
-      if(!gate.enabled||!gate.approvedSite||!gate.approvedPrograms.size)
-        return {place,stays:[],reason:"affiliate_approval_required"};
+      // Discover stay candidates from the owner's *validated host/program universe*.
+      // Commercial outbound is independent: never return URLs unless site and program approval were verified.
+      const candidateGate:ApprovedCommerce={
+        enabled:true,approvedSite:true,approvedPrograms:new Set(["177","205"])
+      };
       const lat=place.latitude!,lon=place.longitude!;
       const box=.85; // broad 90 km bbox; fine precision filtering uses haversine below
       const offers=await rest<StayOfferRow[]>("stay_offers",{
@@ -79,8 +82,15 @@ export async function GET(request:Request) {
         tracking_url:"not.is.null",
         limit:"700"
       });
-      const stays=rankAffiliateStays(place,offers,gate,{nights,travelStartDate:start??undefined,travelEndDate:end??undefined,maxKm:60,limit:3});
-      return {place,stays,reason:stays.length?"affiliate_candidates_not_live_availability":"no_approved_nearby_stays"};
+      const candidates=rankAffiliateStays(place,offers,candidateGate,{nights,travelStartDate:start??undefined,travelEndDate:end??undefined,maxKm:60,limit:3});
+      const stays=candidates.map(stay=>({
+        ...stay,
+        affiliateUrl:gate.enabled && gate.approvedSite &&
+          gate.approvedPrograms.has((offers.find(o=>o.source_product_id===stay.sourceProductId)?.program_id)??"")
+          ? stay.affiliateUrl : null
+      }));
+      return {place,stays,reason:!stays.length?"no_fitting_stays_in_geo_radius":
+        stays.some(s=>s.affiliateUrl)?"partner_handoff_unconfirmed_availability":"affiliate_approval_required"};
     }));
     return NextResponse.json({
       ok:true,version:1,product:"hidden-greece",generatedAt:new Date().toISOString(),
