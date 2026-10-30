@@ -51,6 +51,10 @@ function themeLabel(kind:string|null){
   const names:Record<string,string>={waterfall:"Καταρράκτης",village:"Οικισμός",lake:"Λίμνη",forest:"Δάσος",gorge:"Φαράγγι",island:"Νησί",nature:"Φύση"};
   return names[kind]??kind.replace(/-/g," · ");
 }
+function safeHotelImage(value:string|null){
+  if(!value)return null;
+  try{const u=new URL(value);return u.protocol==="https:"?u.toString():null;}catch{return null;}
+}
 function safeSource(value:string|null){
   if(!value)return null;
   try{const u=new URL(value);return u.protocol==="https:"?u.toString():null;}catch{return null;}
@@ -220,7 +224,7 @@ export default function HiddenGreeceExplorer(){
               <div className={styles.panelTop}><div><span className={styles.microLabel}>YOUR STAY BASES</span><h3>Πού αξίζει να μείνεις;</h3></div><span>{selectedCase?.stays.length??0} επιλογές</span></div>
               {selectedCase?.stays.length?selectedCase.stays.map((stay,i)=><article className={styles.stayCard} key={stay.stayId}>
                 <div className={styles.stayNumber}>{String(i+1).padStart(2,"0")}</div>
-                <div className={styles.stayCardBody}><strong>{stay.propertyName}</strong><span>{stay.address??"Ακριβής διεύθυνση υπό επιβεβαίωση"}</span><div className={styles.stayTags}><small>{stay.distanceKmStraightLine} χλμ. σε ευθεία</small><small>Διαθεσιμότητα άγνωστη</small></div>
+                <div className={styles.stayCardBody}>{safeHotelImage(stay.imageUrl)&&<img className={styles.hotelPhoto} src={safeHotelImage(stay.imageUrl)!} alt={`Φωτογραφία καταλύματος: ${stay.propertyName}, από τον πάροχο`} width={440} height={300} loading="lazy" decoding="async" referrerPolicy="no-referrer"/>}<strong>{stay.propertyName}</strong><span>{stay.address??"Ακριβής διεύθυνση υπό επιβεβαίωση"}</span><div className={styles.stayTags}><small>{stay.distanceKmStraightLine} χλμ. σε ευθεία</small><small>Διαθεσιμότητα άγνωστη</small></div>
                   {stay.currency&&stay.observedOfferPrice!=null&&<p className={styles.feedPrice}>Παρατηρούμενη τιμή feed: {stay.observedOfferPrice.toLocaleString("el-GR")} {stay.currency} · όχι επιβεβαιωμένη τιμή ταξιδιού</p>}
                   {stay.affiliateUrl?<a className={styles.stayLink} href={stay.affiliateUrl} target="_blank" rel="sponsored noopener noreferrer">Έλεγξε την προσφορά στον συνεργάτη ↗</a>:<p className={styles.stayDisabled}>Σύνδεσμος κράτησης: εκκρεμεί εμπορική επαλήθευση.</p>}
                 </div>
