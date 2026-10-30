@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import styles from "./hidden-greece.module.css";
+import {upcomingGreekBreaks,type GreekBreak} from "@/lib/hidden-greece/holidays";
 
 type Place={
   id:string;name_el:string;region_el:string|null;latitude:number;longitude:number;
@@ -104,6 +105,8 @@ export default function HiddenGreeceExplorer(){
   const [message,setMessage]=useState("");
   const [mode,setMode]=useState<"explore"|"details">("explore");
   const [retry,setRetry]=useState(0);
+  const [holidayChoices,setHolidayChoices]=useState<GreekBreak[]>([]);
+  useEffect(()=>setHolidayChoices(upcomingGreekBreaks(new Date(),3)),[]);
   const selectedCase=cases.find(item=>item.place.id===selected)??cases[0]??null;
   const update=useCallback((change:Partial<Journey>)=>setJourney(prev=>({...prev,...change})),[]);
   useEffect(()=>{
@@ -170,7 +173,7 @@ export default function HiddenGreeceExplorer(){
           onChange={e=>{const d=e.target.value;update({start:d,season:d?seasonForMonth(Number(d.slice(5,7))):journey.season});}} /></label>
         <label className={styles.seasonField}><span>Εποχή</span><select value={journey.season} onChange={e=>update({season:e.target.value})}><option value="autumn">Φθινόπωρο</option><option value="winter">Χειμώνας</option><option value="spring">Άνοιξη</option><option value="summer">Καλοκαίρι</option></select></label>
       </div>
-      <div className={styles.quickAccess}><span>ΓΡΗΓΟΡΗ ΑΠΟΔΡΑΣΗ</span><button type="button" onClick={()=>update({start:nextFriday(),nights:2,season:seasonForMonth(Number(nextFriday().slice(5,7)))})}>Το επόμενο Σ/Κ ↗</button><button type="button" onClick={()=>update({start:""})}>Χωρίς ημερομηνίες</button></div>
+      <div className={styles.quickAccess}><span>ΓΡΗΓΟΡΗ ΑΠΟΔΡΑΣΗ</span><button type="button" onClick={()=>update({start:nextFriday(),nights:2,season:seasonForMonth(Number(nextFriday().slice(5,7)))})}>Το επόμενο Σ/Κ ↗</button><button type="button" onClick={()=>update({start:""})}>Χωρίς ημερομηνίες</button>{holidayChoices.map(h=><button type="button" key={h.id} title={h.why} onClick={()=>update({start:h.start,nights:h.nights,season:seasonForMonth(Number(h.start.slice(5,7)))})}>{h.label} · {h.start.slice(8,10)}/{h.start.slice(5,7)} ↗</button>)}</div>
     </section>
 
     <section className={styles.resultsSection} aria-labelledby="resultTitle">
