@@ -16,7 +16,8 @@ type Stay={
   observedOfferPrice:number|null;currency:string|null;
   bookingStatus:string;qualityStatus:string;score:number;
 };
-type Case={place:Place;stays:Stay[];reason:string};
+type DayPlan={day:number;heading:string;focus:string;steps:string[];requiresVerification:string[]};
+type Case={place:Place;stays:Stay[];plan?:{nights:number;days:DayPlan[];status:string;disclaimer:string};reason:string};
 type Result={ok:boolean;count:number;cases:Case[];generatedAt?:string;methodology?:Record<string,string>};
 type Mood="nature"|"quiet"|"adventure"|"culture"|"romantic"|"family"|"";
 type Journey={mood:Mood;nights:number;start:string;season:string};
@@ -241,8 +242,18 @@ export default function HiddenGreeceExplorer(){
           </div>
         </div>
 
+        {selectedCase?.plan&&<section className={styles.itinerarySection} aria-label="Ενδεικτικό πρόγραμμα ταξιδιού">
+          <div className={styles.itineraryHeading}><div><span className={styles.microLabel}>04 — THE JOURNEY IN DETAIL</span><h2>Το ταξίδι σου,<br/><em>μέρα με τη μέρα.</em></h2></div>
+            <p>{selectedCase.place.name_el} · {durationLabel(selectedCase.plan.nights)} · {selectedCase.plan.days.length} ημέρες</p></div>
+          <div className={styles.dayRail}>{selectedCase.plan.days.map(day=><article key={day.day} className={styles.dayCard}>
+            <span className={styles.dayNumber}>{String(day.day).padStart(2,"0")}</span>
+            <div className={styles.dayCardBody}><small>{day.focus}</small><h3>{day.heading}</h3>
+              <ol>{day.steps.map((step,i)=><li key={i}>{step}</li>)}</ol>
+            </div></article>)}</div>
+          <p className={styles.planDisclaimer}>{selectedCase.plan.disclaimer}</p>
+        </section>}
         <div id="stay-area" className={styles.stayArea}>
-          <div className={styles.stayIntro}><div><span className={styles.microLabel}>04 — WHERE THE JOURNEY COMES TOGETHER</span><h2>Ένα μέρος.<br/><em>Μια ολόκληρη απόδραση.</em></h2></div>
+          <div className={styles.stayIntro}><div><span className={styles.microLabel}>05 — WHERE THE JOURNEY COMES TOGETHER</span><h2>Ένα μέρος.<br/><em>Μια ολόκληρη απόδραση.</em></h2></div>
             <p>{selectedCase?.place.name_el} — οι πιθανές βάσεις διαμονής αποτυπώνονται πάνω στον χάρτη. Κανένα κατάλυμα δεν εμφανίζεται ως διαθέσιμο χωρίς έλεγχο ημερομηνιών.</p></div>
           <div className={styles.mapAndStays}>
             <MapCanvas active={selectedCase}/>
