@@ -3,6 +3,7 @@ import {
   rankAffiliateStays,rankHiddenPlaces,
   type HiddenPlaceRow,type StayOfferRow,type ApprovedCommerce
 } from "@/lib/hidden-greece/discovery";
+import {buildHiddenTripPlan} from "@/lib/hidden-greece/itinerary";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -89,7 +90,7 @@ export async function GET(request:Request) {
           gate.approvedPrograms.has((offers.find(o=>o.source_product_id===stay.sourceProductId)?.program_id)??"")
           ? stay.affiliateUrl : null
       }));
-      return {place,stays,reason:!stays.length?"no_fitting_stays_in_geo_radius":
+      return {place,stays,plan:buildHiddenTripPlan(place,nights),reason:!stays.length?"no_fitting_stays_in_geo_radius":
         stays.some(s=>s.affiliateUrl)?"partner_handoff_unconfirmed_availability":"affiliate_approval_required"};
     }));
     return NextResponse.json({
