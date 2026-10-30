@@ -46,8 +46,8 @@ for(const season of ["autumn","spring","summer","winter"]){
  for(const mood of ["quiet","nature","adventure","family","romantic"]){
   for(const nights of [1,2,3,4,7]){
    const ranked=rankHiddenPlaces([place,{...place,id:"unreviewed",verification_status:"seeded",source_url:null}],{season,mood,nights,publishedOnly:true});
-   assert.equal(ranked.length,1,"non-verified place never enters public results");
-   assert(ranked[0].discoveryFitScore>=0&&ranked[0].discoveryFitScore<=100);
+   assert.equal(ranked.length,place.seasons?.includes(season)?1:0,"season-ineligible and seed-only locations must not appear");
+   if(ranked.length)assert(ranked[0]!.discoveryFitScore>=0&&ranked[0]!.discoveryFitScore<=100);
    const valid=rankAffiliateStays(place,[offer],gate,{now:new Date("2026-10-30T09:00:00Z"),nights,limit:3});
    assert.equal(valid.length,nights===1?1:0,"advertised night count is hard constraint");
    assert.equal(rankAffiliateStays(place,[offer],closed,{now:new Date("2026-10-30T09:00:00Z"),nights}).length,0,"no unapproved outbound can be released");
