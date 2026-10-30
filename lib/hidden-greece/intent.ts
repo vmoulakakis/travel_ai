@@ -21,7 +21,7 @@ export function interpretHiddenNeedLocally(raw:string):InterpretedNeed{
  else if(/(τριημερ|3\s*νυχτ|3\s*night)/.test(clean))nights=3;
  else if(/(εβδομαδ|7\s*νυχτ|7\s*night|week\b)/.test(clean))nights=7;
  else {
-  const explicit=/\b([1-7])\s*(?:νυχτ|νυκτ|διανυκτερευ|nights?)\b/.exec(clean);
+  const explicit=/([1-7])\s*(?:νυχτ|νυκτ|διανυκτερευ|nights?)/.exec(clean);
   if(explicit)nights=Number(explicit[1]);
  }
  const dominant=hits[0]?.mood??null;
