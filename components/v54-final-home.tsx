@@ -362,7 +362,6 @@ export function V54FinalHome(){
     </div>
    </div>
    <div className={styles.mapStage}>
-    {mapIntelligence?.focus?<div className={styles.mapFocusCard}><span>AI AREA FOCUS</span><b>{mapIntelligence.focus.label}</b><div><i>Demand <strong>{mapIntelligence.focus.demand}</strong></i><i>Season <strong>{mapIntelligence.focus.seasonality}</strong></i><i>Value <strong>{mapIntelligence.focus.value}</strong></i></div><small>{mapIntelligence.focus.reason}</small></div>:null}
     <div className={styles.mapAiDock}>
      <div className={styles.mapAiDockHead}><Brain weight="fill"/><div><b>AI Stay Finder</b><span>{busy?"Σκανάρω inventory…":"Διάλεξε vibe — τα υπόλοιπα τα κάνει η AI"}</span></div></div>
      <div className={styles.mapFunChips}>
