@@ -1,0 +1,28 @@
+/* Agentic-first TravelAI UX v1, intentionally separate from the legacy V54 map.
+   Design tokens: Aegean pine, warm chalk, sunlit brass, editorial Greek typography. */
+.intro{--pine:#123d35;--chalk:#faf6ee;--brass:#eebc75;position:relative;isolation:isolate;min-height:clamp(530px,70vh,760px);display:flex;align-items:center;overflow:hidden;background:#11352f;color:#faf6ee;padding:72px clamp(24px,6vw,108px);font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+.introPhoto{position:absolute;inset:0;z-index:-2;background-size:cover;background-position:center 48%;filter:saturate(.8)}
+.intro::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(91deg,rgba(5,32,27,.96) 0%,rgba(8,39,35,.87) 45%,rgba(9,39,35,.18) 100%)}
+.introContent{max-width:830px;display:flex;flex-direction:column;align-items:flex-start;gap:20px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.2em;color:var(--brass);text-transform:uppercase}
+.headline{font:500 clamp(42px,5.6vw,90px)/1.055 Georgia,"Times New Roman",serif;letter-spacing:-.045em;margin:0;max-width:780px;text-wrap:balance;color:var(--chalk)}
+.headline em{color:var(--brass);font-weight:400}
+.summary{font-size:clamp(16px,1.4vw,20px);line-height:1.65;max-width:650px;color:#e1e8e1;margin:0}
+.promptForm{background:#fffdfa;color:#173e36;padding:9px 10px 9px 24px;display:flex;align-items:center;gap:12px;border:1px solid rgba(255,255,255,.7);border-radius:16px;width:min(100%,720px);box-shadow:0 18px 64px rgba(0,0,0,.19)}
+.promptForm input{min-width:0;flex:1;background:transparent;border:0;color:#173e36;font-size:16px;outline:0;padding:10px 0}
+.promptForm input::placeholder{color:#6e8078}
+.promptForm:focus-within{outline:3px solid #f2c17f;outline-offset:3px}
+.promptForm button{border:0;border-radius:11px;background:#eab66e;color:#183b31;min-height:48px;padding:0 21px;display:flex;align-items:center;gap:8px;font-weight:750;cursor:pointer;white-space:nowrap}
+.promptForm button:hover:not(:disabled){background:#f5ca8c}
+.promptForm button:disabled{opacity:.6;cursor:progress}
+.examples{display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:760px}
+.examples span{font-size:12px;color:#c3d4cd;margin-right:4px}
+.examples button{cursor:pointer;color:#fff5e8;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.22);padding:9px 13px;border-radius:100px;font-size:12px;transition:background .15s}
+.examples button:hover,.examples button:focus-visible{background:rgba(255,255,255,.23)}
+.quietLink{display:inline-flex;align-items:center;gap:8px;color:#fff2db;text-decoration:underline;text-underline-offset:5px;font-size:13px;margin-top:4px}
+.assurance{font-size:12px;color:#b9cec5;line-height:1.5;margin:0}
+.discoveryHeader{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:12px 0}
+.discoveryHeader h2{font:500 clamp(29px,2.8vw,44px)/1.1 Georgia,serif;letter-spacing:-.035em;margin:0}
+.discoveryHeader p{font-size:14px;line-height:1.6;max-width:700px;margin:8px 0 0;color:#546b62}
+@media(max-width:760px){.intro{padding:52px 21px 49px;min-height:620px;align-items:center}.intro::before{background:linear-gradient(180deg,rgba(5,32,27,.90),rgba(5,32,27,.83))}.introContent{gap:17px}.headline{font-size:clamp(38px,10.5vw,56px);letter-spacing:-.035em}.summary{font-size:15px;line-height:1.55}.promptForm{padding:7px 7px 7px 14px}.promptForm input{font-size:14px}.promptForm button{min-height:44px;padding:0 13px;font-size:12px}.promptForm button svg{display:none}.examples{gap:7px}.examples button{font-size:11px;padding:8px 10px}.discoveryHeader{display:block}}
+@media(prefers-reduced-motion:reduce){.examples button{transition:none}}
