@@ -7,6 +7,7 @@ import {
   PaperPlaneTilt,ShieldCheck,Sparkle,Star,Users,Wallet,MagnifyingGlass,UserCircle,PlayCircle,Globe,AirplaneTilt,Images
 } from "@phosphor-icons/react";
 import styles from "./v54-final-home.module.css";
+import experienceStyles from "./agentic-experience-entry.module.css";
 
 type FilterKey="calm"|"food"|"nature"|"discovery"|"nightlife"|"value";
 type Filters=Record<FilterKey,number>;
@@ -40,6 +41,7 @@ export function V54FinalHome(){
  const [budget,setBudget]=useState(800);
  const [intent,setIntent]=useState("Χαλάρωση");
  const [freeText,setFreeText]=useState("");
+ const [discoveryPrompt,setDiscoveryPrompt]=useState("");
  const [filters,setFilters]=useState<Filters>(defaults);
  const [agentMessage,setAgentMessage]=useState("Πες μου τι χρειάζεσαι και θα περιορίσω τις επιλογές σε όσες αξίζουν πραγματικά.");
  const [agentRuntime,setAgentRuntime]=useState<AgentResponse["agentRuntime"]|null>(null);
@@ -317,8 +319,26 @@ export function V54FinalHome(){
   <header className={styles.nav}>
    <a className={styles.logo} href="/">TRAVEL<span>AI</span><small>AI ESCAPE INTELLIGENCE</small></a>
    <nav><a href="#destinations">Προορισμοί</a><a href="#stays">Διαμονή</a><a href="#featured">Εμπειρίες</a><a href="#planner">AI Planner</a><a href="#how">Πώς λειτουργεί</a><a href="#about">Σχετικά</a></nav>
-   <div className={styles.navActions}><button aria-label="Αναζήτηση"><MagnifyingGlass/></button><button className={styles.login}><UserCircle/> Σύνδεση</button><button className={styles.navCta} onClick={()=>document.getElementById("map")?.scrollIntoView({behavior:"smooth"})}>Ξεκίνα το ταξίδι σου <ArrowRight/></button></div>
+   <div className={styles.navActions}><a className={styles.navCta} href="#discover-start">Ξεκίνα το ταξίδι σου <ArrowRight/></a></div>
   </header>
+
+  <section id="discover-start" className={experienceStyles.intro} aria-labelledby="travelai-intro-title">
+   <div className={experienceStyles.introPhoto} aria-hidden="true" style={heroMedia[0]?.imageUrl?{backgroundImage:`url("${heroMedia[0].imageUrl.replace(/["\\]/g,"")}")`}:undefined}/>
+   <div className={experienceStyles.introContent}>
+    <span className={experienceStyles.eyebrow}>TRAVELAI GREECE · YOUR PERSONAL GREEK ESCAPE</span>
+    <h1 id="travelai-intro-title" className={experienceStyles.headline}>Η Ελλάδα που <em>σου ταιριάζει.</em></h1>
+    <p className={experienceStyles.summary}>Πες μου τι ταξίδι ονειρεύεσαι. Θα συγκρίνω προορισμούς, εποχές, εμπειρίες και πραγματικά καταλύματα για να σου προτείνω μια απόδραση με νόημα.</p>
+    <form className={experienceStyles.promptForm} onSubmit={event=>{event.preventDefault();if(discoveryPrompt.trim()&&!busy){setFreeText(discoveryPrompt.trim());void runAgent(discoveryPrompt.trim());}}}>
+     <input aria-label="Περιέγραψε το ταξίδι σου" placeholder="Π.χ. Ρομαντικό τριήμερο χωρίς αυτοκίνητο…" value={discoveryPrompt} maxLength={1000} onChange={event=>setDiscoveryPrompt(event.target.value)} />
+     <button type="submit" disabled={busy||!discoveryPrompt.trim()}>{busy?"Αναζητώ…":"Βρες μου απόδραση"} <ArrowRight size={17}/></button>
+    </form>
+    <div className={experienceStyles.examples} aria-label="Παραδείγματα ταξιδιού"><span>Δοκίμασε:</span>
+     {["Φύση και ησυχία τον Νοέμβριο","Τριήμερο από Αθήνα χωρίς αυτοκίνητο","Αυθεντικά χωριά με καλό φαγητό"].map(text=><button key={text} type="button" onClick={()=>{setDiscoveryPrompt(text);setFreeText(text);void runAgent(text)}} disabled={busy}>{text}</button>)}
+    </div>
+    <a className={experienceStyles.quietLink} href="#map">Ή εξερεύνησε τα καταλύματα στον χάρτη <ArrowRight size={15}/></a>
+    <p className={experienceStyles.assurance}>Πραγματικές διαμονές · Εξηγήσιμες επιλογές · Η κράτηση ολοκληρώνεται στον πάροχο</p>
+   </div>
+  </section>
 
   <div className={styles.focusBar}>
    <div className={styles.focusWhere}><MapPin weight="fill"/><span>Πεδίο αναζήτησης:</span><b>{destination||"Όλη η Ελλάδα"}</b></div>
@@ -333,9 +353,9 @@ export function V54FinalHome(){
   <section id="map" className={styles.mapFirst}>
    <div className={styles.mapFirstTop}>
     <div>
-     <small>AI MAP · DEFAULT INTELLIGENCE VIEW</small>
-     <h1>Η AI ξεκινά από την <em>καλύτερη περιοχή τώρα.</em></h1>
-     <p>Το πρώτο focus παράγεται από live demand signal, seasonality και local best value. Τα μεγάλα ⭐ Discovery αναδεικνύουν μέρη με υψηλή εμπειρία, καλό seasonal fit και value — χωρίς να κρύβουν κανένα από τα 1.700+ stays.</p>
+     <small>DISCOVER GREECE · EXPLORE REAL STAYS</small>
+     <h1>Η επόμενη <em>απόδρασή σου αρχίζει εδώ.</em></h1>
+     <p>Εξερεύνησε πραγματικά καταλύματα σε όλη την Ελλάδα. Η AI μπορεί να προτείνει περιοχές και διαμονές με βάση τις ανάγκες σου — οι τιμές, οι κριτικές και η διαθεσιμότητα επιβεβαιώνονται από τις αντίστοιχες πηγές.</p>
     </div>
     <div className={styles.mapAiFlow}>
      <span>{mapIntelligence?.focus?.label??"AI scanning"}</span><i>→</i><span>Demand {mapIntelligence?.focus?.demand??"–"}</span><i>→</i><span>Season {mapIntelligence?.focus?.seasonality??"–"}</span><i>→</i><b>Value {mapIntelligence?.focus?.value??"–"}</b>
